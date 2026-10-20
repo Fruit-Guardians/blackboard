@@ -1,0 +1,16 @@
+.DS_Store
+node_modules/
+
+# Local blackboard runtime data and generated previews
+.flow/
+.demo/
+demo/
+blackboard.html
+flow.html
+
+# Local Codex verification artifacts
+.codex/
+
+# Local editor and agent settings
+.claude/settings.local.json
+*.log

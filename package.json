@@ -1,0 +1,19 @@
+{
+  "name": "blackboard",
+  "version": "0.4.0",
+  "description": "Agent 外置黑板：自由探索，持续记录逻辑节点、关系、当前游标与轨迹",
+  "type": "module",
+  "bin": {
+    "blackboard": "./bin/blackboard.js",
+    "flow": "./bin/flow.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test",
+    "serve": "node bin/blackboard.js serve",
+    "export": "node bin/blackboard.js export"
+  },
+  "license": "MIT"
+}
