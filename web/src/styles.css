@@ -1,0 +1,225 @@
+@import "tailwindcss" source("./");
+@import "@xyflow/react/dist/style.css" layer(base);
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--ink);
+  --color-primary-foreground: var(--bg);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--ink-3);
+  --color-subtle: var(--ink-2);
+  --color-accent: var(--surface-2);
+  --color-accent-foreground: var(--ink);
+  --color-border: var(--line);
+  --color-strong: var(--line-strong);
+  --color-input: var(--line-strong);
+  --color-ring: var(--ink);
+  --color-destructive: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-live: var(--live);
+
+  --color-node-goal: var(--node-goal);
+  --color-node-intent: var(--node-intent);
+  --color-node-hypothesis: var(--node-hypothesis);
+  --color-node-question: var(--node-question);
+  --color-node-fact: var(--node-fact);
+  --color-node-observation: var(--node-observation);
+  --color-node-action: var(--node-action);
+  --color-node-result: var(--node-result);
+  --color-node-finding: var(--node-finding);
+  --color-node-vuln: var(--node-vuln);
+  --color-node-hint: var(--node-hint);
+  --color-node-summary: var(--node-summary);
+  --color-node-note: var(--node-note);
+  --color-node-start: var(--node-start);
+
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-float: 0 0 0 1px var(--line), 0 8px 24px -4px rgb(0 0 0 / 0.08), 0 2px 6px -2px rgb(0 0 0 / 0.06);
+}
+
+/* Blackboard — neutral surfaces, one monochrome accent, colour only where it carries meaning. */
+:root {
+  color-scheme: light;
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f4f4f5;
+  --surface-3: #e4e4e7;
+  --ink: #09090b;
+  --ink-2: #52525b;
+  --ink-3: #6b6b76;
+  --line: #e8e8ec;
+  --line-strong: #d4d4d8;
+  --live: #16a34a;
+  --danger: #b91c1c;
+  --rel-support: #16a34a;
+  --rel-oppose: #dc2626;
+  --rel-derive: #6366f1;
+  --rel-produce: #d97706;
+  --rel-replace: #71717a;
+  --danger-soft: #fef2f2;
+
+  --node-start: #16a34a;
+  --node-goal: #2563eb;
+  --node-intent: #6366f1;
+  --node-hypothesis: #d97706;
+  --node-question: #ca8a04;
+  --node-fact: #0891b2;
+  --node-observation: #0d9488;
+  --node-action: #64748b;
+  --node-result: #7c3aed;
+  --node-finding: #dc2626;
+  --node-vuln: #dc2626;
+  --node-hint: #db2777;
+  --node-summary: #64748b;
+  --node-note: #a1a1aa;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #09090b;
+  --surface: #111113;
+  --surface-2: #1a1a1d;
+  --surface-3: #27272a;
+  --ink: #fafafa;
+  --ink-2: #a1a1aa;
+  --ink-3: #8b8b95;
+  --line: #232326;
+  --line-strong: #3a3a40;
+  --live: #4ade80;
+  --danger: #f87171;
+  --rel-support: #4ade80;
+  --rel-oppose: #f87171;
+  --rel-derive: #818cf8;
+  --rel-produce: #fbbf24;
+  --rel-replace: #a1a1aa;
+  --danger-soft: #2a1515;
+
+  --node-start: #4ade80;
+  --node-goal: #60a5fa;
+  --node-intent: #818cf8;
+  --node-hypothesis: #fbbf24;
+  --node-question: #facc15;
+  --node-fact: #22d3ee;
+  --node-observation: #2dd4bf;
+  --node-action: #94a3b8;
+  --node-result: #a78bfa;
+  --node-finding: #f87171;
+  --node-vuln: #f87171;
+  --node-hint: #f472b6;
+  --node-summary: #94a3b8;
+  --node-note: #71717a;
+}
+
+@layer base {
+  *, ::before, ::after { border-color: var(--line); }
+  html, body, #root { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  button { cursor: pointer; }
+  ::selection { background: color-mix(in srgb, var(--ink) 14%, transparent); }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+}
+
+/* ---- React Flow ------------------------------------------------------- */
+.react-flow {
+  --xy-background-color: transparent;
+  --xy-background-pattern-dots-color-default: var(--line-strong);
+  --xy-edge-stroke-default: var(--line-strong);
+  --xy-edge-stroke-width-default: 1.25;
+  --xy-edge-label-background-color-default: var(--bg);
+  --xy-edge-label-color-default: var(--ink-3);
+  --xy-node-boxshadow-selected-default: none;
+  --xy-minimap-background-color-default: var(--surface);
+  --xy-minimap-mask-background-color-default: color-mix(in srgb, var(--bg) 70%, transparent);
+  --xy-minimap-mask-stroke-color-default: var(--line-strong);
+  --xy-minimap-mask-stroke-width-default: 1;
+}
+.react-flow__edge-path { stroke: var(--line-strong); transition: stroke .15s, opacity .15s; }
+/* One colour per relation family, softened so a dense board stays calm. */
+.react-flow {
+  --edge-link: var(--line-strong);
+  --edge-support: color-mix(in srgb, var(--rel-support) 70%, var(--line-strong));
+  --edge-oppose: color-mix(in srgb, var(--rel-oppose) 70%, var(--line-strong));
+  --edge-derive: color-mix(in srgb, var(--rel-derive) 70%, var(--line-strong));
+  --edge-produce: color-mix(in srgb, var(--rel-produce) 70%, var(--line-strong));
+  --edge-replace: color-mix(in srgb, var(--rel-replace) 70%, var(--line-strong));
+}
+.react-flow__edge.edge-g-support .react-flow__edge-path { stroke: var(--edge-support); }
+.react-flow__edge.edge-g-oppose .react-flow__edge-path { stroke: var(--edge-oppose); stroke-dasharray: 5 4; }
+.react-flow__edge.edge-g-derive .react-flow__edge-path { stroke: var(--edge-derive); }
+.react-flow__edge.edge-g-produce .react-flow__edge-path { stroke: var(--edge-produce); }
+.react-flow__edge.edge-g-replace .react-flow__edge-path { stroke: var(--edge-replace); stroke-dasharray: 2 4; }
+/* A focused edge keeps its family colour at full strength; unclassified links turn to ink. */
+.react-flow__edge.is-focused .react-flow__edge-path { stroke: var(--ink); }
+.react-flow__edge.is-focused.edge-g-support .react-flow__edge-path { stroke: var(--rel-support); }
+.react-flow__edge.is-focused.edge-g-oppose .react-flow__edge-path { stroke: var(--rel-oppose); }
+.react-flow__edge.is-focused.edge-g-derive .react-flow__edge-path { stroke: var(--rel-derive); }
+.react-flow__edge.is-focused.edge-g-produce .react-flow__edge-path { stroke: var(--rel-produce); }
+.react-flow__edge.is-focused.edge-g-replace .react-flow__edge-path { stroke: var(--rel-replace); }
+.react-flow__edge.is-muted .react-flow__edge-text,
+.react-flow__edge.is-muted .react-flow__edge-textbg { opacity: 0; }
+.react-flow__edge-text { fill: var(--ink-3); font-size: 10px; font-weight: 450; }
+.react-flow__edge-textbg { fill: var(--bg); }
+.react-flow__node { cursor: pointer; }
+.react-flow__node-boardGroup { cursor: default; }
+.react-flow__minimap {
+  width: 140px !important;
+  height: 88px !important;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: var(--shadow-float);
+}
+.react-flow__panel { margin: 12px; }
+.react-flow__pane { cursor: default; }
+.react-flow__pane.dragging { cursor: grabbing; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after { transition-duration: 0s !important; animation-duration: 0s !important; }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--live) 45%, transparent); }
+  100% { box-shadow: 0 0 0 6px transparent; }
+}
+.live-dot { animation: pulse-ring 2s ease-out infinite; }
+
+/* Radix open/close motion for floating surfaces. */
+@keyframes surface-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes surface-out { from { opacity: 1; } to { opacity: 0; transform: scale(.98); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes slide-in-right { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+.anim-surface[data-state="open"] { animation: surface-in .14s ease-out; }
+.anim-surface[data-state="closed"] { animation: surface-out .1s ease-in; }
+.anim-fade[data-state="open"] { animation: fade-in .14s ease-out; }
+.anim-fade[data-state="closed"] { animation: fade-out .1s ease-in; }
+.anim-slide-in { animation: slide-in-right .18s ease-out; }
+
+/* Nodes the Agent just wrote or changed. */
+@keyframes fresh-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ink) 40%, transparent); border-color: var(--ink); }
+  100% { box-shadow: 0 0 0 10px transparent; }
+}
+.fresh-pulse { animation: fresh-ring 1.4s ease-out 3; }
