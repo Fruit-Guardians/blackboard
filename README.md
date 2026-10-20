@@ -95,6 +95,14 @@ GET /api/context?agent=agent:primary&focus=<node-id>&depth=2&budget=4000&since=<
 `nextStepSelection: "agent-controlled"`。预算只是 JSON 大小的近似控制，不是模型
 Tokenizer 的精确计数；裁剪情况会记录在 `omitted` 中。
 
+## 节点与 ID
+
+节点 ID 是按类型递增的短 ID，在写锁内分配：`n1`、`hy3`、`o2`；活动是 `act5`，检查点是 `cp2`。所有接受 ID 的命令还可以这样写：
+
+- 带方括号：`[n1]`（直接粘贴 Digest 里的写法）；
+- 忽略大小写：`HY3`；
+- 唯一前缀：`hy`（有多个候选时会报错并列出候选，不会猜）。
+
 ## 节点
 
 内置类型只负责语义提示和视觉颜色，不构成状态机：
@@ -184,7 +192,7 @@ Digest 恢复：
 - 最近检查点；
 - 最近逻辑节点。
 
-Digest 只恢复现场，不指定 Agent 的下一步。
+没有游标时，Digest 改为列出“最近活跃节点”及其关系，而不是留空。Digest 只恢复现场，不指定 Agent 的下一步。
 
 ## 原始活动（可选，默认关闭）
 
@@ -254,8 +262,12 @@ node / edge / cursor / activity / checkpoint / patch / meta / reset
 - 新事件带 `eventVersion` 和唯一 `eventId`；
 - 节点 ID 不依赖 `state.json` 计数器；
 - `state.json` 损坏时可以从事件恢复标题和游标；
-- 活锁超时会失败，不会删除仍有效的锁；
-- 追加前会清理 JSONL 尾部的不完整记录。
+- 多进程写入由跨进程文件锁串行化；只有持有者进程已不存在时才会回收锁，仍存活的持有者永远不会被抢占。等待上限默认 10 秒（`BLACKBOARD_LOCK_TIMEOUT_MS` 可调），超时会报错而不是强行写入；
+- `state.json` 只是可丢弃的缓存，写入失败不会让已经记录的事件报错；
+- 追加前会清理 JSONL 尾部的不完整记录；
+- 回放时会跳过无法解析的行，以及缺 `id`/`type` 的节点、自环或端点不存在的关系；跳过的数量会通过 `blackboard lint` 的 `log-integrity` 警告报告，而不是静默丢弃；
+- `patch` 不能改写节点的 `id` 和 `ts`；
+- 超长内容会被截断（标题 500 字、detail 20000 字、摘要 12000 字），截断时命令会在 stderr 提示，`--json` 结果带 `truncated` 字段。
 
 ## 可视化
 
