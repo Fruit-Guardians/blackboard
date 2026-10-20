@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -14,9 +14,11 @@ import {
   moveCursor,
   paths,
   replay,
+  reset,
   setMeta,
+  withLock,
 } from '../lib/store.js';
-import { currentCursor } from '../lib/model.js';
+import { currentCursor, apply, emptyGraph } from '../lib/model.js';
 import { buildDigest } from '../lib/digest.js';
 import { installHooks, runHook, uninstallHooks } from '../lib/hooks.js';
 import { renderExport } from '../lib/export.js';
@@ -240,4 +242,96 @@ test('optional blackboard hooks can be removed without touching unrelated hooks'
 
   assert.match(JSON.stringify(updated), /echo unrelated/);
   assert.doesNotMatch(JSON.stringify(updated), /\.flow\/events\.jsonl/);
+});
+
+
+test('offline viewer preserves deferred module startup and the board title', (t) => {
+  const dir = fixture(t);
+  setMeta({ title: 'Offline <board>' }, dir);
+  const html = renderExport({ cwd: dir });
+  assert.match(html, /<script type="module">/);
+  assert.match(html, /<div id="root"><\/div>/);
+  assert.match(html, /<title>Offline &lt;board&gt; — 思考工作台<\/title>/);
+  assert.doesNotMatch(html, /<script[^>]+src=/);
+  assert.doesNotMatch(html, /<link[^>]+href="\/assets\//);
+});
+
+test('reset clears the replayed graph', (t) => {
+  const dir = fixture(t);
+  const a = addNode({ type: 'goal', title: 'old', enter: true }, dir).node;
+  addNode({ type: 'note', title: 'older', parent: a.id }, dir);
+  reset(dir);
+  let g = replay(dir);
+  assert.deepEqual([Object.keys(g.nodes).length, Object.keys(g.edges).length, g.cursorTrail.length], [0, 0, 0]);
+  addNode({ type: 'goal', title: 'new' }, dir);
+  g = replay(dir);
+  assert.deepEqual(Object.values(g.nodes).map((n) => n.title), ['new']);
+});
+
+test('replay ignores malformed nodes and edges that do not connect two existing nodes', () => {
+  const g = emptyGraph();
+  apply(g, { op: 'node', node: { id: 'a', type: 'note', title: 'A' } });
+  apply(g, { op: 'node', node: { id: 'b', type: 'note', title: 'B' } });
+  apply(g, { op: 'node', node: { type: 'note', title: 'no id' } });
+  apply(g, { op: 'node', node: { id: 'c', title: 'no type' } });
+  apply(g, { op: 'edge', edge: { id: 'ok', from: 'a', to: 'b', kind: 'related-to' } });
+  apply(g, { op: 'edge', edge: { id: 'dangling', from: 'a', to: 'missing', kind: 'related-to' } });
+  apply(g, { op: 'edge', edge: { id: 'loop', from: 'a', to: 'a', kind: 'related-to' } });
+  assert.deepEqual(Object.keys(g.nodes).sort(), ['a', 'b']);
+  assert.deepEqual(Object.keys(g.edges), ['ok']);
+});
+
+test('concurrent writer processes never lose or duplicate a node', async (t) => {
+  const dir = fixture(t);
+  const store = path.resolve(HERE, '..', 'lib', 'store.js');
+  const code = `import(${JSON.stringify(store)}).then(({addNode})=>{for(let i=0;i<15;i++)addNode({type:'note',title:process.argv[1]+'-'+i},${JSON.stringify(dir)})})`;
+  const run = (id) => new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['-e', code, id], { stdio: 'pipe' });
+    let err = '';
+    child.stderr.on('data', (d) => { err += d; });
+    child.on('exit', (c) => (c === 0 ? resolve() : reject(new Error(err))));
+  });
+  await Promise.all(Array.from({ length: 6 }, (_, i) => run(`w${i}`)));
+  const nodes = Object.values(replay(dir).nodes);
+  assert.equal(nodes.length, 90);
+  assert.equal(new Set(nodes.map((n) => n.id)).size, 90);
+});
+
+test('a live lock owner is never evicted, a dead owner is', (t) => {
+  const dir = fixture(t);
+  const lock = paths(dir).lock;
+  // A live owner whose lock looks ancient must be respected.
+  process.env.BLACKBOARD_LOCK_TIMEOUT_MS = '400';
+  t.after(() => { delete process.env.BLACKBOARD_LOCK_TIMEOUT_MS; });
+  const holder = spawn(process.execPath, ['-e', 'setTimeout(()=>{},60000)']);
+  t.after(() => holder.kill());
+  fs.writeFileSync(lock, `${holder.pid}\n1\n`);
+  fs.utimesSync(lock, new Date(0), new Date(0));
+  assert.throws(() => addNode({ type: 'note', title: 'blocked' }, dir), /lock timeout/);
+  assert.equal(Object.keys(replay(dir).nodes).length, 0);
+  // Once the owner dies, the stale lock is reclaimed.
+  holder.kill();
+  return new Promise((resolve) => holder.on('exit', resolve)).then(() => {
+    addNode({ type: 'note', title: 'after' }, dir);
+    assert.equal(Object.keys(replay(dir).nodes).length, 1);
+  });
+});
+
+test('releasing the lock leaves a lock taken over by someone else alone', (t) => {
+  const dir = fixture(t);
+  const lock = paths(dir).lock;
+  withLock(() => {
+    fs.writeFileSync(lock, 'someone-else\n');
+  }, dir);
+  assert.equal(fs.readFileSync(lock, 'utf8'), 'someone-else\n');
+});
+
+test('a failing state cache write does not fail an already-recorded node', (t) => {
+  const dir = fixture(t);
+  const { state } = paths(dir);
+  fs.rmSync(state);
+  fs.mkdirSync(state); // writeState's rename onto a directory fails
+  const { node } = addNode({ type: 'goal', title: 'kept', enter: true }, dir);
+  assert.equal(replay(dir).nodes[node.id].title, 'kept');
+  assert.equal(currentCursor(replay(dir)), node.id);
 });
