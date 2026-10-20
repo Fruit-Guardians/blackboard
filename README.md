@@ -218,16 +218,17 @@ blackboard serve --open
 
 视图支持：
 
-- “当前现场 / 逻辑图 / 时间线 / 全部”四种观察方式；
+- “当前现场 / 逻辑链 / 全局图”三种观察方式；
 - 当前现场只投影当前节点、两跳邻域、开放节点和最近内容；
-- 未建立关系的节点进入“未整理”列表，不再拉长主图；
-- 逻辑分层与未整理节点网格分区；
-- 多级细节缩放；
-- 类型和关系过滤；
-- 当前节点光环；
-- 最近 Agent 轨迹虚线；
-- 搜索、详情面板和小地图；
-- SSE 实时更新；
+- React Flow 节点卡片，每种类型有自己的色调；
+- ELK 自动层级布局，可切换横向与纵向，连线可选曲线、折线、直线（默认曲线），按关系分为证实 / 反驳 / 推导 / 产出 / 取代 / 关联六种颜色，并带可收起的图例；
+- 左侧导航按“正在关注 / 待验证 / 发现 / 未连接”分区，并支持按类型、状态、风险筛选；
+- 当前节点标识、新写入节点脉冲，以及可选的“跟随 Agent”；
+- ⌘K 搜索与命令、详情面板、活动时间线、摘要和小地图；
+- 键盘：方向键沿关系跳转，`/` 搜索，`[` 收起侧栏，`?` 查看快捷键；
+- 选中节点写入地址栏（`?node=`），可分享或刷新恢复；
+- 导出整张画布为 PNG；
+- SSE 实时更新，断线时有明确提示；
 - 单文件离线导出。
 
 ```bash
@@ -250,6 +251,7 @@ blackboard hooks uninstall --user --write
 ## 开发
 
 ```bash
+npm run build
 npm test
 npm run serve
 npm run export
@@ -266,7 +268,9 @@ lib/digest.js           现场恢复摘要
 lib/hooks.js            Claude Code 适配器与脱敏
 lib/server.js           HTTP + SSE
 lib/export.js           脱敏后的单文件导出
-public/                 Canvas 黑板视图
+web/                    React Flow 前端源码
+public/                 Vite 构建后的静态资源
+vite.config.js          前端开发与构建配置
 test/                   Node.js 自动化测试
 docs/BLACKBOARD_DESIGN.md  完整设计基线
 ```
