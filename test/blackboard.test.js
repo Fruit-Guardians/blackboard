@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -12,15 +12,16 @@ import {
   addNode,
   ensure,
   moveCursor,
+  patchNode,
   paths,
   replay,
   reset,
   setMeta,
   withLock,
 } from '../lib/store.js';
-import { currentCursor, apply, emptyGraph } from '../lib/model.js';
+import { currentCursor, apply, emptyGraph, resolveRef } from '../lib/model.js';
 import { buildDigest } from '../lib/digest.js';
-import { installHooks, runHook, uninstallHooks } from '../lib/hooks.js';
+import { installHooks, redactSensitive, runHook, uninstallHooks } from '../lib/hooks.js';
 import { renderExport } from '../lib/export.js';
 import { lintGraph } from '../lib/lint.js';
 
@@ -196,7 +197,7 @@ test('blackboard is the primary brand while the flow CLI and data directory stay
     encoding: 'utf8',
   });
 
-  assert.equal(version.trim(), 'blackboard 0.4.0');
+  assert.equal(version.trim(), 'blackboard 0.5.0');
   assert.equal(result.node.title, 'brand check');
   assert.equal(JSON.parse(legacyStatus).cursor.id, result.node.id);
   assert.ok(fs.existsSync(path.join(dir, '.flow', 'events.jsonl')));
@@ -334,4 +335,228 @@ test('a failing state cache write does not fail an already-recorded node', (t) =
   const { node } = addNode({ type: 'goal', title: 'kept', enter: true }, dir);
   assert.equal(replay(dir).nodes[node.id].title, 'kept');
   assert.equal(currentCursor(replay(dir)), node.id);
+});
+
+test('node ids are short, sequential per type, and not reused', (t) => {
+  const dir = fixture(t);
+  const ids = [
+    addNode({ type: 'note', title: 'a' }, dir).node.id,
+    addNode({ type: 'note', title: 'b' }, dir).node.id,
+    addNode({ type: 'hypothesis', title: 'c' }, dir).node.id,
+    addNode({ type: 'custom-kind', title: 'd' }, dir).node.id,
+  ];
+  assert.deepEqual(ids, ['n1', 'n2', 'hy1', 'n3']);
+  assert.match(addCheckpoint({ summary: 'x' }, dir).id, /^cp\d+$/);
+});
+
+test('references accept brackets, case, and unique prefixes, and reject ambiguity', (t) => {
+  const dir = fixture(t);
+  const a = addNode({ type: 'hypothesis', title: 'a' }, dir).node;
+  const b = addNode({ type: 'note', title: 'b' }, dir).node;
+  const c = addNode({ type: 'note', title: 'c' }, dir).node;
+  assert.equal(addEdge({ from: `[${a.id}]`, to: b.id.toUpperCase(), kind: 'supports' }, dir).to, b.id);
+  assert.equal(moveCursor('hy', {}, dir).to, a.id); // unique prefix
+  assert.throws(() => moveCursor('n', {}, dir), /ambiguous node reference "n": n1, n2/);
+  assert.throws(() => moveCursor('zzz', {}, dir), /no such node: zzz/);
+  const long = { 'hy_mvgo0cq2_ut150b8add7': 1, 'hy_mvgo0cq3_aa': 1 };
+  assert.equal(resolveRef(long, 'hy_mvgo0cq2'), 'hy_mvgo0cq2_ut150b8add7');
+  assert.ok(c);
+});
+
+test('a node cannot be given a new id or creation time', (t) => {
+  const dir = fixture(t);
+  const a = addNode({ type: 'note', title: 'a' }, dir).node;
+  assert.throws(() => patchNode(a.id, { id: 'hacked' }, dir), /cannot be changed/);
+  assert.throws(() => patchNode(a.id, { ts: 1 }, dir), /cannot be changed/);
+  // Logs that already contain such a patch are replayed safely too.
+  const g = emptyGraph();
+  apply(g, { op: 'node', node: { id: 'x', type: 'note', title: 'x', ts: 5 } });
+  apply(g, { op: 'patch', id: 'x', set: { id: 'y', ts: 9, title: 'renamed' } });
+  assert.deepEqual([g.nodes.x.id, g.nodes.x.ts, g.nodes.x.title], ['x', 5, 'renamed']);
+});
+
+test('hook writers give up quickly when another writer holds the lock', (t) => {
+  const dir = fixture(t);
+  const holder = spawn(process.execPath, ['-e', 'setTimeout(()=>{},60000)']);
+  t.after(() => holder.kill());
+  fs.writeFileSync(paths(dir).lock, `${holder.pid}\n1\n`);
+  const started = Date.now();
+  assert.throws(() => runHook({
+    event: 'PostToolUse',
+    payload: { tool_name: 'Bash', tool_input: { command: 'ls' }, tool_response: 'ok' },
+    cwd: dir,
+  }), /lock timeout/);
+  assert.ok(Date.now() - started < 3000, `hook waited ${Date.now() - started}ms`);
+  assert.equal(Object.keys(replay(dir).activities).length, 0);
+});
+
+test('digest without a cursor still shows recent active nodes, detail and relations', (t) => {
+  const dir = fixture(t);
+  const a = addNode({ type: 'hypothesis', title: '接口缺少鉴权', detail: '读接口匿名返回 200' }, dir).node;
+  const b = addNode({ type: 'observation', title: '匿名请求成功' }, dir).node;
+  addEdge({ from: b.id, to: a.id, kind: 'supports' }, dir);
+  const md = buildDigest(replay(dir), dir);
+  assert.match(md, /尚未设置游标/);
+  assert.match(md, /## 最近活跃节点/);
+  assert.match(md, /读接口匿名返回 200/);
+  assert.match(md, new RegExp(`\\[${b.id}\\] --支持--> \\[${a.id}\\]`));
+  assert.doesNotMatch(md, /## 当前邻域/);
+  moveCursor(a.id, {}, dir);
+  const withCursor = buildDigest(replay(dir), dir);
+  assert.match(withCursor, /读接口匿名返回 200/);
+  assert.match(withCursor, /## 当前邻域/);
+  assert.doesNotMatch(withCursor, /## 最近活跃节点/);
+});
+
+test('CLI accepts short, bracketed and prefixed ids and lists candidates when ambiguous', (t) => {
+  const dir = fixture(t);
+  const env = { ...process.env, BLACKBOARD_CWD: dir };
+  const run = (...args) => execFileSync(process.execPath, [PRIMARY_CLI, ...args], { env, encoding: 'utf8' });
+  run('node', 'add', 'hypothesis', 'H');
+  run('node', 'add', 'note', 'N1');
+  run('node', 'add', 'note', 'N2');
+  assert.match(run('link', '[n1]', 'hy1', '--rel', 'supports'), /n1.*hy1/);
+  assert.match(run('cursor', 'hy'), /hy1/);
+  assert.match(run('show', 'HY1'), /hy1/);
+  assert.throws(() => run('cursor', 'n'), /ambiguous node reference/);
+});
+
+function hookSettings(dir) {
+  const file = path.join(dir, '.claude', 'settings.json');
+  return { file, read: () => JSON.parse(fs.readFileSync(file, 'utf8')) };
+}
+
+test('hooks install only the recovery hooks unless activity capture is requested', (t) => {
+  const dir = fixture(t);
+  const settings = hookSettings(dir);
+  const res = installHooks({ cwd: dir, write: true, cli: PRIMARY_CLI });
+  assert.deepEqual(Object.keys(settings.read().hooks).sort(), ['PreCompact', 'SessionStart']);
+  assert.deepEqual(res.removed, []);
+
+  installHooks({ cwd: dir, write: true, cli: PRIMARY_CLI, withActivity: true });
+  assert.deepEqual(Object.keys(settings.read().hooks).sort(), ['PostToolUse', 'PreCompact', 'SessionStart']);
+  // Installing again does not duplicate entries.
+  installHooks({ cwd: dir, write: true, cli: PRIMARY_CLI, withActivity: true });
+  assert.equal(settings.read().hooks.PostToolUse.length, 1);
+
+  uninstallHooks({ cwd: dir, write: true });
+  assert.deepEqual(settings.read().hooks, {});
+});
+
+test('a plain install retires an earlier default activity hook but keeps unrelated ones', (t) => {
+  const dir = fixture(t);
+  const settings = hookSettings(dir);
+  installHooks({ cwd: dir, write: true, cli: PRIMARY_CLI, withActivity: true });
+  const withForeign = settings.read();
+  withForeign.hooks.PostToolUse.push({ matcher: 'Bash', hooks: [{ type: 'command', command: 'echo unrelated' }] });
+  fs.writeFileSync(settings.file, JSON.stringify(withForeign));
+
+  const res = installHooks({ cwd: dir, write: true, cli: PRIMARY_CLI });
+  assert.deepEqual(res.removed, ['PostToolUse']);
+  const hooks = settings.read().hooks;
+  assert.equal(hooks.PostToolUse.length, 1);
+  assert.match(JSON.stringify(hooks.PostToolUse), /echo unrelated/);
+  assert.doesNotMatch(JSON.stringify(hooks.PostToolUse), /\.flow\/events\.jsonl/);
+});
+
+test('activity capture skips blackboard CLI calls and never stores written file contents', (t) => {
+  const dir = fixture(t);
+  const post = (tool_name, tool_input, tool_response = '') =>
+    runHook({ event: 'PostToolUse', cwd: dir, payload: { tool_name, tool_input, tool_response } });
+  for (const command of [
+    'blackboard node add note "x"',
+    'BLACKBOARD_CWD=/p blackboard link a b',
+    'cd /p && flow status',
+    'node /x/bin/blackboard.js digest',
+  ]) post('Bash', { command });
+  post('Bash', { command: 'grep flow README.md' });
+  post('Write', { file_path: '/p/.env', content: 'TOKEN=abc' });
+  const activities = Object.values(replay(dir).activities);
+  assert.deepEqual(activities.map((a) => a.summary), ['$ grep flow README.md', 'Write .env']);
+  assert.equal(activities[1].input, '{"file_path":"/p/.env"}');
+});
+
+test('redaction covers connection strings, key-like names, JSON, tokens and private keys', () => {
+  const cases = {
+    'postgres://admin:hunter2@db/prod': 'postgres://admin:[REDACTED]@db/prod',
+    'AWS_SECRET_ACCESS_KEY=abcd1234': 'AWS_SECRET_ACCESS_KEY=[REDACTED]',
+    '{"password":"hunter2","user":"bob"}': '{"password":"[REDACTED]","user":"bob"}',
+    'Authorization: Bearer abc.def': 'Authorization: Bearer [REDACTED]',
+    'x ghp_abcdefghijklmnopqrstuvwxyz0123456789 y': 'x [REDACTED] y',
+    'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig': '[REDACTED JWT]',
+    'https://x/?access_token=abc&n=1': 'https://x/?access_token=[REDACTED]&n=1',
+    'ls -la token_count is fine': 'ls -la token_count is fine',
+  };
+  for (const [input, expected] of Object.entries(cases)) assert.equal(redactSensitive(input), expected, input);
+  assert.equal(
+    redactSensitive('a\n-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\nb'),
+    'a\n[REDACTED PRIVATE KEY]\nb',
+  );
+});
+
+function bare(t) {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'flow-blackboard-bare-')));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  return dir;
+}
+
+test('commands run from a subdirectory use the nearest parent board; init guards against a second one', (t) => {
+  const root = bare(t);
+  const sub = path.join(root, 'a', 'b');
+  fs.mkdirSync(sub, { recursive: true });
+  const env = { ...process.env, FLOW_QUIET: '1' };
+  delete env.FLOW_CWD;
+  const run = (cwd, ...args) => execFileSync(process.execPath, [CLI, ...args], { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+
+  run(root, 'init');
+  run(sub, 'fact', 'from sub');
+  assert.equal(fs.existsSync(path.join(sub, '.flow')), false);
+  assert.equal(Object.values(replay(root).nodes).some((n) => n.title === 'from sub'), true);
+
+  assert.throws(() => run(sub, 'init'), /--here/);
+  assert.equal(fs.existsSync(path.join(sub, '.flow')), false);
+  run(sub, 'init', '--here');
+  assert.equal(fs.existsSync(path.join(sub, '.flow', 'events.jsonl')), true);
+});
+
+test('a new board ignores itself in git', (t) => {
+  const dir = bare(t);
+  ensure(dir);
+  assert.equal(fs.readFileSync(path.join(dir, '.flow', '.gitignore'), 'utf8').split('\n').filter((l) => l && !l.startsWith('#')).join('\n'), '*');
+});
+
+test('lint reports corrupt log lines and rejected events instead of hiding them', (t) => {
+  const dir = fixture(t);
+  addNode({ type: 'note', title: 'ok' }, dir);
+  fs.appendFileSync(paths(dir).events, '{not json\n');
+  fs.appendFileSync(paths(dir).events, JSON.stringify({ t: 'edge', from: 'ghost', to: 'ghost2' }) + '\n');
+  const g = replay(dir);
+  assert.equal(g.integrity.corruptLines, 1);
+  const issue = lintGraph(g).issues.find((i) => i.code === 'log-integrity');
+  assert.ok(issue, 'log-integrity issue expected');
+  assert.equal(issue.corruptLines, 1);
+});
+
+test('over-long fields are truncated loudly, not silently', (t) => {
+  const dir = fixture(t);
+  const r = addNode({ type: 'note', title: 'x'.repeat(600), detail: 'y'.repeat(25000) }, dir);
+  assert.ok(r.truncated && r.truncated.length >= 2);
+  const env = { ...process.env, FLOW_CWD: dir, FLOW_QUIET: '1' };
+  const res = spawnSyncCli(env, ['fact', 'z'.repeat(600)]);
+  assert.match(res.stderr, /500/);
+});
+
+function spawnSyncCli(env, args) {
+  return spawnSync(process.execPath, [CLI, ...args], { env, encoding: 'utf8' });
+}
+
+test('lint evidence follows "from <kind> to": derived-from outgoing counts, incoming caused-by does not', (t) => {
+  const dir = fixture(t);
+  const obs = addNode({ type: 'observation', title: 'obs' }, dir).node;
+  const f1 = addNode({ type: 'finding', title: 'derived finding' }, dir).node;
+  const f2 = addNode({ type: 'finding', title: 'cause-only finding' }, dir).node;
+  addEdge({ from: f1.id, to: obs.id, kind: 'derived-from' }, dir);
+  addEdge({ from: obs.id, to: f2.id, kind: 'caused-by' }, dir);
+  const unsupported = lintGraph(replay(dir)).issues.find((i) => i.code === 'unsupported-conclusions');
+  assert.deepEqual(unsupported.nodeIds, [f2.id]);
 });

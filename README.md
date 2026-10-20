@@ -37,7 +37,7 @@
 - blackboard 不自动选择下一步、不强制状态机、不阻断命令；
 - 节点、关系、游标都由 Agent 或人类显式写入；
 - `blackboard lint` 只报告上下文质量，永远以退出状态 0 返回；
-- Hook 仅作为可选的原始活动采集方式，正常使用不依赖 Hook。
+- Hook 只是可选的恢复辅助（会话开始注入 Digest、压缩前存检查点）；原始活动采集需要显式加 `--with-activity`。正常使用不依赖 Hook。
 
 ## 快速开始
 
@@ -96,7 +96,17 @@ blackboard node add decision "暂时停止 fuzz，优先验证权限边界"
 
 ```text
 related-to / derived-from / supports / contradicts / depends-on
-proves / caused-by / refines / duplicates
+proves / caused-by / refines / duplicates / supersedes / resolves
+```
+
+方向约定：`blackboard link <from> <to> --rel X` 读作 **“from X to”**，与界面标签、Digest 里的箭头一致。
+
+```text
+link 观察 猜测  --rel supports      观察 支持 猜测
+link 结论 观察  --rel derived-from  结论 派生自 观察
+link 结论 前提  --rel depends-on    结论 依赖 前提
+link 现象 原因  --rel caused-by     现象 由 原因 导致
+link 新结论 旧结论 --rel supersedes  新结论 取代 旧结论
 ```
 
 未知关系也允许保存：
@@ -146,9 +156,16 @@ Digest 恢复：
 
 Digest 只恢复现场，不指定 Agent 的下一步。
 
-## 原始活动（可选 Hook）
+## 原始活动（可选，默认关闭）
 
-显式安装 Claude Code Hook 后，Bash、Read、Grep、WebFetch 等工具调用会进入独立 `activity` 层，而不是自动生成 `fact`。不安装 Hook 时，Agent 仍可完整使用节点、关系、游标、检查点和 Digest。
+`blackboard hooks install --with-activity` 会额外安装 `PostToolUse` Hook，把 Bash、Read、Grep、WebFetch 等工具调用的输入输出记入独立 `activity` 层，而不是自动生成 `fact`。它默认关闭，因为这会把命令输出写进 `.flow/events.jsonl`：
+
+- 做尽力而为的脱敏（连接串口令、`*_SECRET`/`*_TOKEN` 类变量、JSON 密钥字段、常见 token、JWT、私钥块）；
+- `Write`/`Edit` 只记录文件路径，不记录内容；
+- 黑板 CLI 自己的调用不会被重复记录；
+- 拿不到写锁时最多等 1 秒就放弃，不会拖慢 Agent。
+
+不安装它时，Agent 仍可完整使用节点、关系、游标、检查点和 Digest。新建的 `.flow/` 会自带 `.gitignore`（内容为 `*`），数据默认不进版本库。
 
 默认行为：
 
@@ -240,13 +257,17 @@ blackboard export -o blackboard.html
 ```bash
 blackboard launcher
 blackboard skill install --user
-# Hook 不是必需；需要原始活动采集时再安装
+# Hook 不是必需；默认只装恢复类：SessionStart 注入 Digest、PreCompact 存检查点
 blackboard hooks install --user --write
+# 需要原始工具调用采集时才加（会记录工具输入输出，见上文）
+blackboard hooks install --user --write --with-activity
 # 随时可以无损移除
 blackboard hooks uninstall --user --write
 ```
 
-全局 Hook 只有在当前项目存在 `.flow/events.jsonl` 时才运行。
+重新运行 `hooks install`（不带 `--with-activity`）会停用旧版本默认安装的工具调用采集，其他无关 Hook 不受影响。全局 Hook 只有在当前项目存在 `.flow/events.jsonl` 时才运行。
+
+在项目子目录里运行的命令会自动使用上层最近的 `.flow/`（与 git 找仓库一致）；`blackboard init` 在已有上层黑板的子目录里会拒绝，需要独立黑板时加 `--here`。
 
 ## 开发
 

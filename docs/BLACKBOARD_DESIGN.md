@@ -296,17 +296,23 @@ Checkpoint 是恢复锚点，不是逻辑流程节点。
 
 ### 6.2 建议内置关系
 
-| relation | 含义 |
+**方向约定：边读作 “`from` `<relation>` `to`”。** `blackboard link <from> <to> --rel X` 与界面标签、Digest 箭头一致。主动语态的关系（`supports`、`proves`）以前提/证据为 `from`；被动语态的关系（`derived-from`、`depends-on`、`caused-by`）以结论/结果为 `from`。
+
+| relation | 读法（from … to） |
 |---|---|
 | `related-to` | 默认弱关系 |
-| `derived-from` | 从前者推导出后者 |
-| `supports` | 前者支持后者 |
-| `contradicts` | 前者反驳后者 |
-| `depends-on` | 前者依赖后者 |
-| `proves` | 前者直接证明后者 |
-| `caused-by` | 因果关系 |
-| `refines` | 对已有节点补充或缩小范围 |
-| `duplicates` | 两个节点表达重复信息 |
+| `derived-from` | from 派生自 to（结论 → 前提/观察） |
+| `supports` | from 支持 to（证据 → 论断） |
+| `contradicts` | from 反驳 to |
+| `depends-on` | from 依赖 to |
+| `proves` | from 直接证明 to |
+| `caused-by` | from 由 to 导致（结果 → 原因） |
+| `refines` | from 补充或缩小 to 的范围 |
+| `duplicates` | from 与 to 表达重复信息 |
+| `supersedes` | from 取代 to |
+| `resolves` | from 解决 to |
+
+Lint 的“结论缺证据”检查据此判断：入边 `supports`/`proves`，或出边 `derived-from`/`caused-by`，都算有证据。
 
 允许自定义关系。系统可以对已知关系提供颜色、方向和线型，但不能拒绝未知关系。
 

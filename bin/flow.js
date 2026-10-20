@@ -12,11 +12,15 @@ import {
   NODE_STATES,
   SEVERITIES,
   currentCursor,
+  resolveRef,
 } from '../lib/model.js';
 import {
   paths,
   ensure,
   isInitialized,
+  findRoot,
+  protectBoard,
+  LIMITS,
   addNode,
   addEdge,
   addCheckpoint,
@@ -34,7 +38,7 @@ import { buildDigest, neighborsOf, tail } from '../lib/digest.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const VERSION = '0.4.0';
+const VERSION = '0.5.0';
 
 const C = process.stdout.isTTY
   ? {
@@ -98,7 +102,7 @@ ${b('游标与关系')}
   blackboard cursor <id|none> [--reason "…"] 只移动当前游标，不创建逻辑边
   blackboard focus <id>                      cursor 的兼容别名
   blackboard here                            当前节点、邻域和最近轨迹
-  blackboard link <from> <to> [--rel supports]
+  blackboard link <from> <to> [--rel supports]   读作 “from <rel> to”，如 link 观察 猜测 --rel supports
   blackboard done|block|revive <id>          修改节点状态
   blackboard edit <id> [--title …|-d …|--status …|--sev …]
 
@@ -118,7 +122,8 @@ ${b('恢复与查看')}
   blackboard reset --yes
 
 ${b('接入 Claude Code')}
-  blackboard hooks install|uninstall [--write] [--user]
+  blackboard hooks install|uninstall [--write] [--user]   默认只装恢复类 Hook（会话开始注入 digest、压缩前存检查点）
+    --with-activity  额外采集工具调用输入输出到活动层（可能含敏感内容，默认关闭）
   blackboard skill install [--user]
   blackboard launcher
   blackboard hook <event>
@@ -126,6 +131,15 @@ ${b('接入 Claude Code')}
 环境变量: BLACKBOARD_CWD 指定项目根；BLACKBOARD_QUIET=1 静默。FLOW_* 仍兼容。
 `);
 }
+/** Resolve a typed id, failing with the candidate list instead of a stack trace. */
+function refOrFail(map, ref, label = 'node') {
+  try {
+    return resolveRef(map, ref, label);
+  } catch (e) {
+    return fail(e.message);
+  }
+}
+
 function fail(msg) {
   console.error(`${C.red('blackboard:')} ${msg}`);
   process.exit(1);
@@ -174,12 +188,23 @@ function parseArgs(argv, cmd = '') {
 
 const LOOKAHEAD_HAS_FLAG = new Set([
   'json', 'open', 'write', 'all', 'open-only', 'quiet', 'enter', 'relate-here',
-  'user', 'project', 'yes',
+  'user', 'project', 'yes', 'with-activity', 'here',
 ]);
 
 function cwd() {
   const projectCwd = process.env.BLACKBOARD_CWD || process.env.FLOW_CWD;
-  return projectCwd ? path.resolve(projectCwd) : process.cwd();
+  if (projectCwd) return path.resolve(projectCwd);
+  // Like git: a command run from a subdirectory belongs to the nearest board above it.
+  return findRoot(process.cwd()) || process.cwd();
+}
+
+/** Tell the Agent when something it wrote was shortened; silently losing text would be worse. */
+function warnTruncated(result) {
+  const fields = result?.truncated;
+  if (!fields?.length) return;
+  const names = { title: '标题', detail: '详情', label: '关系说明', summary: '摘要' };
+  const parts = fields.map((f) => `${names[f] || f}（上限 ${LIMITS[f]} 字）`);
+  console.error(`${C.yel('提示')} ${parts.join('、')}超出上限，已被截断；长内容请拆成多个节点或写入文件。`);
 }
 
 function needInit() {
@@ -289,9 +314,9 @@ function cmdShow(args, flags) {
   const id = args[0];
   if (!id) fail('用法: blackboard show <id>');
   const g = replay(cwd());
-  const n = g.nodes[id];
-  if (!n) fail(`找不到节点 ${id}`);
-  if (flags.json) return out(flags, { node: n, parents: parentsOf(g, id), children: childrenOf(g, id) });
+  const nodeId = refOrFail(g.nodes, id);
+  const n = g.nodes[nodeId];
+  if (flags.json) return out(flags, { node: n, parents: parentsOf(g, nodeId), children: childrenOf(g, nodeId) });
   const chain = [];
   let cur = n;
   const seen = new Set();
@@ -406,10 +431,17 @@ function cmdTail(args, flags) {
 }
 
 function cmdInit(args, flags) {
-  const p = ensure(cwd());
-  if (flags.title) setMeta({ title: String(flags.title) }, cwd());
-  const g = replay(cwd());
-  const state = readState(cwd());
+  const explicit = process.env.BLACKBOARD_CWD || process.env.FLOW_CWD;
+  const target = explicit ? path.resolve(explicit) : process.cwd();
+  const parent = findRoot(target);
+  if (parent && path.resolve(parent) !== path.resolve(target) && !flags.here) {
+    fail(`上级目录已有黑板 ${parent}。在子目录里的命令会自动使用它；确实要在此处新建独立黑板，请加 --here。`);
+  }
+  const p = ensure(target);
+  if (protectBoard(target)) console.log(C.dim('已写入 .flow/.gitignore，黑板数据默认不进版本库。'));
+  if (flags.title) setMeta({ title: String(flags.title) }, target);
+  const g = replay(target);
+  const state = readState(target);
   if (g.meta.title || flags.title) {
     console.log(`${C.grn('已初始化')} ${C.dim(p.cwd)} · ${g.meta.title}`);
   } else {
@@ -533,6 +565,7 @@ function addSimple(type, args, flags) {
     },
     cwd(),
   );
+  warnTruncated(result);
   if (flags.json) return out(flags, result);
   if (!(process.env.BLACKBOARD_QUIET || process.env.FLOW_QUIET)) {
     const via = result.edge ? ` ${EDGE_LABEL[result.edge.kind] || result.edge.kind} ${result.edge.from}` : '';
@@ -553,6 +586,7 @@ function cmdCheckpoint(args, flags) {
     cwd(),
   );
   if (flags.write) fs.writeFileSync(paths(cwd()).digest, buildDigest(replay(cwd()), cwd()));
+  warnTruncated(checkpoint);
   if (flags.json) return out(flags, checkpoint);
   if (!(process.env.BLACKBOARD_QUIET || process.env.FLOW_QUIET)) {
     console.log(`${C.cyn('+')} 检查点 ${checkpoint.id}${checkpoint.cursorNodeId ? ` @${checkpoint.cursorNodeId}` : ''}`);
@@ -582,7 +616,7 @@ function cmdCursor(args, flags) {
   const cursor = moveCursor(id, { reason: flags.reason || '', agentId }, cwd());
   if (flags.json) return out(flags, { cursor });
   if (!(process.env.BLACKBOARD_QUIET || process.env.FLOW_QUIET)) {
-    if (id) console.log(`${C.grn('游标 →')} ${nodeLine(replay(cwd()).nodes[id])}`);
+    if (cursor.to) console.log(`${C.grn('游标 →')} ${nodeLine(replay(cwd()).nodes[cursor.to])}`);
     else console.log(C.grn('游标已清空'));
   }
 }
@@ -623,9 +657,8 @@ function cmdActivity(args, flags) {
   const g = replay(cwd());
   const sub = args[0] || 'ls';
   if (sub === 'show') {
-    const id = args[1];
-    if (!id || !g.activities[id]) fail(`找不到活动 ${id || ''}`);
-    const a = g.activities[id];
+    if (!args[1]) fail('用法: blackboard activity show <id>');
+    const a = g.activities[refOrFail(g.activities, args[1], 'activity')];
     if (flags.json) return out(flags, a);
     console.log(activityLine(a));
     if (a.input) console.log(`\n输入\n${a.input}`);
@@ -646,8 +679,8 @@ function cmdPromote(args, flags) {
   needInit();
   const id = args[0];
   const g = replay(cwd());
-  const activity = id ? g.activities[id] : null;
-  if (!activity) fail(`找不到活动 ${id || ''}`);
+  if (!id) fail('用法: blackboard promote <activity-id>');
+  const activity = g.activities[refOrFail(g.activities, id, 'activity')];
   const type = flags.kind || flags.type || 'observation';
   const result = addNode({
     type,
@@ -661,6 +694,7 @@ function cmdPromote(args, flags) {
     relation: flags.rel || null,
     reason: flags.reason || '',
   }, cwd());
+  warnTruncated(result);
   if (flags.json) return out(flags, result);
   console.log(`${C.grn('提升 →')} ${nodeLine(result.node)}`);
 }
@@ -687,6 +721,7 @@ function cmdEdit(args, flags) {
   if (flags.tag) set.tags = [].concat(flags.tag);
   if (!Object.keys(set).length) fail('没有要修改的字段');
   const n = patchNode(id, set, cwd());
+  warnTruncated(n);
   if (flags.json) return out(flags, n);
   if (!(process.env.BLACKBOARD_QUIET || process.env.FLOW_QUIET)) console.log(`${C.grn('✓')} ${nodeLine(n)}`);
 }
@@ -697,9 +732,10 @@ function cmdLink(args, flags) {
   if (!from || !to) fail('用法: blackboard link <from> <to> [--rel supports]');
   const kind = flags.rel || flags.kind || 'related-to';
   const edge = addEdge({ from, to, kind, label: flags.label || '' }, cwd());
+  warnTruncated(edge);
   if (flags.json) return out(flags, edge);
   if (!(process.env.BLACKBOARD_QUIET || process.env.FLOW_QUIET)) {
-    console.log(`${C.grn('+')} ${from} ${C.dim(EDGE_LABEL[edge.kind] || edge.kind)} ${to}`);
+    console.log(`${C.grn('+')} ${edge.from} ${C.dim(EDGE_LABEL[edge.kind] || edge.kind)} ${edge.to}`);
   }
 }
 
@@ -716,16 +752,24 @@ async function cmdHooks(args, flags) {
   const { installHooks, uninstallHooks } = await import('../lib/hooks.js');
   const sub = args[0] || 'install';
   if (!['install', 'uninstall'].includes(sub)) {
-    fail('用法: blackboard hooks install|uninstall [--write] [--user]');
+    fail('用法: blackboard hooks install|uninstall [--write] [--user] [--with-activity]');
   }
   const scope = flags.user ? 'user' : 'project';
   const action = sub === 'install' ? installHooks : uninstallHooks;
-  const res = action({ cwd: cwd(), write: !!flags.write, cli: process.argv[1], scope });
+  const res = action({
+    cwd: cwd(), write: !!flags.write, cli: process.argv[1], scope, withActivity: !!flags['with-activity'],
+  });
   console.log(res.plan);
   if (res.write) {
     console.log(C.grn(`${sub === 'install' ? '已写入' : '已移除 blackboard Hook'} ${res.file}`));
   }
   else console.log(C.dim('未写入。加 --write 应用。'));
+  if (sub === 'install' && res.removed?.length) {
+    console.log(C.yel(`已停用旧版默认安装的工具调用采集（${res.removed.join(', ')}）。需要时用 --with-activity 重新开启。`));
+  }
+  if (sub === 'install' && res.withActivity) {
+    console.log(C.yel('已开启活动采集：Bash/Read/Grep 等的输入输出会写入 .flow/events.jsonl，并做尽力脱敏；Write/Edit 只记录路径。注意不要把 .flow/ 提交进仓库。'));
+  }
   if (sub === 'install' && scope === 'project') {
     console.log(C.dim('提示：--user 可全局安装；全局 hook 只在有 .flow/ 的目录里生效。'));
   }
