@@ -24,6 +24,7 @@ import { buildDigest } from '../lib/digest.js';
 import { installHooks, redactSensitive, runHook, uninstallHooks } from '../lib/hooks.js';
 import { renderExport } from '../lib/export.js';
 import { lintGraph } from '../lib/lint.js';
+import { buildAgentContext } from '../lib/context.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CLI = path.resolve(HERE, '..', 'bin', 'flow.js');
@@ -35,6 +36,53 @@ function fixture(t) {
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
+
+test('Agent context is read-only, bounded, and follows only explicit relations', (t) => {
+  const dir = fixture(t);
+  const goal = addNode({ type: 'goal', title: '审计授权边界', enter: true }, dir).node;
+  const hypothesis = addNode({ type: 'hypothesis', title: '对象所有权校验可能缺失', status: 'active' }, dir).node;
+  const evidence = addNode({ type: 'fact', title: '跨账号读取返回 200', status: 'confirmed' }, dir).node;
+  const isolated = addNode({ type: 'note', title: '与当前方向无关的记录' }, dir).node;
+  addEdge({ from: goal.id, to: hypothesis.id, kind: 'derived-from' }, dir);
+  addEdge({ from: evidence.id, to: hypothesis.id, kind: 'supports' }, dir);
+  moveCursor(hypothesis.id, { agentId: 'agent:primary', reason: '验证假设' }, dir);
+  const before = fs.readFileSync(paths(dir).events, 'utf8');
+
+  const packet = buildAgentContext(replay(dir), { depth: 1, budgetTokens: 4000 });
+
+  assert.equal(packet.schema, 'blackboard.context.v1');
+  assert.equal(packet.policy.readOnly, true);
+  assert.equal(packet.policy.prescriptive, false);
+  assert.equal(packet.policy.nextStepSelection, 'agent-controlled');
+  assert.equal(packet.currentFocus.id, hypothesis.id);
+  assert.deepEqual(new Set(packet.neighborhood.map((item) => item.node.id)), new Set([goal.id, evidence.id]));
+  assert.equal(packet.neighborhood.some((item) => item.node.id === isolated.id), false);
+  assert.equal(Object.hasOwn(packet, 'suggestedNext'), false);
+  assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
+});
+
+test('Agent context honors checkpoint deltas and reports budget truncation', (t) => {
+  const dir = fixture(t);
+  addNode({ type: 'goal', title: '目标' }, dir);
+  for (let i = 0; i < 20; i += 1) {
+    addNode({ type: 'note', title: `很长的上下文记录 ${i} ${'x'.repeat(180)}` }, dir);
+  }
+  const checkpoint = addCheckpoint({ summary: '阶段一完成', agentId: 'agent:primary' }, dir);
+  while (Date.now() <= checkpoint.at) { /* preserve strict after-checkpoint ordering */ }
+  const changed = addNode({ type: 'fact', title: '检查点后的确认事实', status: 'confirmed' }, dir).node;
+
+  const packet = buildAgentContext(replay(dir), {
+    since: checkpoint.id,
+    budgetTokens: 800,
+    maxItems: 50,
+  });
+
+  assert.equal(packet.request.sinceSource, `checkpoint:${checkpoint.id}`);
+  assert.equal(packet.recentChanges.some((node) => node.id === changed.id), true);
+  assert.equal(packet.truncated, true);
+  assert.ok(Object.keys(packet.omitted).length > 0);
+  assert.ok(packet.estimatedTokens < 1000);
+});
 
 test('creating a node neither moves the cursor nor creates an implicit edge', (t) => {
   const dir = fixture(t);

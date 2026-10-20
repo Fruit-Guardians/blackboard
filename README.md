@@ -62,8 +62,38 @@ node bin/blackboard.js cursor <node-id> --reason "回到该猜测继续验证"
 
 node bin/blackboard.js here
 node bin/blackboard.js digest
+node bin/blackboard.js context --budget 4000
 node bin/blackboard.js serve --open
 ```
+
+## Agent 上下文接口
+
+`context` 是黑板面向 Agent 的只读投影。它压缩当前目标、焦点邻域、开放方向、发现、
+已确认事实、检查点和近期活动元数据，但不推断或选择下一步：
+
+```bash
+# 默认输出结构化 JSON
+blackboard context
+
+# 围绕指定节点读取两跳邻域，并限制近似 Token 预算
+blackboard context --focus <node-id> --depth 2 --budget 4000
+
+# 只关注某个检查点之后发生的变化
+blackboard context --since <checkpoint-id>
+
+# 人类可读形式
+blackboard context --markdown
+```
+
+服务启动后也可以直接读取：
+
+```text
+GET /api/context?agent=agent:primary&focus=<node-id>&depth=2&budget=4000&since=<checkpoint-id>
+```
+
+返回包明确包含 `readOnly: true`、`prescriptive: false` 和
+`nextStepSelection: "agent-controlled"`。预算只是 JSON 大小的近似控制，不是模型
+Tokenizer 的精确计数；裁剪情况会记录在 `omitted` 中。
 
 ## 节点
 
@@ -286,6 +316,7 @@ bin/flow.js             CLI 实现与兼容入口
 lib/model.js            黑板事件回放模型
 lib/store.js            事件存储、游标、活动、检查点
 lib/digest.js           现场恢复摘要
+lib/context.js          面向 Agent 的结构化上下文投影
 lib/hooks.js            Claude Code 适配器与脱敏
 lib/server.js           HTTP + SSE
 lib/export.js           脱敏后的单文件导出

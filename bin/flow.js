@@ -35,6 +35,7 @@ import {
   stats,
 } from '../lib/store.js';
 import { buildDigest, neighborsOf, tail } from '../lib/digest.js';
+import { buildAgentContext, renderAgentContext } from '../lib/context.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -112,6 +113,9 @@ ${b('恢复与查看')}
   blackboard activity ls|show [id]           查看原始活动层
   blackboard promote <activity-id> [--kind observation] [--title "…"]
   blackboard digest [--write]                当前节点/邻域/轨迹/开放节点
+  blackboard context [选项]                  Agent 可读的结构化上下文包
+    --focus <id> --depth <0-5> --budget <tokens> --since <checkpoint|timestamp>
+    默认输出 JSON；--markdown 输出便于人读的摘要
   blackboard lint [--json]                   只读检查上下文质量，不修改也不拦截
   blackboard ls [--type hypothesis] [--open] [-n 30]
   blackboard show <id>
@@ -405,6 +409,27 @@ function cmdDigest(args, flags) {
   console.log(md);
 }
 
+function cmdContext(args, flags) {
+  needInitRead();
+  const g = replay(cwd());
+  const wanted = flags.focus || args[0] || null;
+  const focus = wanted ? refOrFail(g.nodes, wanted, 'focus node') : null;
+  let since = flags.since;
+  if (since !== undefined && !/^\d+$/.test(String(since)) && Object.keys(g.checkpoints || {}).length) {
+    try { since = resolveRef(g.checkpoints, since, 'checkpoint'); } catch {}
+  }
+  const packet = buildAgentContext(g, {
+    agentId: flags.agent || 'agent:primary',
+    focus,
+    depth: flags.depth === undefined ? 2 : Number(flags.depth),
+    budgetTokens: flags.budget === undefined ? 4000 : Number(flags.budget),
+    since,
+    maxItems: flags.limit || flags.n,
+  });
+  if (flags.markdown || flags.md) console.log(renderAgentContext(packet));
+  else console.log(JSON.stringify(packet, null, 2));
+}
+
 async function cmdLint(args, flags) {
   needInitRead();
   const { lintGraph } = await import('../lib/lint.js');
@@ -514,6 +539,8 @@ async function main() {
       return cmdTree(args, flags);
     case 'digest':
       return cmdDigest(args, flags);
+    case 'context':
+      return cmdContext(args, flags);
     case 'lint':
       return cmdLint(args, flags);
     case 'tail':
