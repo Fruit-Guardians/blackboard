@@ -1,314 +1,343 @@
-# blackboard — Agent 的外置黑板
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="design/blackboard-logo/blackboard-logo-light.svg">
+    <img src="design/blackboard-logo/blackboard-logo-dark.svg" alt="blackboard" width="340">
+  </picture>
+</p>
 
-`blackboard` 把 Agent 的关键思考、逻辑关系、当前位置和移动轨迹持续记录成一张可恢复、可缩放的大图。
+<h1 align="center">Agent 的外置黑板</h1>
 
-它不是工作流引擎：Agent 可以自由探索、回跳、交叉连接或留下游离节点；`blackboard` 不规定合法步骤，也不替 Agent 决定下一步。
+<p align="center">把关键判断、证据关系和当前位置，留给下一次会话。</p>
 
-黑板是纯数据组件：人类用它建立思路和规划，Agent 用它恢复上下文并继续递推。Agent 可以在形成重要决策或得到有效结果后显式读写黑板；任何黑板提示都不会成为行动前置条件。
+<p align="center">
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-%E2%89%A5%2018-147453?style=flat-square" alt="Node.js ≥ 18"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/runtime_dependencies-0-147453?style=flat-square" alt="零运行时依赖"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/license-MIT-147453?style=flat-square" alt="MIT"></a>
+</p>
 
-完整设计见 [`docs/BLACKBOARD_DESIGN.md`](docs/BLACKBOARD_DESIGN.md)。
+<p align="center">
+  <a href="#quick-start">快速开始</a> ·
+  <a href="#workspace">可视化工作台</a> ·
+  <a href="#agent-integration">Agent 接入</a> ·
+  <a href="#cli">CLI 参考</a> ·
+  <a href="#upgrade">旧版迁移</a> ·
+  <a href="docs/BLACKBOARD_DESIGN.md">设计文档</a>
+</p>
 
-## 项目标识
+---
 
-- 正式名称、npm 包名和主命令统一为 **`blackboard`**；
-- `flow` 命令继续作为兼容别名，已有脚本不需要立即迁移；
-- 事件目录暂时保留为 `.flow/`，避免升级时搬迁或丢失历史黑板；
-- 新环境变量使用 `BLACKBOARD_CWD`、`BLACKBOARD_PORT`、`BLACKBOARD_QUIET`，对应的 `FLOW_*` 仍可读取。
+`blackboard` 把 Agent 的关键思考、显式逻辑关系和关注位置，记录成一张可恢复、可回放的图。人可以看懂现场、补充想法；Agent 可以在压缩、断线或换会话后，读取同一份记录继续工作。
 
-## 启用
+**它是外置记忆，不是工作流引擎。** 不规定合法步骤，不自动连边，不替 Agent 选择下一步；没有 Hook 也能完整使用。
 
-使用 CLI、服务和 Agent 接入不需要安装依赖，只要 Node.js ≥ 18。`public/` 里已经带有构建好的前端。
+<p align="center">
+  <img src="docs/assets/blackboard-workspace.png" alt="blackboard 现场视图：左侧按关注点和发现导航，画布展示观察、猜测与证据关系" width="1200">
+</p>
+<p align="center"><sub>演示黑板的现场视图。内容为示例数据，逻辑关系与游标轨迹分别记录。</sub></p>
 
-**最快方式：给 Claude Code 安装一次全局 Skill，之后每个项目一句话启用**
+## 什么时候用
 
-```bash
-node /path/to/blackboard/bin/blackboard.js skill install --user
-```
+| 场景 | 留下什么 |
+| --- | --- |
+| 多轮研究、反复试错 | 当前猜测、支持与反驳它的证据、已经排除的方向 |
+| 代码审计、多分支探索 | 目标与发现之间的逻辑链、风险与可信度、证据位置 |
+| 上下文压缩、跨会话交接 | 当前关注点、最近轨迹、检查点和未解决问题 |
 
-以后只需在 Claude Code 里说：
+<a id="quick-start"></a>
 
-> 给当前项目一条龙配置并打开 blackboard
+## 快速开始
 
-Skill 会调用 `blackboard setup`：初始化数据、安装项目级 Skill、写入只负责恢复的 Hook、关闭工具活动自动采集，并启动随登录常驻的本地可视化服务。它不会替 Agent 选择步骤，也不会把黑板变成执行前置条件。
+**只需 Node.js ≥ 18，使用 CLI 和工作台不需要 `npm install`。** 仓库的 `public/` 已包含构建好的前端。下面的终端示例使用 Bash / Zsh。
 
-也可以直接手动执行同一个一条龙命令：
-
-```bash
-blackboard setup --target "$PWD" --title "项目或任务名" --open
-```
-
-重复执行是幂等的；可视化默认在 `http://127.0.0.1:4333`，再次为别的项目 setup 会把这一个工作区服务切换过去。仅配数据时可加 `--no-serve`，不需要恢复 Hook 时可加 `--no-hooks`。
-
-**分步方式 1. 装一个 `blackboard` 命令**（一次即可）
+### 1. 安装命令
 
 ```bash
 git clone https://github.com/Fruit-Guardians/blackboard.git
 cd blackboard
-node bin/blackboard.js launcher        # 在 ~/.local/bin 生成 blackboard
+node bin/blackboard.js launcher
+
+# 当前终端立即可用；长期使用请把这一行加入 shell 配置
+export PATH="$HOME/.local/bin:$PATH"
+blackboard --help
 ```
 
-确认 `~/.local/bin` 在 `PATH` 里，然后用 `blackboard help` 检查。不想装的话，下文的 `blackboard` 都可以换成 `node /path/to/blackboard/bin/blackboard.js`。
+不想安装 launcher，也可以把后文的 `blackboard` 换成 `node /path/to/blackboard/bin/blackboard.js`。
 
-**分步方式 2. 在要记录的项目里建黑板**
+### 2. 在你的项目里启用
 
 ```bash
-cd ~/your-project
-blackboard init --title "项目目标或任务名"
+cd /path/to/your-project
+blackboard setup --target "$PWD" --title "项目或任务名" --open
 ```
 
-这会创建 `.flow/`（事件日志，自带 `.gitignore`，默认不进版本库）。之后在该项目的任意子目录运行命令，都会自动找到这块黑板。
+`setup` 会初始化 `.blackboard/`、安装项目级 Claude Skill 与恢复 Hook，并关闭原始工具活动自动采集。重复执行会复用黑板，不会清空记录。
 
-**分步方式 3. 让 Agent 会用它**（Claude Code，一次即可）
+- **macOS**：安装登录后常驻的工作区服务；再次对其他项目执行 `setup` 会切换这个服务的目标项目。
+- **其他平台**：返回手动启动命令，按输出执行后再访问工作台。
+- **按需关闭**：`--no-serve` 不配置服务，`--no-hooks` 不装 Hook，`--no-skill` 不装 Skill。
+
+> 默认地址为 **http://127.0.0.1:4333**。Skill / Hook 配置供新会话加载；安装成功不等于当前 Agent 已经使用黑板。
+
+<details>
+<summary><strong>只想手动记录，不安装 Agent 接入？</strong></summary>
+
+在目标项目里运行：
 
 ```bash
-blackboard skill install --user              # 装 skill，Agent 才知道怎么读写
-blackboard hooks install --user --write      # 可选：会话开始自动注入现场，压缩前自动存检查点
+blackboard init --title "项目目标"
+blackboard serve --open
 ```
 
-两条都只对新开的会话生效。之后在带有 `.flow/` 的项目里开会话，Agent 会按 skill 读取现场、在关键判断和结论处写节点并连边；也可以直接对它说“用 blackboard 记录这次审计”。Codex 用 `blackboard skill install --user --codex`。
+`serve` 是前台服务，退出进程即停止。项目子目录里的命令会自动找到上层最近的 `.blackboard/`；确实要在子目录创建独立黑板时，使用 `blackboard init --here`。
 
-**分步方式 4. 打开可视化**
+</details>
+
+### 3. 确认当前状态
 
 ```bash
-blackboard serve --open                      # 默认 http://127.0.0.1:4317，可用 --port 指定
+blackboard status          # 项目、接入配置、实际服务状态与最近节点
+blackboard digest          # 人类可读的现场恢复摘要
+blackboard lint            # 只报告上下文质量，不阻断工作
 ```
 
-页面实时跟随 Agent 的写入。需要分享时用 `blackboard export -o blackboard.html` 导出单文件。
+| 检查项 | 能说明什么 | 不能说明什么 |
+| --- | --- | --- |
+| Skill / Hook 已配置 | 对应安装文件或 Hook 条目存在 | 当前 Agent 会话已加载它们 |
+| `viewer.state = online` | 选定地址上的服务属于当前项目 | Agent 已写入记录 |
+| 最近节点、游标与摘要 | 黑板里实际保存了什么 | 每条记录一定来自 Agent，而不是人工操作 |
 
-**分步方式 5. 检查是否生效**
+<a id="workspace"></a>
+
+## 可视化工作台
+
+### 按阅读目的切换视图
+
+| 视图 | 展示范围 |
+| --- | --- |
+| **现场** | 当前节点的一跳邻域、目标、开放方向，以及少量高风险发现和最近节点 |
+| **逻辑** | 已通过显式关系连接的节点，适合沿证据和推导链阅读 |
+| **全局** | 全部节点的分组总览，包含未连接的记录；选中节点后查看其关系 |
+
+- **实时跟随**：SSE 同步写入，标记新变化，可选择跟随 Agent 游标；断线时显示重连状态。
+- **查找与筛选**：左栏按关注点、待验证、发现、未连接分区；支持类型、状态、可信度与高风险筛选。
+- **结构化摘要**：统计、当前节点、邻域关系、最近轨迹和检查点分区展示；点击节点引用可跳回画布。可切换原文，复制的仍是 Agent 读取的原始摘要。
+- **多语言**：简体中文、繁體中文、English、日本語。默认跟随浏览器，也可在 `⌘K` 命令面板切换并保存；作者写下的内容不会被翻译或改写。
+- **布局与阅读**：横向 / 纵向布局，曲线 / 折线 / 直线，小地图与明暗主题；大图使用不同布局策略，拖动后连线会尝试绕开卡片。
+- **人工参与**：顶栏新建节点，详情中添加相关节点、修改文字和状态、断开关系或移除节点。人工写入带作者标记，也会进入 Agent 上下文。
+
+常用快捷键：`⌘K` 或 `/` 搜索，方向键沿关系跳转，`[` 收起侧栏，`?` 查看完整快捷键。选中的节点写入 `?node=`，刷新或分享地址可恢复定位。
+
+### 导出与只读
 
 ```bash
-blackboard digest      # Agent 每次恢复现场看到的内容
-blackboard lint        # 孤立节点、缺证据的结论、日志损坏等提示
+blackboard export -o blackboard.html   # 单文件离线快照
+blackboard serve --read-only          # 关闭页面写入
 ```
 
-如果图里全是互不相连的卡片，通常是 Agent 没有显式连边，或仍在使用旧版 `flow` skill（`blackboard skill install` 会自动停用它）。
+工作台也可导出画布 PNG。**离线快照始终只读**；导出会排除原始活动的输入、输出和摘要，但逻辑节点仍可能包含敏感内容，分享前请检查。
 
-关闭：`blackboard hooks uninstall --user --write` 移除 Hook，删除 `~/.claude/skills/blackboard` 移除 skill；项目里的 `.flow/` 可随时删除，Agent 不依赖它也能正常工作。
+<a id="agent-integration"></a>
 
-## 核心模型
+## Agent 接入与恢复
 
-黑板分为三个相互独立的层：
+### Claude Code
 
-1. **逻辑层**：目标、观察、猜测、问题、事实、发现及其显式关系；
-2. **游标层**：每个 Agent 当前所在节点与最近访问轨迹；
-3. **活动层**：工具调用和原始输出，默认不混入逻辑节点。
+`setup` 已安装项目级接入。如果希望以后在其他项目里一句话启用，可以先安装一次全局 Skill：
+
+```bash
+blackboard skill install --user
+```
+
+之后对 Claude Code 说：
+
+> 给当前项目一条龙配置并打开 blackboard。
+
+恢复 Hook 可单独安装，默认只在会话开始时注入 Digest、在压缩前保存检查点：
+
+```bash
+blackboard hooks install --user --write
+```
+
+全局 Hook 只在当前项目存在 `.blackboard/events.jsonl` 时生效。省略 `--user` 则安装到当前项目；`hooks install` 不带 `--write` 只预览配置。
+
+### Codex
+
+```bash
+blackboard init --title "项目目标"
+blackboard skill install --codex       # 项目级 .agents/skills/blackboard
+# 全局安装可加 --user
+```
+
+Codex 可通过 Skill 和 CLI 读写黑板；Claude 的恢复 Hook 不适用于 Codex。当前 `setup` 配置的是 Claude 接入，不要用它代替 Codex Skill 安装。
+
+### 给 Agent 的只读上下文
+
+```bash
+blackboard context                              # 默认结构化 JSON
+blackboard context --focus hy1 --depth 2 --budget 4000
+blackboard context --since cp1                   # 查询检查点之后的变化
+blackboard context --markdown                    # 人类可读形式
+```
+
+示例 ID 需替换成当前黑板中的实际 ID。服务提供同一接口：
 
 ```text
-逻辑关系： observation --supports--> hypothesis
-游标轨迹： n12 → n31 → n43
-原始活动： Bash / Read / Grep / WebFetch ...
+GET /api/context?agent=agent:primary&focus=hy1&depth=2&budget=4000&since=cp1
 ```
 
-创建节点、建立关系和移动游标是三个独立动作。
+返回包的 `policy` 明确声明 `readOnly: true`、`prescriptive: false`、`nextStepSelection: "agent-controlled"`。它整理目标、邻域、开放问题、发现、已确认事实和检查点，不生成下一步指令。`budget` 是基于 JSON 大小的近似 Token 预算，裁剪记录在 `omitted` 中。
 
-## 不干预原则
-
-- Agent 不需要先获得 blackboard 许可才能行动；
-- blackboard 不自动选择下一步、不强制状态机、不阻断命令；
-- 节点、关系、游标都由 Agent 或人类显式写入；
-- `blackboard lint` 只报告上下文质量，永远以退出状态 0 返回；
-- Hook 只是可选的恢复辅助（会话开始注入 Digest、压缩前存检查点）；原始活动采集需要显式加 `--with-activity`。正常使用不依赖 Hook。
-
-## 快速开始
+### 多个 Agent 并行
 
 ```bash
-node bin/blackboard.js init --title "内部 API 安全审计"
+export BLACKBOARD_AGENT=research
+blackboard node add hypothesis "待验证的猜测" --enter
+blackboard here
 
-# 创建并进入目标节点
-node bin/blackboard.js node add goal "确认管理接口的授权边界" --enter
-
-# 创建观察；默认不连边、不移动游标
-node bin/blackboard.js node add observation "匿名请求返回 200" --at evidence.txt:12
-
-# 创建猜测并进入；与当前节点建立弱关系
-node bin/blackboard.js node add hypothesis "读接口可能遗漏统一鉴权" \
-  --relate-here --enter
-
-# 逻辑关系由 Agent 明确声明
-node bin/blackboard.js link <observation-id> <hypothesis-id> --rel supports
-
-# 只移动位置，不创建逻辑边
-node bin/blackboard.js cursor <node-id> --reason "回到该猜测继续验证"
-
-node bin/blackboard.js here
-node bin/blackboard.js digest
-node bin/blackboard.js context --budget 4000
-node bin/blackboard.js serve --open
+# 单次命令也可以指定完整 Agent ID
+blackboard context --agent agent:review
 ```
 
-## Agent 上下文接口
+默认游标是 `agent:primary`；并行 Agent 应使用不同身份，避免互相覆盖位置。`status`、`digest`、`tail`、`context` 可用 `--agent` 读取指定视角；工作台会在相应卡片上标记其他 Agent 的位置。
 
-`context` 是黑板面向 Agent 的只读投影。它压缩当前目标、焦点邻域、开放方向、发现、
-已确认事实、检查点和近期活动元数据，但不推断或选择下一步：
+<a id="cli"></a>
+
+## CLI：记录一条可恢复的思路
+
+黑板的三层互相独立：**逻辑层**记录“为什么”，**游标层**记录“在哪”，**活动层**保留可选的原始工具材料。创建节点、建立关系、移动游标不是同一件事。
+
+下面在**新建、空白的黑板**中运行；`g1`、`o1`、`hy1` 是该示例按顺序得到的短 ID。已有记录时，请使用命令实际返回的 ID。
 
 ```bash
-# 默认输出结构化 JSON
-blackboard context
+blackboard init --title "内部 API 审计"
 
-# 围绕指定节点读取两跳邻域，并限制近似 Token 预算
-blackboard context --focus <node-id> --depth 2 --budget 4000
+# 记录目标，显式进入
+blackboard node add goal "确认管理接口的授权边界" --enter
 
-# 只关注某个检查点之后发生的变化
-blackboard context --since <checkpoint-id>
+# 记录观察；不连边、不移动游标
+blackboard node add observation "匿名请求返回 200" --at evidence.txt:12
 
-# 人类可读形式
-blackboard context --markdown
-```
+# 显式关联目标，并把关注点移到猜测
+blackboard node add hypothesis "读接口可能遗漏统一鉴权" \
+  --parent g1 --rel related-to --enter
 
-服务启动后也可以直接读取：
+# 声明观察支持猜测，而不是让系统推断关系
+blackboard link o1 hy1 --rel supports
 
-```text
-GET /api/context?agent=agent:primary&focus=<node-id>&depth=2&budget=4000&since=<checkpoint-id>
-```
-
-返回包明确包含 `readOnly: true`、`prescriptive: false` 和
-`nextStepSelection: "agent-controlled"`。预算只是 JSON 大小的近似控制，不是模型
-Tokenizer 的精确计数；裁剪情况会记录在 `omitted` 中。
-
-## 节点与 ID
-
-节点 ID 是按类型递增的短 ID，在写锁内分配：`n1`、`hy3`、`o2`；活动是 `act5`，检查点是 `cp2`。所有接受 ID 的命令还可以这样写：
-
-- 带方括号：`[n1]`（直接粘贴 Digest 里的写法）；
-- 忽略大小写：`HY3`；
-- 唯一前缀：`hy`（有多个候选时会报错并列出候选，不会猜）。
-
-## 节点
-
-内置类型只负责语义提示和视觉颜色，不构成状态机：
-
-| 类型 | 含义 |
-|---|---|
-| `start` | 黑板入口 |
-| `goal` | 目标 |
-| `intent` | 当前打算 |
-| `observation` | 直接观察 |
-| `fact` | 经确认的信息 |
-| `hypothesis` | 待验证猜测 |
-| `question` | 开放问题 |
-| `action` | 行动 |
-| `result` | 行动结果 |
-| `finding` | 正式发现 |
-| `vuln` | 漏洞发现的兼容类型 |
-| `hint` | 线索或卡点 |
-| `summary` | 局部摘要 |
-| `note` | 自由记录 |
-
-也允许自定义类型：
-
-```bash
-blackboard node add decision "暂时停止 fuzz，优先验证权限边界"
-```
-
-### 风险、状态和可信度相互独立
-
-代码审计里“影响有多大”“当前是否仍在处理”“证据成熟到什么程度”是三个不同维度：
-
-```bash
-# 只有源码链路，尚未端到端验证
-blackboard node add vuln "Windows 前缀权限绕过候选" \
-  --sev medium --status active --confidence static-confirmed
-
-# 实测后只提升可信度，不需要重建节点
-blackboard edit <id> --status confirmed --confidence reproduced
-```
-
-可信度可取：`suspected`、`static-confirmed`、`reproduced`、`confirmed`。旧节点未声明可信度时继续兼容，但 `blackboard lint` 会提示；可信度不会替 Agent 判断问题是否成立。
-
-复现或静态确认的事实可以使用 `--status confirmed`，这样它会进入 Agent 上下文的 `confirmedFacts`。游标应指向此刻真正继续研究的开放问题或猜测，而不是仅仅因为某个历史漏洞重要就长期停在那里。
-
-## 逻辑关系
-
-```text
-related-to / derived-from / supports / contradicts / depends-on
-proves / caused-by / refines / duplicates / supersedes / resolves
-```
-
-方向约定：`blackboard link <from> <to> --rel X` 读作 **“from X to”**，与界面标签、Digest 里的箭头一致。
-
-```text
-link 观察 猜测  --rel supports      观察 支持 猜测
-link 结论 观察  --rel derived-from  结论 派生自 观察
-link 结论 前提  --rel depends-on    结论 依赖 前提
-link 现象 原因  --rel caused-by     现象 由 原因 导致
-link 新结论 旧结论 --rel supersedes  新结论 取代 旧结论
-```
-
-未知关系也允许保存：
-
-```bash
-blackboard link <a> <b> --rel inspired-by
-```
-
-默认关系 `related-to` 有意保持为弱关系，避免系统替 Agent 伪造逻辑。
-
-## 游标
-
-```bash
-blackboard cursor <id> --reason "开始验证"
-blackboard cursor none                 # 清空当前位置
-blackboard cursor                      # 输出当前位置
-blackboard here                        # 当前节点、邻域、最近轨迹
-```
-
-创建节点不会自动移动游标。需要立即进入时使用 `--enter`：
-
-```bash
-blackboard node add question "其他接口是否同样受影响" --enter
-```
-
-当前游标不是新节点的隐式父节点。需要与当前位置建立弱关系时显式使用：
-
-```bash
-blackboard node add observation "发现相同路由模式" --relate-here
-```
-
-## 检查点与恢复
-
-```bash
-blackboard checkpoint --summary "已确认匿名读取，正在比较中间件差异"
+blackboard here
+blackboard checkpoint --summary "已有匿名访问证据，正在比较中间件差异"
 blackboard digest --write
 ```
 
-Digest 恢复：
+### 常用命令速查
 
-- 当前节点；
-- 一跳逻辑邻域；
-- 最近游标轨迹；
-- 开放的意图、猜测和问题；
-- 最近检查点；
-- 最近逻辑节点。
+| 要做的事 | 命令 |
+| --- | --- |
+| 看现状、列出记录 | `blackboard status` / `blackboard ls` / `blackboard show hy1` |
+| 新建、编辑节点 | `blackboard node add <类型> "标题"` / `blackboard edit hy1 --status active` |
+| 声明、移除关系 | `blackboard link o1 hy1 --rel supports` / `blackboard unlink o1 hy1 --rel supports` |
+| 移动、清空游标 | `blackboard cursor hy1 --reason "继续验证"` / `blackboard cursor none` |
+| 保存、恢复现场 | `blackboard checkpoint --summary "…"` / `blackboard digest` / `blackboard context` |
+| 检查上下文质量 | `blackboard lint` / `blackboard lint --json` |
+| 从图中移除节点 | `blackboard remove hy1 --reason "合并到其他结论"`，事件历史仍保留 |
 
-没有游标时，Digest 改为列出“最近活跃节点”及其关系，而不是留空。Digest 只恢复现场，不指定 Agent 的下一步。
+所有命令支持 `--help` / `-h`，查看帮助不会执行安装或启动服务。`init`、`setup`、`status`、`skill install`、`hooks install|uninstall`、`launcher`、`export` 支持单个 JSON 对象输出；节点写入与常用查询也可用 `--json`。
 
-## 原始活动（可选，默认关闭）
+<details>
+<summary><strong>节点类型、短 ID 与常用参数</strong></summary>
 
-`blackboard hooks install --with-activity` 会额外安装 `PostToolUse` Hook，把 Bash、Read、Grep、WebFetch 等工具调用的输入输出记入独立 `activity` 层，而不是自动生成 `fact`。它默认关闭，因为这会把命令输出写进 `.flow/events.jsonl`：
+内置类型是语义提示，不是状态机；自定义类型同样可以保存。
 
-- 做尽力而为的脱敏（连接串口令、`*_SECRET`/`*_TOKEN` 类变量、JSON 密钥字段、常见 token、JWT、私钥块）；
-- `Write`/`Edit` 只记录文件路径，不记录内容；
-- 黑板 CLI 自己的调用不会被重复记录；
-- 拿不到写锁时最多等 1 秒就放弃，不会拖慢 Agent。
-
-不安装它时，Agent 仍可完整使用节点、关系、游标、检查点和 Digest。新建的 `.flow/` 会自带 `.gitignore`（内容为 `*`），数据默认不进版本库。
-
-默认行为：
-
-- 常见 Token、密码、Cookie 和 Authorization 头脱敏；
-- 输出按 `detailLimit` 截断；
-- 活动与当时的当前节点关联；
-- 离线导出只包含活动 ID、工具、状态和时间，不包含 summary/input/output。
+| 用途 | 类型 |
+| --- | --- |
+| 入口与方向 | `start`、`goal`、`intent` |
+| 证据与推理 | `observation`、`fact`、`hypothesis`、`question` |
+| 行动与产出 | `action`、`result`、`finding`、`vuln` |
+| 辅助记录 | `hint`、`summary`、`note` |
 
 ```bash
-blackboard activity ls
-blackboard activity show <activity-id>
-blackboard promote <activity-id> --kind observation --title "值得保留的观察"
+blackboard node add decision "优先验证权限边界"
+blackboard node add observation "出现相同路由模式" --relate-here
+blackboard edit hy1 --title "修订后的猜测" --detail "补充证据"
 ```
 
-`promote` 会创建新的逻辑节点并保留来源活动 ID；提升本身不会自动移动游标或建立逻辑关系。
+- `--enter` 显式移动游标；`--relate-here` 显式关联当前位置，默认关系为弱语义的 `related-to`。
+- `--parent <id>` 显式指定来源节点；**当前游标不是隐式父节点**。
+- `--at <file:line>` 记录证据位置；`--detail` / `-d` 添加详情；`--tag` / `-t` 可重复指定标签。
+- ID 按类型递增，如 `g1`、`o1`、`hy1`；活动和检查点如 `act1`、`cp1`。接受 ID 的命令支持 `[hy1]`、大小写不敏感及唯一前缀，存在歧义时列出候选。
+- `start`、`goal`、`intent`、`fact`、`vuln`、`hint` 可用同名简写；`focus` 是 `cursor` 的别名，`compact` 是 `checkpoint` 的别名。这些写法也不会隐式连边或进入节点。
 
-配置位于 `.flow/config.json`：
+</details>
+
+<details>
+<summary><strong>关系方向，以及风险、状态、可信度</strong></summary>
+
+`link <from> <to> --rel X` 读作 **“from X to”**：
+
+| 写法 | 含义 |
+| --- | --- |
+| `link 观察 猜测 --rel supports` | 观察支持猜测 |
+| `link 结论 观察 --rel derived-from` | 结论派生自观察 |
+| `link 结论 前提 --rel depends-on` | 结论依赖前提 |
+| `link 现象 原因 --rel caused-by` | 现象由原因导致 |
+| `link 新结论 旧结论 --rel supersedes` | 新结论取代旧结论 |
+
+还可使用 `proves`、`contradicts`、`refines`、`duplicates`、`resolves` 等关系，或自定义关系。默认 `related-to` 不替作者声明支持或因果。
+
+风险、状态、可信度是三个独立维度：
+
+```bash
+blackboard node add finding "授权绕过候选" \
+  --sev medium --status active --confidence static-confirmed
+blackboard edit fd1 --status confirmed --confidence reproduced
+```
+
+`fd1` 需替换成实际 ID。可信度可取 `suspected`、`static-confirmed`、`reproduced`、`confirmed`；未声明时不会自动推断，`lint` 会对相关记录给出提示。确认过的事实、观察、结果可通过已确认状态或可信度进入 `context` 的 `confirmedFacts`。
+
+</details>
+
+<a id="configuration"></a>
+
+## 配置与数据边界
+
+### 服务地址与环境变量
+
+端口选择顺序统一为：**`--port` → `BLACKBOARD_PORT` → 项目配置 `viewerPort` → `4333`**。端口必须是 `1–65535` 的整数。`setup` 成功后保存所选端口（包括 `--no-serve`）；`serve` 成功启动后也会保存，后续 `status` 因而检查同一地址。
+
+| 变量 | 用途 |
+| --- | --- |
+| `BLACKBOARD_CWD` | 显式指定项目根目录 |
+| `BLACKBOARD_PORT` | 覆盖项目的服务端口 |
+| `BLACKBOARD_AGENT` | 设置 Agent 身份与游标视角 |
+| `BLACKBOARD_QUIET=1` | 静默常用写命令的成功提示 |
+| `BLACKBOARD_DEBUG=1` | 输出错误调试信息 |
+| `BLACKBOARD_LOCK_TIMEOUT_MS` | 调整普通写入的锁等待上限，默认 10 秒 |
+
+`status --json` 提供 `cwd`、`agentId`、`stats`、`cursor`、`cursors`、`title`、`session`、`viewer`、`integration`、`latestNode`。`viewer.state` 区分 `online`、`offline`、`other-project`、`unrecognized`；不会把别的项目误报为当前项目在线。查询本身不初始化黑板或安装接入。
+
+### 本地数据与安全
+
+- **唯一事实源**：`.blackboard/events.jsonl` 只追加；`state.json` 是可丢弃缓存，损坏后可由事件恢复。
+- **默认不入库**：新建 `.blackboard/` 自带 `.gitignore`。逻辑节点也可能含敏感原文，请勿将“本地记录”等同于“已经脱敏”。
+- **页面写入受限**：服务仅监听 loopback，校验 Host 防 DNS 重绑定；写请求要求同 Origin、JSON 类型，大小上限 256 KB。
+- **不阻断 Agent**：`lint` 只报告，始终以退出状态 0 返回；Hook 是可选辅助，不是任务前置条件。
+
+<details>
+<summary><strong>事件回放、锁与截断的具体保证</strong></summary>
+
+- 新事件包含 `eventVersion` 和唯一 `eventId`；节点 ID 在写锁内分配，不依赖缓存计数器。
+- 跨进程写入由文件锁串行化，不抢占仍存活的持有者；超时会报错，不强行写入。
+- 回放会跳过坏行、缺少必要字段的节点、自环和缺失端点的关系，并在 `lint` 的 `log-integrity` 警告中报告计数，不静默隐藏损坏。
+- 追加前清理日志尾部的不完整记录；缓存写入失败不让已追加的事件报错。
+- `patch` 不改写节点的 `id` / `ts`；`remove` 从当前投影移除节点及关系，保留事件历史。
+- 标题、详情、检查点摘要上限分别为 500、20,000、12,000 字；超长内容截断时，stderr 提示，JSON 结果带 `truncated` 字段。
+
+</details>
+
+<details>
+<summary><strong>原始工具活动：默认关闭，明确启用后才记录</strong></summary>
+
+只有需要保存工具调用材料时，再启用活动 Hook，并在现有 `.blackboard/config.json` 中将 `autoRecord` 设为 `true`。保留其余配置，例如：
 
 ```json
 {
@@ -320,140 +349,74 @@ blackboard promote <activity-id> --kind observation --title "值得保留的观�
 }
 ```
 
-## 兼容命令
-
-原有简写继续可用，但不再隐式切换游标或挂到当前节点：
-
 ```bash
-blackboard start "入口"
-blackboard goal "目标"
-blackboard intent "准备验证什么"
-blackboard fact "确认的信息"
-blackboard vuln "正式漏洞" --sev high
-blackboard hint "线索"
-blackboard focus <id>      # cursor 的兼容别名
-blackboard compact         # checkpoint 的兼容别名
+blackboard hooks install --write --with-activity
+blackboard activity ls
+blackboard activity show act1
+blackboard promote act1 --kind observation --title "值得保留的观察"
 ```
 
-需要旧式显式来源时仍可使用 `--parent <id>`；它只在明确提供时生效。
+`act1` 需替换成实际活动 ID。工具材料进入独立 `activity` 层，不自动成为事实；`promote` 也不会自动连边或移动游标。`Write` / `Edit` 等只保留文件路径，黑板 CLI 自身调用不重复采集；尽力脱敏后截断，拿不到锁时活动写入最多等 1 秒。
 
-### 多个 Agent 并行
+重新运行不带 `--with-activity` 的 `hooks install --write` 会停用活动 Hook；`setup` 会再次关闭 `autoRecord`。脱敏不是保密保证，开启前请确认工具输出的敏感程度。
 
-默认所有命令都用 `agent:primary` 这一个游标，两个 Agent 同时 `--enter` 会互相覆盖位置。并行工作时，让每个 Agent 带上自己的名字：
+</details>
 
-```bash
-export BLACKBOARD_AGENT=research       # 之后这个会话的 cursor / --enter / --relate-here 都用 agent:research
-blackboard fact "…" --enter            # 只移动 agent:research 的游标
-blackboard cursor --agent review       # 也可以逐条命令指定
-```
+<a id="troubleshooting"></a>
 
-可视化里，`agent:primary` 显示为“当前”，其他 Agent 的名字会出现在它们所在的卡片上。
+## 常见问题
 
-## 数据与可靠性
+**图里都是未连接的卡片？** 检查 Agent 是否已加载当前 Skill，并显式使用 `link`、`--parent` 或 `--relate-here`。安装接入不会自动补建关系。
 
-`.flow/events.jsonl` 是唯一事实源。事件包括：
+**现场视图里找不到某条记录？** 它不是全量视图。切到“全局”，或用搜索定位；没有游标时，Digest 仍会列出最近活跃节点及其关系。
 
-```text
-node / edge / cursor / activity / checkpoint / patch / remove / meta / reset
-```
+**服务在线，但 Agent 没有继续写？** 服务只负责读写和展示，不会驱动 Agent。可明确说“用 blackboard 记录这次研究”，再用 `digest` 核对实际内容。
 
-实现保证：
-
-- 新事件带 `eventVersion` 和唯一 `eventId`；
-- 节点 ID 不依赖 `state.json` 计数器；
-- `state.json` 损坏时可以从事件恢复标题和游标；
-- 多进程写入由跨进程文件锁串行化；只有持有者进程已不存在时才会回收锁，仍存活的持有者永远不会被抢占。等待上限默认 10 秒（`BLACKBOARD_LOCK_TIMEOUT_MS` 可调），超时会报错而不是强行写入；
-- `state.json` 只是可丢弃的缓存，写入失败不会让已经记录的事件报错；
-- 追加前会清理 JSONL 尾部的不完整记录；
-- 回放时会跳过无法解析的行，以及缺 `id`/`type` 的节点、自环或端点不存在的关系；跳过的数量会通过 `blackboard lint` 的 `log-integrity` 警告报告，而不是静默丢弃；
-- `patch` 不能改写节点的 `id` 和 `ts`；
-- `remove` 只是让节点（及其关系）或一条关系不再出现在图上，日志里的历史仍在；指向被移除节点的游标会失效为“无位置”，之后可以用同样的 id 重新建立关系；
-- 超长内容会被截断（标题 500 字、detail 20000 字、摘要 12000 字），截断时命令会在 stderr 提示，`--json` 结果带 `truncated` 字段。
-
-## 可视化
+**如何停用？** 前台 `serve` 用 `Ctrl+C` 停止。用下面的命令移除所用范围的 Hook，再手动移除对应的 Skill 目录；不必删除黑板数据：
 
 ```bash
-blackboard serve --open
-```
-
-视图支持：
-
-- “当前现场 / 逻辑链 / 全局图”三种观察方式；
-- 当前现场只投影当前节点、两跳邻域、开放节点和最近内容；
-- React Flow 节点卡片，每种类型有自己的色调；
-- ELK 自动层级布局，可切换横向与纵向，连线可选曲线、折线、直线（默认曲线），按关系分为证实 / 反驳 / 推导 / 产出 / 取代 / 关联六种颜色，并带可收起的图例；
-- 左侧导航按“正在关注 / 待验证 / 发现 / 未连接”分区，并支持按类型、状态、可信度、风险筛选；当前节点不会在“发现”中重复出现；
-- 漏洞卡片和详情同时显示严重度与可信度；顶部隐藏节点提示可直接切换到全局视图；
-- 当前节点标识、新写入节点脉冲，以及可选的“跟随 Agent”；
-- ⌘K 搜索与命令、详情面板、活动时间线、摘要和小地图；
-- 键盘：方向键沿关系跳转，`/` 搜索，`[` 收起侧栏，`?` 查看快捷键；
-- 选中节点写入地址栏（`?node=`），可分享或刷新恢复；
-- 导出整张画布为 PNG；
-- SSE 实时更新，断线时有明确提示；
-- 单文件离线导出。
-
-```bash
-blackboard export -o blackboard.html
-```
-
-### 在页面上动手
-
-查看器不只是看：顶栏的 **新建** 可以写下一个想法，选中节点后详情里可以 **添加相关节点**（支持 / 反驳 / 由它推出 / 仅相关）、**修改文字**、改状态、**断开某条关系**或 **移除节点**。人写入的节点带 `author: "human"`，修改带 `updatedBy`，详情里显示为“作者：人工”；Agent 读取 `context` 时和其他节点一样看到它们。同样的操作也有命令：
-
-```bash
-blackboard unlink <from> <to> [--rel supports]
-blackboard remove <id> [--reason "…"]
-```
-
-写入由本地服务完成，并有三道保护：只接受以 `127.0.0.1` / `localhost` / `[::1]` 为 Host 的请求（防 DNS 重绑定）；写请求必须来自本页自己的 Origin、使用 `application/json`（别的网站无法跨站提交）；请求体上限 256 KB。只想看、不想让页面改动黑板时：
-
-```bash
-blackboard serve --read-only
-```
-
-离线导出的文件始终是只读快照。
-
-## Claude Code 接入
-
-```bash
-blackboard launcher
-blackboard skill install --user
-# Hook 不是必需；默认只装恢复类：SessionStart 注入 Digest、PreCompact 存检查点
-blackboard hooks install --user --write
-# 需要原始工具调用采集时才加（会记录工具输入输出，见上文）
-blackboard hooks install --user --write --with-activity
-# 随时可以无损移除
 blackboard hooks uninstall --user --write
+# 项目级 Hook 去掉 --user；Skill 位于对应的 skills/blackboard 目录
 ```
 
-重新运行 `hooks install`（不带 `--with-activity`）会停用旧版本默认安装的工具调用采集，其他无关 Hook 不受影响。全局 Hook 只有在当前项目存在 `.flow/events.jsonl` 时才运行。
+macOS 的 `setup` 常驻服务不是前台进程；需单独用 `launchctl bootout "gui/$(id -u)/com.fruitguardians.blackboard.workspace"` 卸载当前任务，并移除 `~/Library/LaunchAgents/com.fruitguardians.blackboard.workspace.plist`，防止下次登录重新启动。它是共享工作区服务，停用前确认没有其他项目正在使用。
 
-在项目子目录里运行的命令会自动使用上层最近的 `.flow/`（与 git 找仓库一致）；`blackboard init` 在已有上层黑板的子目录里会拒绝，需要独立黑板时加 `--here`。
+<a id="upgrade"></a>
+
+## 从旧版迁移
+
+> **不兼容切换**：唯一命令是 `blackboard`，唯一数据目录是 `.blackboard/`，只读取 `BLACKBOARD_*`。不再提供 `flow` 命令、`FLOW_*` 回退或 `.flow/` 自动发现，也不自动搬迁旧数据。
+
+1. 停止旧服务和写入进程，备份数据。在没有 `.blackboard/` 的项目里将 `.flow/` 重命名为 `.blackboard/`；若两者都存在，先核对，**不要覆盖或直接拼接日志**。
+2. 更新脚本中的命令和环境变量，重新执行 `node /path/to/blackboard/bin/blackboard.js launcher`，手动移除旧 launcher。
+3. 移除所用范围的旧 `skills/flow` 和 Claude settings 中指向旧命令、旧目录的 Hook，只处理旧接入，不动无关配置。重新安装 blackboard Skill 与可选 Hook；用户级安装加 `--user`，Codex Skill 加 `--codex`。
+4. 重启服务并开启新的 Agent 会话，用 `blackboard status` 和 `blackboard digest` 核对现场。迁移只重命名目录，**不改写事件原文**。
+
+<a id="development"></a>
 
 ## 开发
 
+使用构建产物只需 Node.js ≥ 18；修改前端时再安装开发依赖。当前 Vite 要求 **Node.js 20.x（≥ 20.19.0）或 ≥ 22.12.0**：
+
 ```bash
-npm run build
+npm ci
+npm run dev       # Vite 开发页，代理到选定的黑板服务
+npm run build     # 更新 public/，供 CLI 服务和离线导出使用
 npm test
-npm run serve
-npm run export
 ```
 
-目录：
+开发页需要另行启动 `blackboard serve`。生成演示可用 `node scripts/demo.js [目录]`（默认 `demo/`）：它创建独立黑板，**会重建目标目录里已有的演示黑板**，但不改上级黑板。
 
 ```text
-bin/blackboard.js       主 CLI 入口
-bin/flow.js             CLI 实现与兼容入口
-lib/model.js            黑板事件回放模型
-lib/store.js            事件存储、游标、活动、检查点
-lib/digest.js           现场恢复摘要
-lib/context.js          面向 Agent 的结构化上下文投影
-lib/hooks.js            Claude Code 适配器与脱敏
-lib/server.js           HTTP + SSE
-lib/export.js           脱敏后的单文件导出
-web/                    React Flow 前端源码
-public/                 Vite 构建后的静态资源
-vite.config.js          前端开发与构建配置
-test/                   Node.js 自动化测试
-docs/BLACKBOARD_DESIGN.md  完整设计基线
+bin/blackboard.js           唯一 CLI 入口
+lib/model.js               CLI、服务、浏览器共用的事件模型
+lib/store.js               事件存储、写锁、游标和检查点
+lib/context.js · digest.js  面向 Agent 的只读上下文投影
+lib/hooks.js · setup.js     Agent 接入与项目初始化
+lib/server.js · service.js  本地服务、端口选择和身份探测
+lib/export.js              单文件离线导出
+web/ · public/             前端源码与随仓库分发的构建产物
+test/                      自动化测试
 ```
+
+深入阅读：[完整设计](docs/BLACKBOARD_DESIGN.md) · [工程约定](AGENT.md) · [界面规范](design/UI_SYSTEM.md) · [品牌素材](design/blackboard-logo/README.md)

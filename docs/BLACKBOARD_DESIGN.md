@@ -18,9 +18,11 @@ blackboard 记录「写了什么、它们如何相关、Agent 现在在哪里」
 
 黑板的价值不是告诉 Agent 下一步该做什么，而是让思考过程在上下文压缩、会话切换和多人协作后仍然可见、可恢复、可继续。
 
-### 1.1 命名与兼容
+### 1.1 统一命名与升级边界
 
-项目正式名称、npm 包名和主 CLI 都是 `blackboard`。旧命令 `flow` 保留为兼容入口；底层事件目录继续使用 `.flow/`，让已有黑板原地升级，不把品牌迁移混入事件内核。新环境变量以 `BLACKBOARD_*` 为前缀，并回退读取 `FLOW_*`。
+项目正式名称、npm 包名和唯一 CLI 都是 `blackboard`，入口为 `bin/blackboard.js`；事件目录统一使用 `.blackboard/`，其中 `.blackboard/events.jsonl` 是唯一事实源，环境变量只读取 `BLACKBOARD_*`。端口优先级为 `--port` > `BLACKBOARD_PORT` > 项目配置 `viewerPort` > 默认 `4333`。
+
+这是 breaking cutover：不再保留 `flow` 入口、`FLOW_*` 环境变量或 `.flow/` 目录回退，也不提供自动迁移或旧 Skill 退役逻辑。本仓库既有数据原样迁到 `.blackboard/`；其他项目应停止写入、备份后手动重命名目录（不要覆盖已有目标），更新命令与环境变量，手动移除旧 Skill/Hook 并重新安装当前接入，最后重启服务和 Agent 会话。具体命令见 README「项目标识与升级」。节点、关系、游标和事件语义不因命名切换而改变，历史事件无需改写。
 
 ---
 

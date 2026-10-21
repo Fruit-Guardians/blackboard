@@ -2,11 +2,10 @@
 node_modules/
 
 # Local blackboard runtime data and generated previews
-.flow/
+.blackboard/
 .demo/
 demo/
 blackboard.html
-flow.html
 
 # Local Codex verification artifacts
 .codex/

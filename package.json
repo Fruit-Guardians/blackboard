@@ -4,8 +4,7 @@
   "description": "Agent 外置黑板：自由探索，持续记录逻辑节点、关系、当前游标与轨迹",
   "type": "module",
   "bin": {
-    "blackboard": "./bin/blackboard.js",
-    "flow": "./bin/flow.js"
+    "blackboard": "./bin/blackboard.js"
   },
   "files": [
     "bin/",

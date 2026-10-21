@@ -2,6 +2,11 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
+import { resolvePort, viewerUrl } from './lib/service.js';
+
+const backendUrl = viewerUrl(resolvePort({
+  cwd: process.env.BLACKBOARD_CWD || process.cwd(),
+}));
 
 export default defineConfig({
   root: 'web',
@@ -15,8 +20,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://127.0.0.1:4333',
-      '/events': 'http://127.0.0.1:4333',
+      '/api': backendUrl,
+      '/events': backendUrl,
     },
   },
 });

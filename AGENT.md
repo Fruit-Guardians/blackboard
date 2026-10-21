@@ -8,7 +8,7 @@
 
 Agent 会话的上下文天然易失：压缩、断线、换会话后思考现场就没了。
 
-- `.flow/events.jsonl` 是**唯一事实源**：append-only、可完整回放、事件溯源。
+- `.blackboard/events.jsonl` 是**唯一事实源**：append-only、可完整回放、事件溯源。
 - `state.json` 只是可丢弃的缓存，损坏时必须能从事件日志恢复。
 - Digest / `context` / server snapshot / 前端视图全部是这个日志之上的**投影**，不是权威数据。任何新功能都不得制造第二事实源。
 - 可靠性优先于功能：跨进程文件锁不抢占存活持有者；回放跳过坏行但必须计数并在 `lint` 报告，绝不静默丢弃；`state.json` 写失败不能让已记录的事件报错。
@@ -36,6 +36,6 @@ blackboard 不是行动前置条件，不替 Agent 决定下一步。具体体�
 
 - 零运行时依赖，只需 Node ≥ 18；前端依赖全部是 devDependencies，`public/` 带构建产物，CLI 即装即用。
 - `lib/model.js` 必须保持无 Node-only API：被 CLI、server 和浏览器共用。
-- 命名处于迁移期：命令/包名是 `blackboard`，`flow` 是兼容别名，事件目录仍是 `.flow/`——改动时不要破坏这三者的兼容承诺。
+- 命名已完成 breaking cutover：唯一 CLI 是 `blackboard`（`bin/blackboard.js`），环境变量只用 `BLACKBOARD_*`，数据目录只用 `.blackboard/`。不保留 `flow` 入口、`FLOW_*` 读取或 `.flow/` 回退，不新增自动迁移/别名；其他项目按 README 手动重命名目录、重装 Skill/Hook，事件原文不改写。
 - 写接口（server 页面编辑）必须维持三道防护：loopback Host 校验（防 DNS 重绑定）、同 Origin + `application/json`、256KB 请求体上限；`--read-only` 与离线导出永远只读。
-- 新建 `.flow/` 自带 `.gitignore`（内容 `*`）：黑板可能含敏感原文，默认不进版本库。
+- 新建 `.blackboard/` 自带 `.gitignore`（内容 `*`）：黑板可能含敏感原文，默认不进版本库。

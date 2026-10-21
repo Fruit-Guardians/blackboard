@@ -3,15 +3,18 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { execFile, execFileSync, spawn, spawnSync } from 'node:child_process';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
 import {
   addCheckpoint,
   addEdge,
   addNode,
   ensure,
+  findRoot,
+  isInitialized,
   moveCursor,
   patchNode,
   removeEdge,
@@ -25,24 +28,85 @@ import {
   withLock,
 } from '../lib/store.js';
 import { currentCursor, apply, emptyGraph, resolveRef } from '../lib/model.js';
-import { buildDigest } from '../lib/digest.js';
+import { buildDigest, tail } from '../lib/digest.js';
 import { installHooks, installSkill, redactSensitive, runHook, uninstallHooks } from '../lib/hooks.js';
 import { renderLaunchAgent } from '../lib/setup.js';
 import { renderExport } from '../lib/export.js';
 import { startServer } from '../lib/server.js';
 import { lintGraph } from '../lib/lint.js';
 import { buildAgentContext } from '../lib/context.js';
+import { resolvePort } from '../lib/service.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const CLI = path.resolve(HERE, '..', 'bin', 'flow.js');
-const PRIMARY_CLI = path.resolve(HERE, '..', 'bin', 'blackboard.js');
+const CLI = path.resolve(HERE, '..', 'bin', 'blackboard.js');
 
 function fixture(t) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'flow-blackboard-test-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blackboard-test-'));
   ensure(dir);
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
+
+const execFileAsync = promisify(execFile);
+
+function cliEnv(t, cwd) {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('BLACKBOARD_') || key.startsWith('FLOW_')) delete env[key];
+  }
+  return { ...env, HOME: bare(t), BLACKBOARD_CWD: cwd, BLACKBOARD_QUIET: '1' };
+}
+
+async function statusJson(env, ...args) {
+  const { stdout } = await execFileAsync(process.execPath, [CLI, 'status', '--json', ...args], {
+    env, encoding: 'utf8', timeout: 10000,
+  });
+  return JSON.parse(stdout);
+}
+
+test('init and setup help leave both the project and user installation untouched', (t) => {
+  const dir = bare(t);
+  const env = cliEnv(t, dir);
+  for (const command of ['init', 'setup']) {
+    for (const flag of ['--help', '-h']) {
+      const result = spawnSync(process.execPath, [CLI, command, flag], {
+        cwd: dir, env, encoding: 'utf8',
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.ok(result.stdout.trim());
+      assert.deepEqual(fs.readdirSync(dir), []);
+      assert.deepEqual(fs.readdirSync(env.HOME), []);
+    }
+  }
+});
+
+test('digest and tail use the requested Agent focus instead of the primary cursor', (t) => {
+  const dir = fixture(t);
+  const env = cliEnv(t, dir);
+  const primary = addNode({ type: 'note', title: 'primary focus' }, dir).node;
+  const review = addNode({ type: 'note', title: 'review focus' }, dir).node;
+  moveCursor(primary.id, { agentId: 'agent:primary' }, dir);
+  moveCursor(review.id, { agentId: 'agent:review' }, dir);
+  const graph = replay(dir);
+  for (const [command, render] of [['digest', buildDigest], ['tail', tail]]) {
+    const expected = command === 'digest'
+      ? render(graph, dir, 'agent:review') : render(graph, 'agent:review');
+    const primaryOutput = command === 'digest'
+      ? render(graph, dir, 'agent:primary') : render(graph, 'agent:primary');
+    assert.notEqual(expected, primaryOutput);
+    for (const [agentEnv, flags] of [
+      [{ ...env, BLACKBOARD_AGENT: 'primary' }, ['--agent', 'agent:review']],
+      [{ ...env, BLACKBOARD_AGENT: 'review' }, []],
+    ]) {
+      const raw = execFileSync(process.execPath, [CLI, command, '--json', ...flags], {
+        env: agentEnv, encoding: 'utf8',
+      });
+      assert.equal(JSON.parse(raw)[command], expected);
+    }
+  }
+  assert.equal(currentCursor(replay(dir), 'agent:primary'), primary.id);
+  assert.equal(currentCursor(replay(dir), 'agent:review'), review.id);
+});
 
 test('Agent context is read-only, bounded, and follows only explicit relations', (t) => {
   const dir = fixture(t);
@@ -235,7 +299,7 @@ test('offline export is one file: the layout worker is inlined, not fetched by U
 
 test('CLI accumulates repeated tags and keeps legacy intent off the cursor', (t) => {
   const dir = fixture(t);
-  const env = { ...process.env, FLOW_CWD: dir, FLOW_QUIET: '1' };
+  const env = cliEnv(t, dir);
   const raw = execFileSync(process.execPath, [
     CLI, 'intent', 'inspect', '--tag', 'auth', '-t', 'api', '--json',
   ], { env, encoding: 'utf8' });
@@ -258,7 +322,7 @@ test('CLI can promote raw activity into an explicit logic node', (t) => {
     },
   });
   const activity = Object.values(replay(dir).activities)[0];
-  const env = { ...process.env, FLOW_CWD: dir, FLOW_QUIET: '1' };
+  const env = cliEnv(t, dir);
   const raw = execFileSync(process.execPath, [
     CLI, 'promote', activity.id, '--kind', 'observation', '--title', '发现鉴权挂载点', '--json',
   ], { env, encoding: 'utf8' });
@@ -269,23 +333,55 @@ test('CLI can promote raw activity into an explicit logic node', (t) => {
   assert.equal(currentCursor(replay(dir)), null);
 });
 
-test('blackboard is the primary brand while the flow CLI and data directory stay compatible', (t) => {
-  const dir = fixture(t);
-  const env = { ...process.env, BLACKBOARD_CWD: dir, BLACKBOARD_QUIET: '1' };
-  const version = execFileSync(process.execPath, [PRIMARY_CLI, '--version'], { env, encoding: 'utf8' });
-  const raw = execFileSync(process.execPath, [
-    PRIMARY_CLI, 'node', 'add', 'goal', 'brand check', '--enter', '--json',
-  ], { env, encoding: 'utf8' });
-  const result = JSON.parse(raw);
-  const legacyStatus = execFileSync(process.execPath, [CLI, 'status', '--json'], {
-    env: { ...process.env, FLOW_CWD: dir, FLOW_QUIET: '1' },
-    encoding: 'utf8',
-  });
+test('old data directories are ignored without moving or rewriting their logs', (t) => {
+  const dir = bare(t);
+  const oldDir = path.join(dir, '.flow');
+  const oldEvents = path.join(oldDir, 'events.jsonl');
+  const original = '{"op":"node","node":{"id":"n1","type":"note","title":"old board"}}\n';
+  fs.mkdirSync(oldDir);
+  fs.writeFileSync(oldEvents, original);
+  const sub = path.join(dir, 'nested');
+  fs.mkdirSync(sub);
 
-  assert.equal(version.trim(), 'blackboard 0.5.0');
-  assert.equal(result.node.title, 'brand check');
-  assert.equal(JSON.parse(legacyStatus).cursor.id, result.node.id);
-  assert.ok(fs.existsSync(path.join(dir, '.flow', 'events.jsonl')));
+  assert.equal(isInitialized(dir), false);
+  assert.equal(findRoot(sub), null);
+  const result = spawnSync(process.execPath, [CLI, 'status', '--json'], {
+    cwd: sub, env: cliEnv(t, sub), encoding: 'utf8',
+  });
+  assert.notEqual(result.status, 0);
+  assert.equal(fs.existsSync(path.join(dir, '.blackboard')), false);
+  assert.equal(fs.existsSync(path.join(sub, '.blackboard')), false);
+  assert.deepEqual(fs.readdirSync(oldDir), ['events.jsonl']);
+  assert.equal(fs.readFileSync(oldEvents, 'utf8'), original);
+});
+
+test('CLI ignores old environment variables while BLACKBOARD variables select the board and Agent', (t) => {
+  const dir = fixture(t);
+  const ignored = fixture(t);
+  const env = cliEnv(t, dir);
+  delete env.BLACKBOARD_CWD;
+  delete env.BLACKBOARD_QUIET;
+  Object.assign(env, {
+    FLOW_CWD: ignored, FLOW_AGENT: 'old-agent', FLOW_QUIET: '1', FLOW_PORT: 'invalid',
+  });
+  const run = (args, overrides = {}) => execFileSync(process.execPath, [CLI, ...args], {
+    cwd: dir, env: { ...env, ...overrides }, encoding: 'utf8',
+  });
+  run(['node', 'add', 'note', 'actual cwd', '--enter', '--json']);
+  assert.equal(Object.values(replay(dir).nodes)[0].title, 'actual cwd');
+  assert.equal(currentCursor(replay(dir), 'agent:primary'), 'n1');
+  assert.equal(currentCursor(replay(dir), 'agent:old-agent'), null);
+  assert.deepEqual(Object.values(replay(ignored).nodes), []);
+
+  const visible = run(['cursor', 'n1']);
+  const quiet = run(['cursor', 'n1'], { BLACKBOARD_QUIET: '1' });
+  assert.ok(visible.trim());
+  assert.equal(quiet, '');
+  run(['node', 'add', 'note', 'selected board', '--enter', '--json'], {
+    BLACKBOARD_CWD: ignored, BLACKBOARD_AGENT: 'review', BLACKBOARD_QUIET: '1',
+  });
+  assert.equal(currentCursor(replay(ignored), 'agent:review'), 'n1');
+  assert.equal(Object.values(replay(dir).nodes).length, 1);
 });
 
 test('lint is read-only and reports context quality without blocking writes', (t) => {
@@ -306,8 +402,8 @@ test('a newer conclusion can supersede an older one without deleting history', (
   const oldNode = addNode({ type: 'finding', title: '旧结论' }, dir).node;
   const newNode = addNode({ type: 'finding', title: '新结论' }, dir).node;
   const env = { ...process.env, BLACKBOARD_CWD: dir, BLACKBOARD_QUIET: '1' };
-  execFileSync(process.execPath, [PRIMARY_CLI, 'edit', oldNode.id, '--status', 'superseded'], { env });
-  execFileSync(process.execPath, [PRIMARY_CLI, 'link', newNode.id, oldNode.id, '--rel', 'supersedes'], { env });
+  execFileSync(process.execPath, [CLI, 'edit', oldNode.id, '--status', 'superseded'], { env });
+  execFileSync(process.execPath, [CLI, 'link', newNode.id, oldNode.id, '--rel', 'supersedes'], { env });
   const g = replay(dir);
 
   assert.equal(g.nodes[oldNode.id].status, 'superseded');
@@ -322,45 +418,29 @@ test('optional blackboard hooks can be removed without touching unrelated hooks'
   fs.writeFileSync(settings, JSON.stringify({ hooks: { SessionStart: [
     { hooks: [{ type: 'command', command: 'echo unrelated' }] },
   ] } }));
-  installHooks({ cwd: dir, write: true, cli: PRIMARY_CLI, scope: 'project' });
+  installHooks({ cwd: dir, write: true, cli: CLI, scope: 'project' });
   uninstallHooks({ cwd: dir, write: true, scope: 'project' });
   const updated = JSON.parse(fs.readFileSync(settings, 'utf8'));
 
   assert.match(JSON.stringify(updated), /echo unrelated/);
-  assert.doesNotMatch(JSON.stringify(updated), /\.flow\/events\.jsonl/);
+  assert.doesNotMatch(JSON.stringify(updated), /\.blackboard\/events\.jsonl/);
 });
 
-test('Codex skill installs project-locally and restores context without constraining the Agent', (t) => {
+test('Codex skill installs project-locally without installing Claude integration', (t) => {
   const dir = fixture(t);
-  const message = installSkill({ cwd: dir, cli: PRIMARY_CLI, agent: 'codex' });
-  const file = path.join(dir, '.agents', 'skills', 'blackboard', 'SKILL.md');
-  const content = fs.readFileSync(file, 'utf8');
-
-  assert.match(message, /codex\/project/);
-  assert.match(content, /blackboard context --budget 4000/);
-  assert.match(content, /不应阻止原任务继续/);
-  assert.match(content, /不用于约束普通任务的执行步骤/);
+  installSkill({ cwd: dir, cli: CLI, agent: 'codex' });
+  assert.equal(fs.existsSync(path.join(dir, '.agents', 'skills', 'blackboard', 'SKILL.md')), true);
   assert.equal(fs.existsSync(path.join(dir, '.claude', 'skills', 'blackboard', 'SKILL.md')), false);
-});
-
-test('Claude skill teaches one-shot setup without turning the board into a gate', (t) => {
-  const dir = fixture(t);
-  installSkill({ cwd: dir, cli: PRIMARY_CLI, agent: 'claude' });
-  const content = fs.readFileSync(path.join(dir, '.claude', 'skills', 'blackboard', 'SKILL.md'), 'utf8');
-
-  assert.match(content, /blackboard setup --target/);
-  assert.match(content, /目标锚点只是记录用户目标，不是执行门槛/);
-  assert.match(content, /不应阻止原任务继续/);
 });
 
 test('setup configures a project idempotently without activity capture', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blackboard-setup-test-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const env = { ...process.env, HOME: dir };
-  const args = [PRIMARY_CLI, 'setup', '--target', dir, '--title', 'one shot', '--no-serve', '--json'];
+  const env = cliEnv(t, dir);
+  const args = [CLI, 'setup', '--target', dir, '--title', 'one shot', '--no-serve', '--json'];
   const first = JSON.parse(execFileSync(process.execPath, args, { env, encoding: 'utf8' }));
   const second = JSON.parse(execFileSync(process.execPath, args, { env, encoding: 'utf8' }));
-  const config = JSON.parse(fs.readFileSync(path.join(dir, '.flow', 'config.json'), 'utf8'));
+  const config = JSON.parse(fs.readFileSync(path.join(dir, '.blackboard', 'config.json'), 'utf8'));
   const settings = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf8'));
 
   assert.equal(first.cwd, dir);
@@ -368,7 +448,93 @@ test('setup configures a project idempotently without activity capture', (t) => 
   assert.equal(config.autoRecord, false);
   assert.deepEqual(Object.keys(settings.hooks).sort(), ['PreCompact', 'SessionStart']);
   assert.equal(fs.existsSync(path.join(dir, '.claude', 'skills', 'blackboard', 'SKILL.md')), true);
-  assert.equal(fs.statSync(path.join(dir, '.local', 'bin', 'blackboard')).mode & 0o111, 0o111);
+  assert.equal(fs.statSync(path.join(env.HOME, '.local', 'bin', 'blackboard')).mode & 0o111, 0o111);
+});
+
+test('setup without a viewer remembers its selected port for later status', async (t) => {
+  const dir = bare(t);
+  const env = cliEnv(t, dir);
+  const port = 48763;
+  execFileSync(process.execPath, [
+    CLI, 'setup', '--target', dir, '--port', String(port), '--no-serve', '--json',
+  ], { env, encoding: 'utf8' });
+  const before = fs.readFileSync(path.join(dir, '.blackboard', 'config.json'), 'utf8');
+  const result = await statusJson(env);
+  assert.equal(JSON.parse(before).viewerPort, port);
+  assert.equal(result.viewer.port, port);
+  assert.equal(result.viewer.url, `http://127.0.0.1:${port}`);
+  assert.equal(fs.readFileSync(path.join(dir, '.blackboard', 'config.json'), 'utf8'), before);
+  assert.equal(fs.existsSync(path.join(env.HOME, 'Library', 'LaunchAgents')), false);
+  assert.equal(result.integration.claude.skill.project, true);
+  assert.deepEqual(result.integration.claude.hooks.project.slice().sort(), ['PreCompact', 'SessionStart']);
+});
+
+test('port selection honors explicit, BLACKBOARD env, saved configuration, then default', (t) => {
+  const dir = fixture(t);
+  fs.writeFileSync(path.join(dir, '.blackboard', 'config.json'), JSON.stringify({ viewerPort: 48761 }));
+  const env = { BLACKBOARD_PORT: '48762', FLOW_PORT: '48763' };
+  assert.equal(resolvePort({ cwd: dir, port: '48764', env }), 48764);
+  assert.equal(resolvePort({ cwd: dir, env }), 48762);
+  assert.equal(resolvePort({ cwd: dir, env: { FLOW_PORT: 'invalid' } }), 48761);
+  assert.equal(resolvePort({ cwd: dir, env: {} }), 48761);
+  assert.equal(resolvePort({ cwd: bare(t), env: { FLOW_PORT: '48763' } }), 4333);
+});
+
+test('invalid ports fail before setup installs or initializes anything', (t) => {
+  const dir = bare(t);
+  const env = cliEnv(t, dir);
+  for (const port of ['', '0', '-1', '1.5', '65536', 'not-a-port']) {
+    assert.throws(() => resolvePort({ cwd: dir, port, env: {} }));
+    assert.throws(() => resolvePort({ cwd: dir, env: { BLACKBOARD_PORT: port } }));
+  }
+  const result = spawnSync(process.execPath, [
+    CLI, 'setup', '--target', dir, '--port', '65536', '--no-serve', '--json',
+  ], { env, encoding: 'utf8' });
+  assert.notEqual(result.status, 0);
+  assert.deepEqual(fs.readdirSync(dir), []);
+  assert.deepEqual(fs.readdirSync(env.HOME), []);
+});
+
+test('status identifies the current viewer, another project, offline and unrelated services without writing', async (t) => {
+  const dir = fixture(t);
+  const other = fixture(t);
+  const env = cliEnv(t, dir);
+  const otherEnv = cliEnv(t, other);
+  const server = await startServer({ cwd: dir, port: 0, readOnly: true });
+  const close = (instance) => new Promise((resolve, reject) => {
+    if (!instance.listening) return resolve();
+    instance.closeAllConnections?.();
+    instance.close((error) => error ? reject(error) : resolve());
+  });
+  t.after(() => close(server));
+  const port = String(server.address().port);
+  const before = fs.readFileSync(paths(dir).events, 'utf8');
+  const otherBefore = fs.readFileSync(paths(other).events, 'utf8');
+  const online = await statusJson(env, '--port', port);
+  assert.deepEqual(online.viewer, {
+    port: Number(port), url: `http://127.0.0.1:${port}`, state: 'online',
+    cwd: fs.realpathSync(dir), readOnly: true,
+  });
+  assert.deepEqual(online.integration, {
+    claude: { skill: { project: false, user: false }, hooks: { project: [], user: [] } },
+    codex: { skill: { project: false, user: false } },
+    errors: [],
+  });
+  const foreign = await statusJson(otherEnv, '--port', port);
+  assert.equal(foreign.viewer.state, 'other-project');
+  assert.equal(foreign.viewer.cwd, fs.realpathSync(dir));
+  assert.equal(fs.readFileSync(paths(other).events, 'utf8'), otherBefore);
+  assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
+  await close(server);
+  assert.equal((await statusJson(env, '--port', port)).viewer.state, 'offline');
+
+  const unrelated = http.createServer((_req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ nodes: {}, edges: {} }));
+  });
+  t.after(() => close(unrelated));
+  await new Promise((resolve) => unrelated.listen(0, '127.0.0.1', resolve));
+  assert.equal((await statusJson(env, '--port', String(unrelated.address().port))).viewer.state, 'unrecognized');
 });
 
 test('launchd service definition pins the project and local-only viewer port', () => {
@@ -547,7 +713,7 @@ test('digest without a cursor still shows recent active nodes, detail and relati
 test('CLI accepts short, bracketed and prefixed ids and lists candidates when ambiguous', (t) => {
   const dir = fixture(t);
   const env = { ...process.env, BLACKBOARD_CWD: dir };
-  const run = (...args) => execFileSync(process.execPath, [PRIMARY_CLI, ...args], { env, encoding: 'utf8' });
+  const run = (...args) => execFileSync(process.execPath, [CLI, ...args], { env, encoding: 'utf8' });
   run('node', 'add', 'hypothesis', 'H');
   run('node', 'add', 'note', 'N1');
   run('node', 'add', 'note', 'N2');
@@ -565,14 +731,14 @@ function hookSettings(dir) {
 test('hooks install only the recovery hooks unless activity capture is requested', (t) => {
   const dir = fixture(t);
   const settings = hookSettings(dir);
-  const res = installHooks({ cwd: dir, write: true, cli: PRIMARY_CLI });
+  const res = installHooks({ cwd: dir, write: true, cli: CLI });
   assert.deepEqual(Object.keys(settings.read().hooks).sort(), ['PreCompact', 'SessionStart']);
   assert.deepEqual(res.removed, []);
 
-  installHooks({ cwd: dir, write: true, cli: PRIMARY_CLI, withActivity: true });
+  installHooks({ cwd: dir, write: true, cli: CLI, withActivity: true });
   assert.deepEqual(Object.keys(settings.read().hooks).sort(), ['PostToolUse', 'PreCompact', 'SessionStart']);
   // Installing again does not duplicate entries.
-  installHooks({ cwd: dir, write: true, cli: PRIMARY_CLI, withActivity: true });
+  installHooks({ cwd: dir, write: true, cli: CLI, withActivity: true });
   assert.equal(settings.read().hooks.PostToolUse.length, 1);
 
   uninstallHooks({ cwd: dir, write: true });
@@ -582,17 +748,17 @@ test('hooks install only the recovery hooks unless activity capture is requested
 test('a plain install retires an earlier default activity hook but keeps unrelated ones', (t) => {
   const dir = fixture(t);
   const settings = hookSettings(dir);
-  installHooks({ cwd: dir, write: true, cli: PRIMARY_CLI, withActivity: true });
+  installHooks({ cwd: dir, write: true, cli: CLI, withActivity: true });
   const withForeign = settings.read();
   withForeign.hooks.PostToolUse.push({ matcher: 'Bash', hooks: [{ type: 'command', command: 'echo unrelated' }] });
   fs.writeFileSync(settings.file, JSON.stringify(withForeign));
 
-  const res = installHooks({ cwd: dir, write: true, cli: PRIMARY_CLI });
+  const res = installHooks({ cwd: dir, write: true, cli: CLI });
   assert.deepEqual(res.removed, ['PostToolUse']);
   const hooks = settings.read().hooks;
   assert.equal(hooks.PostToolUse.length, 1);
   assert.match(JSON.stringify(hooks.PostToolUse), /echo unrelated/);
-  assert.doesNotMatch(JSON.stringify(hooks.PostToolUse), /\.flow\/events\.jsonl/);
+  assert.doesNotMatch(JSON.stringify(hooks.PostToolUse), /\.blackboard\/events\.jsonl/);
 });
 
 test('activity capture skips blackboard CLI calls and never stores written file contents', (t) => {
@@ -602,14 +768,14 @@ test('activity capture skips blackboard CLI calls and never stores written file 
   for (const command of [
     'blackboard node add note "x"',
     'BLACKBOARD_CWD=/p blackboard link a b',
-    'cd /p && flow status',
     'node /x/bin/blackboard.js digest',
   ]) post('Bash', { command });
+  post('Bash', { command: 'cd /p && flow status' });
   post('Bash', { command: 'grep flow README.md' });
   post('Write', { file_path: '/p/.env', content: 'TOKEN=abc' });
   const activities = Object.values(replay(dir).activities);
-  assert.deepEqual(activities.map((a) => a.summary), ['$ grep flow README.md', 'Write .env']);
-  assert.equal(activities[1].input, '{"file_path":"/p/.env"}');
+  assert.deepEqual(activities.map((a) => a.summary), ['$ cd /p && flow status', '$ grep flow README.md', 'Write .env']);
+  assert.equal(activities[2].input, '{"file_path":"/p/.env"}');
 });
 
 test('redaction covers connection strings, key-like names, JSON, tokens and private keys', () => {
@@ -631,7 +797,7 @@ test('redaction covers connection strings, key-like names, JSON, tokens and priv
 });
 
 function bare(t) {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'flow-blackboard-bare-')));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'blackboard-bare-')));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
@@ -640,25 +806,25 @@ test('commands run from a subdirectory use the nearest parent board; init guards
   const root = bare(t);
   const sub = path.join(root, 'a', 'b');
   fs.mkdirSync(sub, { recursive: true });
-  const env = { ...process.env, FLOW_QUIET: '1' };
-  delete env.FLOW_CWD;
+  const env = cliEnv(t, root);
+  delete env.BLACKBOARD_CWD;
   const run = (cwd, ...args) => execFileSync(process.execPath, [CLI, ...args], { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 
   run(root, 'init');
   run(sub, 'fact', 'from sub');
-  assert.equal(fs.existsSync(path.join(sub, '.flow')), false);
+  assert.equal(fs.existsSync(path.join(sub, '.blackboard')), false);
   assert.equal(Object.values(replay(root).nodes).some((n) => n.title === 'from sub'), true);
 
   assert.throws(() => run(sub, 'init'), /--here/);
-  assert.equal(fs.existsSync(path.join(sub, '.flow')), false);
+  assert.equal(fs.existsSync(path.join(sub, '.blackboard')), false);
   run(sub, 'init', '--here');
-  assert.equal(fs.existsSync(path.join(sub, '.flow', 'events.jsonl')), true);
+  assert.equal(fs.existsSync(path.join(sub, '.blackboard', 'events.jsonl')), true);
 });
 
 test('a new board ignores itself in git', (t) => {
   const dir = bare(t);
   ensure(dir);
-  assert.equal(fs.readFileSync(path.join(dir, '.flow', '.gitignore'), 'utf8').split('\n').filter((l) => l && !l.startsWith('#')).join('\n'), '*');
+  assert.equal(fs.readFileSync(path.join(dir, '.blackboard', '.gitignore'), 'utf8').split('\n').filter((l) => l && !l.startsWith('#')).join('\n'), '*');
 });
 
 test('lint reports corrupt log lines and rejected events instead of hiding them', (t) => {
@@ -677,7 +843,7 @@ test('over-long fields are truncated loudly, not silently', (t) => {
   const dir = fixture(t);
   const r = addNode({ type: 'note', title: 'x'.repeat(600), detail: 'y'.repeat(25000) }, dir);
   assert.ok(r.truncated && r.truncated.length >= 2);
-  const env = { ...process.env, FLOW_CWD: dir, FLOW_QUIET: '1' };
+  const env = cliEnv(t, dir);
   const res = spawnSyncCli(env, ['fact', 'z'.repeat(600)]);
   assert.match(res.stderr, /500/);
 });
@@ -716,25 +882,6 @@ test('lint exposes audit handoff drift without changing the graph', (t) => {
   assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
 });
 
-test('skill install retires the legacy flow skill and teaches explicit linking', (t) => {
-  const dir = bare(t);
-  const legacy = path.join(dir, '.claude', 'skills', 'flow');
-  fs.mkdirSync(legacy, { recursive: true });
-  fs.writeFileSync(path.join(legacy, 'SKILL.md'), '# flow — 探索图\n意图会成为后续节点的父节点');
-  const unrelated = path.join(dir, '.claude', 'skills', 'other');
-  fs.mkdirSync(unrelated, { recursive: true });
-  fs.writeFileSync(path.join(unrelated, 'SKILL.md'), 'keep me');
-
-  const message = installSkill({ cwd: dir, cli: PRIMARY_CLI });
-  assert.match(message, /旧版 flow skill/);
-  assert.equal(fs.existsSync(path.join(legacy, 'SKILL.md')), false);
-  assert.equal(fs.existsSync(path.join(legacy, 'SKILL.md.legacy')), true);
-  assert.equal(fs.readFileSync(path.join(unrelated, 'SKILL.md'), 'utf8'), 'keep me');
-  const skill = fs.readFileSync(path.join(dir, '.claude', 'skills', 'blackboard', 'SKILL.md'), 'utf8');
-  assert.match(skill, /让图成为图/);
-  assert.match(skill, /--parent/);
-});
-
 test('removing a node takes its relations with it, keeps the log, and clears cursors that pointed at it', (t) => {
   const dir = fixture(t);
   const a = addNode({ type: 'fact', title: 'A', enter: true }, dir).node;
@@ -760,9 +907,9 @@ test('removing a node takes its relations with it, keeps the log, and clears cur
 test('BLACKBOARD_AGENT gives parallel Agents their own cursor', (t) => {
   assert.equal(defaultAgentId({}), 'agent:primary');
   assert.equal(defaultAgentId({ BLACKBOARD_AGENT: 'research' }), 'agent:research');
-  assert.equal(defaultAgentId({ FLOW_AGENT: 'agent:review' }), 'agent:review');
+  assert.equal(defaultAgentId({ FLOW_AGENT: 'agent:review' }), 'agent:primary');
   const dir = fixture(t);
-  const env = { ...process.env, FLOW_CWD: dir, FLOW_QUIET: '1' };
+  const env = cliEnv(t, dir);
   const run = (agent, ...args) => execFileSync(process.execPath, [CLI, ...args, '--json'], { env: { ...env, BLACKBOARD_AGENT: agent }, encoding: 'utf8' });
   const one = JSON.parse(run('one', 'fact', 'from one', '--enter')).node;
   const two = JSON.parse(run('two', 'fact', 'from two', '--enter')).node;
