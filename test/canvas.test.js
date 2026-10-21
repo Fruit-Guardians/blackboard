@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blackboard-canvas-tests-'));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
-execFileSync(process.execPath, [path.join(root, 'node_modules/typescript/bin/tsc'), '--target', 'ES2022', '--module', 'ESNext', '--moduleResolution', 'Bundler', '--skipLibCheck', '--outDir', dir, path.join(root, 'web/src/graph.ts')], { cwd: dir });
+execFileSync(process.execPath, [path.join(root, 'node_modules/typescript/bin/tsc'), '--target', 'ES2022', '--module', 'ESNext', '--moduleResolution', 'Bundler', '--skipLibCheck', '--outDir', dir, path.join(root, 'web/src/graph.ts'), path.join(root, 'web/src/router.ts')], { cwd: dir });
 // Keep the tests portable on Node 18+ without a TS execution loader.
 for (const file of fs.readdirSync(dir).filter((name) => name.endsWith('.js'))) {
  const p = path.join(dir, file);
@@ -19,6 +19,7 @@ fs.symlinkSync(path.join(root,'node_modules'),path.join(dir,'node_modules'),'dir
 const { detailLevel, groupFor, focusedIds, neighborInDirection } = await import(pathToFileURL(path.join(dir,'canvas-state.js')).href);
 const { layoutOverview, project, layoutGraph, gridLayout, relationGroup, RELATION_GROUPS } = await import(pathToFileURL(path.join(dir,'graph.js')).href);
 const { roundedPath, routeValid } = await import(pathToFileURL(path.join(dir,'edge-route.js')).href);
+const { routeAround } = await import(pathToFileURL(path.join(dir,'router.js')).href);
 const { filterNodes, filterActive, EMPTY_FILTER } = await import(pathToFileURL(path.join(dir,'presentation.js')).href);
 const items = [
  {id:'g',type:'goal',title:'Goal'}, {id:'f',type:'finding',title:'Finding'},
@@ -207,4 +208,35 @@ test('weak relations wait for a selection unless they are a card\'s only tie to 
   edges:[{id:'s',from:'a',to:'b',kind:'supports'},{id:'s2',from:'b',to:'c',kind:'supports'},{id:'w',from:'a',to:'c',kind:'related-to'},{id:'only',from:'d',to:'c',kind:'related-to'}]};
  const quiet=Object.fromEntries(project(board,'logic','').edges.map(e=>[e.id,Boolean(e.data.quiet)]));
  assert.deepEqual(quiet,{s:false,s2:false,w:true,only:false});
+});
+test('a dragged edge goes around every card, orthogonally, from handle to handle',()=>{
+ // Deterministic pseudo-random scatter of cards between two ends.
+ let seed=7; const rand=()=>(seed=(seed*16807)%2147483647)/2147483647;
+ for(let round=0;round<40;round++){
+  const cards=[{x:0,y:200,width:288,height:128},{x:1200,y:260,width:288,height:128}];
+  for(let k=0;k<12;k++) cards.push({x:340+rand()*700,y:rand()*600,width:288*.6,height:128});
+  const free=cards.slice(2).filter(c=>!(c.x<1200+288+20&&c.x+c.width>1200-20&&c.y<388+20&&c.y+c.height>260-20)&&!(c.x<308&&c.y<348&&c.y+c.height>180));
+  const all=[cards[0],cards[1],...free];
+  const start={x:288,y:264}, end={x:1200,y:324};
+  const pts=routeAround(start,'right',end,'left',all);
+  if(!pts) continue;
+  assert.deepEqual(pts[0],start); assert.deepEqual(pts.at(-1),end);
+  for(let i=1;i<pts.length;i++){
+   const p=pts[i-1],q=pts[i];
+   assert.ok(Math.abs(p.x-q.x)<.5||Math.abs(p.y-q.y)<.5,'orthogonal');
+   for(const c of all){
+    // Segment interior must stay outside the card interior.
+    const l=Math.min(p.x,q.x),r=Math.max(p.x,q.x),t=Math.min(p.y,q.y),b=Math.max(p.y,q.y);
+    assert.ok(!(l<c.x+c.width-1&&r>c.x+1&&t<c.y+c.height-1&&b>c.y+1),`segment ${JSON.stringify([p,q])} cuts ${JSON.stringify(c)}`);
+   }
+  }
+ }
+});
+test('a clear line stays straight and a reversed pair loops around its own cards',()=>{
+ const left={x:0,y:0,width:288,height:128}, right={x:500,y:0,width:288,height:128};
+ assert.equal(routeAround({x:288,y:64},'right',{x:500,y:64},'left',[left,right]).length,2);
+ // Target now sits left of the source: the line leaves rightwards and must come back around both cards.
+ const pts=routeAround({x:788,y:64},'right',{x:0,y:64},'left',[left,right]);
+ assert.ok(pts.length>=6);
+ assert.ok(pts.every(p=>!(p.x>1&&p.x<287&&p.y>1&&p.y<127)&&!(p.x>501&&p.x<787&&p.y>1&&p.y<127)));
 });
