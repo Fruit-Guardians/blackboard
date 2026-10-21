@@ -1,7 +1,7 @@
 import type { BoardNode } from './types';
 
 const TYPE_LABELS: Record<string, string> = {
-  goal: '目标', intent: '意图', hypothesis: '假设', question: '问题',
+  goal: '目标', intent: '意图', hypothesis: '猜测', question: '问题',
   fact: '事实', observation: '观察', action: '行动', result: '结果',
   finding: '发现', vuln: '漏洞', hint: '提示', summary: '摘要',
   note: '记录', compact: '压缩', start: '起点',

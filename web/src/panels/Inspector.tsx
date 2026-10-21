@@ -82,7 +82,7 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
                     </button>
                     {writable && (
                       <span className="absolute right-1 top-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100">
-                        <IconButton label="断开这条关系" onClick={() => { removeEdge(edge.id).catch(() => undefined); }}><Unlink /></IconButton>
+                        <IconButton label="断开这条关系" onClick={() => { removeEdge(edge.id).catch((e) => { window.alert(`断开关系失败：${e instanceof Error ? e.message : String(e)}`); }); }}><Unlink /></IconButton>
                       </span>
                     )}
                   </li>

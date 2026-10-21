@@ -31,7 +31,7 @@ test('node presenter handles multiline and blank authored titles', () => {
   assert.equal(presentNode({ title: '  ' }).headline, '未命名节点');
 });
 test('board search matches id, detail and localized type/confidence, case-insensitively', () => {
-  for (const query of ['NODE-7', 'session boundary', '假设', '待验证', '高危', '静态确认']) assert.equal(matchesNode(node, query), true, query);
+  for (const query of ['NODE-7', 'session boundary', '猜测', '待验证', '高危', '静态确认']) assert.equal(matchesNode(node, query), true, query);
 });
 test('board search applies all terms and rejects unrelated text', () => {
   assert.equal(matchesNode(node, 'gateway session'), true);

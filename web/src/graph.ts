@@ -304,9 +304,10 @@ export type EdgeStyle = 'curve' | 'step' | 'straight';
 export function relationLabel(kind: string) {
   return ({
     proves: '证明', prove: '证明', supports: '支持', contradicts: '反驳',
-    supersedes: '取代', resolves: '解决', 'derived-from': '派生',
-    'depends-on': '依赖', 'caused-by': '因果', refines: '细化',
-    'related-to': '相关', produce: '产出',
+    supersedes: '取代', resolves: '解决', 'derived-from': '派生自',
+    'depends-on': '依赖', 'caused-by': '由…导致', refines: '细化',
+    'related-to': '相关', produce: '产出', derive: '派生',
+    'intent-chain': '意图链', duplicates: '重复',
   } as Record<string, string>)[kind] || kind;
 }
 

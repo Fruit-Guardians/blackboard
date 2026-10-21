@@ -75,7 +75,8 @@ function Workspace() {
   const digestTrigger = useRef<HTMLButtonElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const layoutKey = useRef('');
-  // Last positions per view, fed back to the layout so the board stays put as the Agent writes.
+  // Identity cache for display nodes: see displayNodes below.
+  const displayNodesCache = useRef(new Map<string, CanvasNode>());
   const lastPositions = useRef(new Map<string, Positions>());
   const pendingFocus = useRef<string | null>(null);
   const framedRevision = useRef(0);
@@ -105,7 +106,8 @@ function Workspace() {
     .filter((node) => node.id !== currentId && ['finding', 'vuln'].includes(node.type) && node.status !== 'superseded')
     .sort((a, b) => (severityOrder[a.severity || 'info'] ?? 5) - (severityOrder[b.severity || 'info'] ?? 5)), [allNodes, currentId]);
   const openItems = useMemo(() => allNodes
-    .filter((node) => node.id !== currentId && ['intent', 'hypothesis', 'question'].includes(node.type) && !['done', 'dead', 'refuted', 'superseded', 'confirmed'].includes(node.status || ''))
+    // Same notion of open as stats.frontier / context.openThreads (deferred is closed).
+    .filter((node) => node.id !== currentId && ['intent', 'hypothesis', 'question'].includes(node.type) && ['open', 'active', 'blocked'].includes(node.status || 'open'))
     .slice(-8).reverse(), [allNodes, currentId]);
   const inbox = useMemo(() => {
     const linked = new Set(allEdges.flatMap((edge) => [edge.from, edge.to]));
@@ -137,11 +139,26 @@ function Workspace() {
   }, [projection]);
 
   const highlighted = useMemo(() => focusedIds(selectedId, edges), [selectedId, edges]);
-  const displayNodes = useMemo(() => nodes.map((node) => ({
-    ...node,
-    selected: !node.data.group && node.id === selectedId,
-    data: { ...node.data, muted: !node.data.group && Boolean(selectedId) && !highlighted.has(node.id), fresh: fresh.has(node.id) },
-  })), [nodes, selectedId, highlighted, fresh]);
+  // Rebuild only what actually changed, so React Flow memoized cards keep their
+  // identity across selection switches and content-only stream ticks.
+  const displayNodes = useMemo(() => {
+    const cache = displayNodesCache.current;
+    let changed = false;
+    const next = nodes.map((node) => {
+      const selected = !node.data.group && node.id === selectedId;
+      const muted = !node.data.group && Boolean(selectedId) && !highlighted.has(node.id);
+      const freshFlag = fresh.has(node.id);
+      const hit = cache.get(node.id);
+      if (hit && hit.selected === selected && hit.data.muted === muted && hit.data.fresh === freshFlag && hit.data.item === node.data.item) return hit;
+      changed = true;
+      const built = { ...node, selected, data: { ...node.data, muted, fresh: freshFlag } };
+      return built;
+    });
+    if (changed) {
+      displayNodesCache.current = new Map(next.map((node) => [node.id, node]));
+    }
+    return next;
+  }, [nodes, selectedId, highlighted, fresh]);
   const displayEdges = useMemo(() => edges.map((edge) => {
     const active = Boolean(selectedId) && (edge.source === selectedId || edge.target === selectedId);
     const recolor = (marker: Edge['markerEnd']) => marker && selectedId
@@ -294,8 +311,14 @@ function Workspace() {
     const key = JSON.stringify([mode, direction, overviewColumns, projection.nodes.map((node) => node.id), projection.edges.map((edge) => [edge.id, edge.source, edge.target])]);
     // Content-only stream updates must not discard dragged positions or reset zoom.
     if (layoutKey.current === key) {
-      const fresh = new Map(projection.nodes.map((node) => [node.id, node.data]));
-      setNodes((previous) => previous.map((node) => ({ ...node, data: { ...node.data, ...fresh.get(node.id) } })));
+      const fresh = new Map(projection.nodes.map((node) => [node.id, node]));
+      setNodes((previous) => previous.map((node) => {
+        const next = fresh.get(node.id);
+        if (!next) return node;
+        // A card's height follows its content (title-only vs title+summary);
+        // content-only updates must carry that style, not just the data.
+        return { ...node, style: next.style, data: { ...node.data, ...next.data } };
+      }));
       // Keep each edge's computed route; only content changed, not the layout.
       setEdges((previous) => {
         const routes = new Map(previous.map((edge) => [edge.id, (edge.data as { route?: unknown } | undefined)?.route]));

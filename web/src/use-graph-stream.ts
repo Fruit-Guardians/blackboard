@@ -13,20 +13,26 @@ export function useGraphStream() {
   useEffect(() => {
     if (embedded) return;
     let alive = true;
+    // Snapshots from the initial fetch and the SSE stream can arrive in any
+    // order; only ever apply the newest one, or a slow initial fetch would
+    // roll the board back to an older state.
+    let lastSyncedAt = 0;
+    const apply = (data: GraphSnapshot, at: number) => {
+      if (!alive || at < lastSyncedAt) return;
+      lastSyncedAt = at;
+      setSnapshot(data);
+      setSyncedAt(at);
+      setConnection('live');
+    };
     fetch('/api/graph')
       .then((response) => response.json())
-      .then((data) => { if (alive) { setSnapshot(data); setSyncedAt(Date.now()); } })
+      .then((data) => { if (alive) apply(data, Date.now()); })
       .catch(() => setConnection('offline'));
     const stream = new EventSource('/events');
     stream.addEventListener('graph', (event) => {
       if (!alive) return;
-      try {
-        setSnapshot(JSON.parse((event as MessageEvent).data));
-        setSyncedAt(Date.now());
-        setConnection('live');
-      } catch {
-        setConnection('offline');
-      }
+      try { apply(JSON.parse((event as MessageEvent).data), Date.now()); }
+      catch { setConnection('offline'); }
     });
     stream.onopen = () => setConnection('live');
     stream.onerror = () => setConnection('offline');

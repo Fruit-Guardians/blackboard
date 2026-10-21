@@ -188,7 +188,7 @@ function parseArgs(argv, cmd = '') {
       }
     } else if (a === '-d' || a === '-t' || a === '-n' || a === '-o') {
       const map = {
-        '-d': 'detail',
+        '-d': cmd === 'tree' ? 'depth' : 'detail',
         '-t': ['ls', 'list'].includes(cmd) ? 'type' : 'tag',
         '-n': 'limit',
         '-o': 'out',
@@ -305,7 +305,7 @@ function cmdStatus(args, flags) {
   }
   if (cursor) console.log(`当前节点 ${nodeLine(cursor)}`);
   else console.log(C.dim('当前游标未设置；使用 blackboard cursor <id> 或创建节点时加 --enter。'));
-  console.log(C.dim(`浏览 ${`http://localhost:${flags.port || 4317}`} （blackboard serve）`));
+  console.log(C.dim(`浏览 ${`http://localhost:${flags.port || process.env.BLACKBOARD_PORT || process.env.FLOW_PORT || 4317}`} （blackboard serve）`));
 }
 
 function cmdList(args, flags) {
@@ -353,7 +353,7 @@ function cmdShow(args, flags) {
     console.log('');
     console.log(n.detail);
   }
-  const kids = childrenOf(g, id);
+  const kids = childrenOf(g, nodeId);
   if (kids.length) {
     console.log('');
     console.log(C.dim('— 下游 —'));

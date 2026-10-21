@@ -95,8 +95,14 @@ function NodeForm({ current, onDone, autoFocus }: { current?: BoardNode; onDone?
     const ok = await run(async () => {
       const { node } = await api.addNode({ type, title: title.trim() });
       if (current) {
-        const way = api.LINKS.find((item) => item.id === link)!;
-        await (way.from === 'new' ? api.addEdge(node.id, current.id, way.kind) : api.addEdge(current.id, node.id, way.kind));
+        try {
+          const way = api.LINKS.find((item) => item.id === link)!;
+          await (way.from === 'new' ? api.addEdge(node.id, current.id, way.kind) : api.addEdge(current.id, node.id, way.kind));
+        } catch (e) {
+          // The node is already in the log; say so instead of letting a retry
+          // create a second orphan with the same title.
+          throw new Error(`节点 ${node.id} 已创建，但关系未建立：${e instanceof Error ? e.message : String(e)}`);
+        }
       }
     });
     if (ok) { setTitle(''); onDone?.(); }
