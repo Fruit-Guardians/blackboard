@@ -9,6 +9,8 @@ export type EdgeRoute = {
   source: Pt;
   target: Pt;
   direction: Direction;
+  /** The layout run that produced this route; its cards carry the same number. */
+  run?: number;
 };
 
 const same = (a: Pt, b: Pt) => Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5;

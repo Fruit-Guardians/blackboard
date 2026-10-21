@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background, BackgroundVariant, MiniMap, ReactFlow, ReactFlowProvider,
-  useEdgesState, useNodesInitialized, useNodesState, useReactFlow,
+  useEdgesState, useNodesInitialized, useNodesState, useReactFlow, useUpdateNodeInternals,
   type Edge, type NodeMouseHandler, type OnNodesChange,
 } from '@xyflow/react';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -27,6 +27,7 @@ import { Inspector } from './panels/Inspector';
 import { NewNodeDialog } from './panels/EditPanel';
 import { Sidebar } from './panels/Sidebar';
 import { Topbar } from './panels/Topbar';
+import { locale, t } from './i18n';
 
 const nodeTypes = { security: SecurityNode, boardGroup: BoardGroup };
 const edgeTypes = { routed: RoutedEdge };
@@ -71,12 +72,13 @@ function Workspace() {
   const [copied, setCopied] = useState(false);
   const [overviewColumns, setOverviewColumns] = useState<1 | 2>(() => window.innerWidth > 1100 ? 2 : 1);
   const [layoutRevision, setLayoutRevision] = useState(0);
+  const [laying, setLaying] = useState(0);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const digestTrigger = useRef<HTMLButtonElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const layoutKey = useRef('');
   // Identity cache for display nodes: see displayNodes below.
-  const displayNodesCache = useRef(new Map<string, CanvasNode>());
+  const displayNodesCache = useRef(new Map<string, { source: CanvasNode; built: CanvasNode }>());
   const lastPositions = useRef(new Map<string, Positions>());
   const pendingFocus = useRef<string | null>(null);
   const framedRevision = useRef(0);
@@ -92,6 +94,8 @@ function Workspace() {
   const [nodes, setNodes, onNodesChange] = useNodesState<CanvasNode>([]);
   const [edges, setEdges] = useEdgesState<Edge>([]);
   const { fitView, getNode, getNodes, setCenter } = useReactFlow<CanvasNode>();
+  const updateNodeInternals = useUpdateNodeInternals();
+  const laidOutDirection = useRef<string | null>(null);
 
   const projection = useMemo(() => snapshot ? project(snapshot, mode, '') : null, [snapshot, mode]);
 
@@ -149,13 +153,14 @@ function Workspace() {
       const muted = !node.data.group && Boolean(selectedId) && !highlighted.has(node.id);
       const freshFlag = fresh.has(node.id);
       const hit = cache.get(node.id);
-      if (hit && hit.selected === selected && hit.data.muted === muted && hit.data.fresh === freshFlag && hit.data.item === node.data.item) return hit;
+      // Keyed on the node object itself: a drag replaces only the dragged node, and its new
+      // position must reach React Flow or the card snaps back.
+      if (hit && hit.source === node && hit.built.selected === selected && hit.built.data.muted === muted && hit.built.data.fresh === freshFlag) return hit.built;
       changed = true;
-      const built = { ...node, selected, data: { ...node.data, muted, fresh: freshFlag } };
-      return built;
+      return { ...node, selected, data: { ...node.data, muted, fresh: freshFlag } };
     });
     if (changed) {
-      displayNodesCache.current = new Map(next.map((node) => [node.id, node]));
+      displayNodesCache.current = new Map(next.map((built, i) => [built.id, { source: nodes[i], built }]));
     }
     return next;
   }, [nodes, selectedId, highlighted, fresh]);
@@ -252,8 +257,8 @@ function Workspace() {
     setExporting(true);
     try {
       await exportCanvasPng(getNodes(), `blackboard-${mode}-${new Date().toISOString().slice(0, 10)}.png`);
-      flash('已导出画布图片');
-    } catch { flash('导出图片失败'); }
+      flash(t('app.exported'));
+    } catch { flash(t('app.exportFailed')); }
     finally { setExporting(false); }
   }, [exporting, getNodes, mode, flash]);
 
@@ -263,7 +268,7 @@ function Workspace() {
       setLinkCopied(true);
       if (linkTimer.current) clearTimeout(linkTimer.current);
       linkTimer.current = setTimeout(() => setLinkCopied(false), 2000);
-    } catch { flash('无法写入剪贴板'); }
+    } catch { flash(t('app.clipboardFailed')); }
   };
 
   useEffect(() => {
@@ -328,6 +333,8 @@ function Workspace() {
     }
     let cancelled = false;
     const viewKey = `${mode}:${direction}`;
+    // Only a layout that keeps the canvas waiting is worth announcing.
+    const slow = setTimeout(() => setLaying(projection.nodes.length), 300);
     layoutGraph(projection.nodes, projection.edges, direction, mode === 'all', overviewColumns, lastPositions.current.get(viewKey)).then((layouted) => {
       if (cancelled) return;
       lastPositions.current.set(viewKey, new Map(layouted.nodes.map((node) => [node.id, node.position])));
@@ -335,9 +342,13 @@ function Workspace() {
       setNodes(layouted.nodes);
       setEdges(layouted.edges);
       setLayoutRevision((revision) => revision + 1);
-    });
-    return () => { cancelled = true; };
-  }, [projection, mode, direction, overviewColumns, setNodes, setEdges]);
+      // Handles move between the sides of a card when the direction flips; React Flow only re-measures
+      // them when asked. One batched request instead of one per card keeps a big board from stalling.
+      if (laidOutDirection.current && laidOutDirection.current !== direction) updateNodeInternals(layouted.nodes.map((node) => node.id));
+      laidOutDirection.current = direction;
+    }).finally(() => { clearTimeout(slow); if (!cancelled) setLaying(0); });
+    return () => { cancelled = true; clearTimeout(slow); };
+  }, [projection, mode, direction, overviewColumns, setNodes, setEdges, updateNodeInternals]);
 
   useEffect(() => {
     if (!initialized || !layoutRevision || framedRevision.current === layoutRevision) return;
@@ -429,7 +440,7 @@ function Workspace() {
       <main className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
         <BrandMark size={32} />
         <strong className="text-sm font-semibold text-foreground">blackboard</strong>
-        <span className="text-xs">{connection === 'offline' ? '等待黑板服务…' : '正在恢复 Agent 现场…'}</span>
+        <span className="text-xs">{connection === 'offline' ? t('app.waitingService') : t('app.restoring')}</span>
       </main>
     );
   }
@@ -449,7 +460,7 @@ function Workspace() {
   return (
     <div className="flex h-full flex-col">
       <Topbar
-        title={snapshot.meta.title || '未命名任务'}
+        title={snapshot.meta.title || t('app.untitledTask')}
         mode={mode}
         onMode={switchMode}
         theme={theme}
@@ -469,7 +480,7 @@ function Workspace() {
       <div className="relative flex min-h-0 flex-1">
         {sidebarOpen && (
           <>
-            <button className="absolute inset-0 z-20 bg-black/20 lg:hidden" aria-label="关闭导航" onClick={() => setSidebarOpen(false)} />
+            <button className="absolute inset-0 z-20 bg-black/20 lg:hidden" aria-label={t('app.closeNav')} onClick={() => setSidebarOpen(false)} />
             <aside className="z-30 w-64 shrink-0 border-r bg-background max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:shadow-float">
               <Sidebar
                 current={current}
@@ -490,7 +501,7 @@ function Workspace() {
           </>
         )}
 
-        <main ref={viewportRef} className="relative min-w-0 flex-1" aria-label="思考画布">
+        <main ref={viewportRef} className="relative min-w-0 flex-1" aria-label={t('app.canvas')}>
           <ReactFlow
             nodes={displayNodes}
             edges={displayEdges}
@@ -551,7 +562,7 @@ function Workspace() {
           <div className="pointer-events-none absolute left-1/2 top-3 flex -translate-x-1/2 flex-col items-center gap-2">
             {offlineShown && (
               <div role="alert" className="whitespace-nowrap rounded-full border border-destructive/40 bg-danger-soft px-3 py-1 text-xs text-destructive shadow-xs">
-                与黑板服务断开，正在重连{syncedAt ? ` · 画布停留在 ${new Date(syncedAt).toLocaleTimeString('zh-CN', { hour12: false })}` : ''}
+                {t('app.disconnected')}{syncedAt ? t('app.frozenAt', { time: new Date(syncedAt).toLocaleTimeString(locale, { hour12: false }) }) : ''}
               </div>
             )}
             {hidden > 0 && (
@@ -559,13 +570,14 @@ function Workspace() {
                 className="pointer-events-auto whitespace-nowrap rounded-full border bg-card px-3 py-1 text-xs text-muted-foreground shadow-xs transition-colors hover:border-strong hover:text-foreground"
                 onClick={() => switchMode('all')}
               >
-                另有 {hidden} 个节点未显示 · 查看全部
+                {t('app.hiddenNodes', { n: hidden })}
               </button>
             )}
+            {laying > 0 && <div role="status" className="whitespace-nowrap rounded-full border bg-card px-3 py-1 text-xs text-muted-foreground shadow-xs">{t('app.laying', { n: laying })}</div>}
             {notice && <div role="status" className="whitespace-nowrap rounded-full border bg-card px-3 py-1 text-xs shadow-float">{notice}</div>}
           </div>
 
-          <p className="sr-only" role="status" aria-live="polite">{selected ? `已选中${typeLabelOf(selected.type)}：${selected.title}` : ''}</p>
+          <p className="sr-only" role="status" aria-live="polite">{selected ? t('app.selected', { type: typeLabelOf(selected.type), title: selected.title }) : ''}</p>
 
           {selected && <Inspector node={selected} edges={allEdges} byId={byId} onClose={() => setSelectedId(null)} onFocus={focusNode} onCopyLink={isStatic ? undefined : copyNodeLink} linkCopied={linkCopied} writable={writable} />}
         </main>
@@ -586,7 +598,7 @@ function Workspace() {
       />
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       {writable && <NewNodeDialog open={newOpen} onOpenChange={setNewOpen} />}
-      <DigestDialog open={digestOpen} onOpenChange={setDigestOpen} digest={snapshot.digest || ''} copied={copied} onCopy={copyDigest} returnFocus={digestTrigger} />
+      <DigestDialog open={digestOpen} onOpenChange={setDigestOpen} digest={snapshot.digest || ''} copied={copied} onCopy={copyDigest} returnFocus={digestTrigger} byId={byId} onFocus={focusNode} />
     </div>
   );
 }

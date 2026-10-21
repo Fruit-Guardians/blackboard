@@ -6,6 +6,7 @@ import { IconButton } from '@/components/icon-button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Segmented, SegmentedItem } from '@/components/ui/segmented';
 import type { EdgeStyle } from '../graph';
+import { t } from '../i18n';
 
 type Props = {
   hasCurrent: boolean;
@@ -38,11 +39,11 @@ export function CanvasToolbar({ hasCurrent, canFollow, canExport, onExport, grou
   return (
     <Panel position="bottom-left" className="m-3!">
       <div className="flex items-center gap-0.5 rounded-xl border bg-card p-1 shadow-float">
-        <IconButton label="适应画布" onClick={() => fitView({ padding: 0.14, duration: motion })}><Maximize2 /></IconButton>
-        {hasCurrent && <IconButton label="定位当前节点" onClick={onLocate}><Crosshair /></IconButton>}
+        <IconButton label={t('toolbar.fit')} onClick={() => fitView({ padding: 0.14, duration: motion })}><Maximize2 /></IconButton>
+        {hasCurrent && <IconButton label={t('toolbar.locate')} onClick={onLocate}><Crosshair /></IconButton>}
         {hasCurrent && canFollow && (
           <IconButton
-            label={grouped ? '跟随 Agent（全局视图下不可用）' : follow ? '停止跟随 Agent' : '跟随 Agent 游标'}
+            label={grouped ? t('toolbar.followDisabled') : follow ? t('toolbar.unfollow') : t('toolbar.follow')}
             aria-pressed={follow && !grouped}
             disabled={grouped}
             onClick={onToggleFollow}
@@ -50,27 +51,27 @@ export function CanvasToolbar({ hasCurrent, canFollow, canExport, onExport, grou
             <Radio />
           </IconButton>
         )}
-        {!grouped && <IconButton label={direction === 'RIGHT' ? '切换为纵向布局' : '切换为横向布局'} onClick={onDirection}><Direction /></IconButton>}
-        <IconButton className="max-sm:hidden" label={showLegend ? '隐藏图例' : '显示图例'} aria-pressed={showLegend} onClick={onToggleLegend}><Palette /></IconButton>
+        {!grouped && <IconButton label={direction === 'RIGHT' ? t('toolbar.toVertical') : t('toolbar.toHorizontal')} onClick={onDirection}><Direction /></IconButton>}
+        <IconButton className="max-sm:hidden" label={showLegend ? t('toolbar.hideLegend') : t('toolbar.showLegend')} aria-pressed={showLegend} onClick={onToggleLegend}><Palette /></IconButton>
         <Popover>
           <PopoverTrigger asChild>
-            <Button size="icon-sm" aria-label="连线样式" title="连线样式"><EdgeIcon /></Button>
+            <Button size="icon-sm" aria-label={t('toolbar.edgeStyle')} title={t('toolbar.edgeStyle')}><EdgeIcon /></Button>
           </PopoverTrigger>
           <PopoverContent side="top" align="start" sideOffset={10} className="w-auto p-2">
-            <p className="m-0 mb-1.5 px-1 text-xs font-medium text-muted-foreground">连线样式</p>
-            <Segmented<EdgeStyle> value={edgeStyle} onValueChange={onEdgeStyle} aria-label="连线样式">
-              <SegmentedItem value="curve"><Spline />曲线</SegmentedItem>
-              <SegmentedItem value="step"><CornerDownRight />折线</SegmentedItem>
-              <SegmentedItem value="straight"><Slash />直线</SegmentedItem>
+            <p className="m-0 mb-1.5 px-1 text-xs font-medium text-muted-foreground">{t('toolbar.edgeStyle')}</p>
+            <Segmented<EdgeStyle> value={edgeStyle} onValueChange={onEdgeStyle} aria-label={t('toolbar.edgeStyle')}>
+              <SegmentedItem value="curve"><Spline />{t('toolbar.curve')}</SegmentedItem>
+              <SegmentedItem value="step"><CornerDownRight />{t('toolbar.step')}</SegmentedItem>
+              <SegmentedItem value="straight"><Slash />{t('toolbar.straight')}</SegmentedItem>
             </Segmented>
           </PopoverContent>
         </Popover>
-        {canExport && <IconButton label="导出为图片" onClick={onExport}><ImageDown /></IconButton>}
-        <IconButton label={showMap ? '隐藏小地图' : '显示小地图'} aria-pressed={showMap} onClick={onToggleMap}><MapIcon /></IconButton>
+        {canExport && <IconButton label={t('toolbar.export')} onClick={onExport}><ImageDown /></IconButton>}
+        <IconButton label={showMap ? t('toolbar.hideMap') : t('toolbar.showMap')} aria-pressed={showMap} onClick={onToggleMap}><MapIcon /></IconButton>
         <span className="mx-1 h-4 w-px bg-border" />
-        <IconButton label="缩小" onClick={() => zoomOut({ duration: motion })}><Minus /></IconButton>
+        <IconButton label={t('toolbar.zoomOut')} onClick={() => zoomOut({ duration: motion })}><Minus /></IconButton>
         <Slider
-          aria-label="画布缩放"
+          aria-label={t('toolbar.zoom')}
           className="w-20 max-sm:hidden"
           value={[zoom]}
           min={minZoom}
@@ -78,8 +79,8 @@ export function CanvasToolbar({ hasCurrent, canFollow, canExport, onExport, grou
           step={0.01}
           onValueChange={(next) => zoomTo(next[0])}
         />
-        <IconButton label="放大" onClick={() => zoomIn({ duration: motion })}><Plus /></IconButton>
-        <Button size="sm" className="w-12 tabular-nums text-muted-foreground" aria-label="重置为 100% 缩放" onClick={() => zoomTo(1, { duration: motion })}>
+        <IconButton label={t('toolbar.zoomIn')} onClick={() => zoomIn({ duration: motion })}><Plus /></IconButton>
+        <Button size="sm" className="w-12 tabular-nums text-muted-foreground" aria-label={t('toolbar.zoomReset')} onClick={() => zoomTo(1, { duration: motion })}>
           {Math.round(zoom * 100)}%
         </Button>
       </div>

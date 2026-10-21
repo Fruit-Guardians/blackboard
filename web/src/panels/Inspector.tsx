@@ -9,6 +9,7 @@ import { confidenceLabel, presentNode, severityLabel, statusLabel } from '../pre
 import { removeEdge } from '../api';
 import { AddSection, EditSection } from './EditPanel';
 import type { BoardEdge, BoardNode } from '../types';
+import { t } from '../i18n';
 
 type Props = {
   node: BoardNode;
@@ -28,16 +29,16 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
   const severe = node.severity === 'critical' || node.severity === 'high';
   return (
     <aside
-      aria-label="节点详情"
+      aria-label={t('inspector.label')}
       className="anim-slide-in absolute inset-x-3 bottom-3 top-auto z-20 flex max-h-[62%] flex-col rounded-xl border bg-card shadow-float sm:inset-x-auto sm:right-3 sm:top-3 sm:max-h-none sm:w-[360px]"
     >
       <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3.5">
         <span className="text-muted-foreground"><NodeTypeIcon type={node.type} size={14} /></span>
         <span className="text-[13px] font-medium">{typeLabel(node.type)}</span>
         <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground" title={node.id}>{node.id}</span>
-        {onCopyLink && <IconButton label={linkCopied ? '链接已复制' : '复制节点链接'} onClick={onCopyLink}>{linkCopied ? <Check /> : <Link2 />}</IconButton>}
+        {onCopyLink && <IconButton label={linkCopied ? t('inspector.linkCopied') : t('inspector.copyLink')} onClick={onCopyLink}>{linkCopied ? <Check /> : <Link2 />}</IconButton>}
         <Kbd className="hidden sm:inline-flex">Esc</Kbd>
-        <IconButton label="关闭详情" onClick={onClose}><X /></IconButton>
+        <IconButton label={t('inspector.close')} onClick={onClose}><X /></IconButton>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -46,17 +47,17 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
         {text.detail && <p className="mt-2 mb-0 text-[13px] leading-[22px] text-subtle">{text.detail}</p>}
 
         <dl className="mt-5 mb-0 divide-y rounded-lg border text-[13px]">
-          <Prop label="状态" value={statusLabel(node.status)} />
-          <Prop label="风险" value={severityLabel(node.severity)} tone={severe ? 'danger' : undefined} />
-          <Prop label="可信度" value={confidenceLabel(node.confidence)} />
-          {typeof node.author === 'string' && node.author && <Prop label="作者" value={node.author === 'human' ? '人工' : node.author} />}
-          <Prop label="创建" value={formatTime(Number(node.ts || 0))} />
-          <Prop label="更新" value={formatTime(Number(node.updated || node.ts || 0))} />
+          <Prop label={t('inspector.status')} value={statusLabel(node.status)} />
+          <Prop label={t('inspector.risk')} value={severityLabel(node.severity)} tone={severe ? 'danger' : undefined} />
+          <Prop label={t('inspector.confidence')} value={confidenceLabel(node.confidence)} />
+          {typeof node.author === 'string' && node.author && <Prop label={t('inspector.author')} value={node.author === 'human' ? t('inspector.human') : node.author} />}
+          <Prop label={t('inspector.created')} value={formatTime(Number(node.ts || 0))} />
+          <Prop label={t('inspector.updated')} value={formatTime(Number(node.updated || node.ts || 0))} />
         </dl>
 
         <section className="mt-6">
           <h3 className="m-0 mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            关系<span className="tabular-nums font-normal">{relations.length}</span>
+            {t('inspector.relations')}<span className="tabular-nums font-normal">{relations.length}</span>
           </h3>
           {relations.length ? (
             <ul className="m-0 flex list-none flex-col gap-px p-0">
@@ -70,7 +71,7 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
                       onClick={() => peer && onFocus(peer.id)}
                       className="group flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
                     >
-                      <Arrow className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-label={incoming ? '来自' : '指向'} />
+                      <Arrow className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-label={incoming ? t('inspector.from') : t('inspector.to')} />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
                           {relationLabel(edge.kind)}
@@ -82,7 +83,7 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
                     </button>
                     {writable && (
                       <span className="absolute right-1 top-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100">
-                        <IconButton label="断开这条关系" onClick={() => { removeEdge(edge.id).catch((e) => { window.alert(`断开关系失败：${e instanceof Error ? e.message : String(e)}`); }); }}><Unlink /></IconButton>
+                        <IconButton label={t('inspector.unlink')} onClick={() => { removeEdge(edge.id).catch((e) => { window.alert(t('inspector.unlinkFailed', { error: e instanceof Error ? e.message : String(e) })); }); }}><Unlink /></IconButton>
                       </span>
                     )}
                   </li>
@@ -90,7 +91,7 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
               })}
             </ul>
           ) : (
-            <p className="m-0 text-xs text-muted-foreground">这个节点尚未建立逻辑关系。</p>
+            <p className="m-0 text-xs text-muted-foreground">{t('inspector.noRelations')}</p>
           )}
         </section>
 
@@ -99,7 +100,7 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
 
         <Collapsible.Root key={node.id} className="mt-6">
           <Collapsible.Trigger className="group flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
-            <ChevronRight className="size-3 transition-transform group-data-[state=open]:rotate-90" />原始数据
+            <ChevronRight className="size-3 transition-transform group-data-[state=open]:rotate-90" />{t('inspector.raw')}
           </Collapsible.Trigger>
           <Collapsible.Content>
             <pre className="mt-2 mb-0 max-h-64 overflow-auto rounded-lg border bg-secondary p-3 font-mono text-[11px] leading-[18px] text-subtle">{JSON.stringify(node, null, 2)}</pre>

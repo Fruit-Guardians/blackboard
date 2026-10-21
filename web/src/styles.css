@@ -124,6 +124,9 @@
 @layer base {
   *, ::before, ::after { border-color: var(--line); }
   html, body, #root { height: 100%; }
+  /* Han characters differ by region; give each interface language its own CJK face. */
+  html:lang(zh-HK) body { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "PingFang HK", "Microsoft JhengHei", sans-serif; }
+  html:lang(ja) body { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif; }
   body {
     margin: 0;
     background: var(--bg);

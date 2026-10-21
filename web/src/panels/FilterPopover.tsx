@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { TypeDot } from '../SecurityNode';
 import { typeLabel } from '../graph';
 import { confidenceLabel, filterActive, statusLabel, type NodeFilter } from '../presentation';
+import { t } from '../i18n';
 
 type Option = { value: string; count: number };
 type Props = {
@@ -24,13 +25,13 @@ export function FilterPopover({ filter, onChange, types, statuses, confidences, 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button size="icon" className="relative shrink-0 border bg-card shadow-xs" aria-label={active ? `筛选（已启用 ${total} 项）` : '筛选节点'}>
+        <Button size="icon" className="relative shrink-0 border bg-card shadow-xs" aria-label={active ? t('filter.labelActive', { n: total }) : t('filter.label')}>
           <ListFilter />
           {active && <i className="absolute right-1 top-1 size-1.5 rounded-full bg-foreground" />}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-3">
-        <Facet title="类型">
+        <Facet title={t('filter.type')}>
           {types.map((option) => (
             <Chip key={option.value} pressed={filter.types.includes(option.value)} onClick={() => onChange({ ...filter, types: toggle(filter.types, option.value) })}>
               <TypeDot type={option.value} className="size-1.5" />{typeLabel(option.value)}<Count n={option.count} />
@@ -38,28 +39,28 @@ export function FilterPopover({ filter, onChange, types, statuses, confidences, 
           ))}
         </Facet>
         {statuses.length > 0 && (
-          <Facet title="状态">
+          <Facet title={t('filter.status')}>
             {statuses.map((option) => (
               <Chip key={option.value} pressed={filter.statuses.includes(option.value)} onClick={() => onChange({ ...filter, statuses: toggle(filter.statuses, option.value) })}>
-                {option.value ? statusLabel(option.value) : '未设置'}<Count n={option.count} />
+                {option.value ? statusLabel(option.value) : t('status.unset')}<Count n={option.count} />
               </Chip>
             ))}
           </Facet>
         )}
         {confidences.length > 0 && (
-          <Facet title="可信度">
+          <Facet title={t('filter.confidence')}>
             {confidences.map((option) => (
               <Chip key={option.value} pressed={filter.confidences.includes(option.value)} onClick={() => onChange({ ...filter, confidences: toggle(filter.confidences, option.value) })}>
-                {option.value ? confidenceLabel(option.value) : '未声明'}<Count n={option.count} />
+                {option.value ? confidenceLabel(option.value) : t('confidence.unset')}<Count n={option.count} />
               </Chip>
             ))}
           </Facet>
         )}
-        <Facet title="风险">
-          <Chip pressed={filter.riskOnly} onClick={() => onChange({ ...filter, riskOnly: !filter.riskOnly })}>仅严重 / 高危<Count n={riskCount} /></Chip>
+        <Facet title={t('filter.risk')}>
+          <Chip pressed={filter.riskOnly} onClick={() => onChange({ ...filter, riskOnly: !filter.riskOnly })}>{t('filter.riskOnly')}<Count n={riskCount} /></Chip>
         </Facet>
         <div className="mt-3 flex justify-end border-t pt-2">
-          <Button variant="ghost" size="sm" disabled={!active} onClick={() => onChange({ types: [], statuses: [], confidences: [], riskOnly: false })}>清除筛选</Button>
+          <Button variant="ghost" size="sm" disabled={!active} onClick={() => onChange({ types: [], statuses: [], confidences: [], riskOnly: false })}>{t('filter.clear')}</Button>
         </div>
       </PopoverContent>
     </Popover>

@@ -6,6 +6,7 @@ import type { BoardEdge, BoardNode, GraphSnapshot, ViewMode } from './types';
 import { values } from './types';
 import { matchesNode, presentNode } from './presentation';
 import { BOARD_GROUPS, groupFor } from './canvas-state';
+import { locale, t, tOptional } from './i18n';
 export { typeLabel } from './presentation';
 
 export const NODE_W = 288;
@@ -14,6 +15,7 @@ export const NODE_H_TITLE = 88;
 
 type ElkEngine = InstanceType<typeof ELK>;
 let elk: ElkEngine | undefined;
+let layoutRuns = 0;
 
 /**
  * The layout engine is injected so the 1.4 MB ELK runs in a Web Worker (or, in tests, in-process)
@@ -39,6 +41,8 @@ export type CanvasNodeData = Record<string, unknown> & {
   groupSubtitle?: string;
   groupColor?: string;
   direction?: 'RIGHT' | 'DOWN';
+  /** The layout run that placed this card; see EdgeRoute.run. */
+  layoutRun?: number;
 };
 
 export type CanvasNode = Node<CanvasNodeData, 'security' | 'boardGroup'>;
@@ -205,6 +209,17 @@ const edgePriority = (kind: string) => {
   };
 };
 
+/**
+ * Network-simplex placement draws the straightest lines but grows steeply with the board
+ * (≈0.6 s at 120 cards, ≈40 s at 400). Larger boards switch to Brandes–Köpf, which stays around
+ * a second even at 1000 cards, and spend less effort on crossing minimisation.
+ */
+export function placementFor(count: number) {
+  if (count <= 120) return { 'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX', 'elk.layered.thoroughness': '40' };
+  if (count <= 400) return { 'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF', 'elk.layered.thoroughness': '20' };
+  return { 'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF', 'elk.layered.thoroughness': '7' };
+}
+
 async function elkLayout(nodes: CanvasNode[], edges: Edge[], direction: 'RIGHT' | 'DOWN', previous?: Positions) {
   const across = direction === 'RIGHT';
   const hasIncoming = new Set(edges.map((edge) => edge.target));
@@ -235,8 +250,7 @@ async function elkLayout(nodes: CanvasNode[], edges: Edge[], direction: 'RIGHT' 
       'elk.layered.spacing.edgeEdgeBetweenLayers': '14',
       'elk.layered.spacing.edgeNodeBetweenLayers': '28',
       'elk.spacing.portPort': '14',
-      'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
-      'elk.layered.thoroughness': '40',
+      ...placementFor(nodes.length),
       // With previous positions, ELK keeps known nodes in their old order within a layer and only
       // fits new nodes in; crossings are still minimised around them.
       'elk.layered.crossingMinimization.semiInteractive': previous ? 'true' : 'false',
@@ -265,18 +279,19 @@ async function elkLayout(nodes: CanvasNode[], edges: Edge[], direction: 'RIGHT' 
       layoutOptions: edgePriority(String((edge.data as { kind?: string } | undefined)?.kind || 'related-to')),
     })),
   });
+  const run = ++layoutRuns;
   const positions = new Map((result.children || []).map((node) => [node.id, node]));
   const sections = new Map(((result.edges || []) as ElkExtendedEdge[]).map((edge) => [edge.id, edge.sections?.[0]]));
   const at = (id: string) => ({ x: positions.get(id)?.x || 0, y: positions.get(id)?.y || 0 });
   return {
-    nodes: nodes.map((node) => ({ ...node, data: { ...node.data, direction }, position: at(node.id) })),
+    nodes: nodes.map((node) => ({ ...node, data: { ...node.data, direction, layoutRun: run }, position: at(node.id) })),
     // ELK's own routes keep long edges clear of the nodes between their ends.
     edges: edges.map((edge) => {
       const section = sections.get(edge.id);
       if (!section) return edge;
       const route: EdgeRoute = {
         points: [section.startPoint, ...(section.bendPoints || []), section.endPoint].map(({ x, y }) => ({ x, y })),
-        source: at(edge.source), target: at(edge.target), direction,
+        source: at(edge.source), target: at(edge.target), direction, run,
       };
       return { ...edge, data: { ...edge.data, route } };
     }),
@@ -286,8 +301,8 @@ async function elkLayout(nodes: CanvasNode[], edges: Edge[], direction: 'RIGHT' 
 /** Relation kinds fall into six families; each family has one colour and stroke in the UI. */
 export type RelationGroup = 'support' | 'oppose' | 'derive' | 'produce' | 'replace' | 'link';
 export const RELATION_GROUPS: { id: RelationGroup; label: string }[] = [
-  { id: 'support', label: '证实' }, { id: 'oppose', label: '反驳' }, { id: 'derive', label: '推导' },
-  { id: 'produce', label: '产出' }, { id: 'replace', label: '取代' }, { id: 'link', label: '关联' },
+  { id: 'support', label: t('relationGroup.support') }, { id: 'oppose', label: t('relationGroup.oppose') }, { id: 'derive', label: t('relationGroup.derive') },
+  { id: 'produce', label: t('relationGroup.produce') }, { id: 'replace', label: t('relationGroup.replace') }, { id: 'link', label: t('relationGroup.link') },
 ];
 const GROUP_OF: Record<string, RelationGroup> = {
   proves: 'support', prove: 'support', supports: 'support',
@@ -302,18 +317,12 @@ export const relationGroup = (kind: string): RelationGroup => GROUP_OF[kind] || 
 export type EdgeStyle = 'curve' | 'step' | 'straight';
 
 export function relationLabel(kind: string) {
-  return ({
-    proves: '证明', prove: '证明', supports: '支持', contradicts: '反驳',
-    supersedes: '取代', resolves: '解决', 'derived-from': '派生自',
-    'depends-on': '依赖', 'caused-by': '由…导致', refines: '细化',
-    'related-to': '相关', produce: '产出', derive: '派生',
-    'intent-chain': '意图链', duplicates: '重复',
-  } as Record<string, string>)[kind] || kind;
+  return tOptional(`relation.${kind}`) || kind;
 }
 
 export function formatTime(value?: number) {
   if (!value || !Number.isFinite(value) || !Number.isFinite(new Date(value).getTime())) return '—';
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(locale, {
     month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(new Date(value));
 }

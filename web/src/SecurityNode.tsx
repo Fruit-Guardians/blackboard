@@ -1,5 +1,5 @@
-import { memo, useEffect, type CSSProperties } from 'react';
-import { Handle, Position, useStore, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
+import { memo, type CSSProperties } from 'react';
+import { Handle, Position, useStore, type NodeProps } from '@xyflow/react';
 import {
   Activity, AlertTriangle, CheckCircle2, CircleHelp, Crosshair, FileSearch,
   Flag, Lightbulb, ListChecks, MessageSquareText, Route, ShieldAlert, Sparkles,
@@ -10,6 +10,7 @@ import { typeLabel } from './graph';
 import { BaseNode } from './components/react-flow/base-node';
 import { detailLevel } from './canvas-state';
 import { confidenceLabel, presentNode, severityLabel, statusLabel } from './presentation';
+import { t } from './i18n';
 
 const ICONS = {
   goal: Flag,
@@ -45,12 +46,10 @@ export function TypeDot({ type, className }: { type: string; className?: string 
 
 const handleClass = 'size-1! min-h-0! min-w-0! border-0! bg-transparent! opacity-0! pointer-events-none!';
 
-export const SecurityNode = memo(function SecurityNode({ id, data, selected }: NodeProps<CanvasNode>) {
+export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeProps<CanvasNode>) {
   const { item, current, dimmed, direction, compact, muted, fresh, agents } = data;
   const level = useStore((state) => detailLevel(state.transform[2]));
   const vertical = direction === 'DOWN';
-  const updateNodeInternals = useUpdateNodeInternals();
-  useEffect(() => updateNodeInternals(id), [id, direction, updateNodeInternals]);
   const text = presentNode(item);
   const severe = item.severity === 'critical' || item.severity === 'high';
   const state = [
@@ -85,11 +84,11 @@ export const SecurityNode = memo(function SecurityNode({ id, data, selected }: N
           </span>
           {current && (
             <span className="ml-1 inline-flex items-center gap-1 text-live">
-              <i className="live-dot size-1.5 rounded-full bg-live" />当前
+              <i className="live-dot size-1.5 rounded-full bg-live" />{t('node.current')}
             </span>
           )}
           {agents?.map((agent) => (
-            <span key={agent} className="ml-1 inline-flex max-w-24 items-center gap-1 truncate text-subtle" title={`${agent} 在这里`}>
+            <span key={agent} className="ml-1 inline-flex max-w-24 items-center gap-1 truncate text-subtle" title={t('node.agentHere', { agent })}>
               <i className="size-1.5 shrink-0 rounded-full bg-strong" />{agent}
             </span>
           ))}

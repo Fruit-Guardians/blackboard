@@ -15,8 +15,13 @@ export const RoutedEdge = memo(function RoutedEdge(props: EdgeProps) {
   const { route, style: shape = 'curve' } = (props.data || {}) as RoutedData;
   const sourcePos = useStore((state) => state.nodeLookup.get(source)?.internals.positionAbsolute);
   const targetPos = useStore((state) => state.nodeLookup.get(target)?.internals.positionAbsolute);
+  const sourceRun = useStore((state) => state.nodeLookup.get(source)?.data.layoutRun as number | undefined);
+  const targetRun = useStore((state) => state.nodeLookup.get(target)?.data.layoutRun as number | undefined);
   const laidOut = routeValid(route, sourcePos, targetPos);
-  const detour = shape !== 'straight' && !laidOut;
+  // While a new layout lands, an edge can hold the new route for a frame or two while its cards are
+  // still at their old places. That is not a drag; re-routing every edge for it stalls a big board.
+  const settling = route?.run !== undefined && (sourceRun !== route.run || targetRun !== route.run);
+  const detour = shape !== 'straight' && !laidOut && !settling;
   // Only stale edges subscribe to the node list, so a drag re-renders just the lines it affects.
   const nodes = useStore((state) => (detour ? state.nodes : null));
   const store = useStoreApi();

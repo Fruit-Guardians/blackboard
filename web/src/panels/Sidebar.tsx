@@ -10,6 +10,7 @@ import { confidenceLabel, presentNode, severityLabel } from '../presentation';
 import { typeLabel } from '../graph';
 import type { NodeFilter } from '../presentation';
 import type { BoardNode } from '../types';
+import { t } from '../i18n';
 
 type Props = {
   current: BoardNode | null;
@@ -29,13 +30,13 @@ type Props = {
 
 export function Sidebar({ current, openItems, findings, inbox, selectedId, counts, onSelect, onSearch, onShortcuts, filter, onFilter, filterOptions, results }: Props) {
   return (
-    <div className="flex h-full w-full flex-col" aria-label="任务导航">
+    <div className="flex h-full w-full flex-col" aria-label={t('sidebar.label')}>
       <div className="flex gap-2 p-3 pb-2">
         <button
           onClick={onSearch}
           className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border bg-card px-2.5 text-[13px] text-muted-foreground shadow-xs transition-colors hover:border-strong hover:text-foreground"
         >
-          <Search className="size-3.5" />搜索节点<Kbd className="ml-auto">⌘K</Kbd>
+          <Search className="size-3.5" />{t('sidebar.search')}<Kbd className="ml-auto">⌘K</Kbd>
         </button>
         <FilterPopover filter={filter} onChange={onFilter} {...filterOptions} />
       </div>
@@ -43,37 +44,37 @@ export function Sidebar({ current, openItems, findings, inbox, selectedId, count
         {results ? (
           <>
             <div className="flex h-7 items-center px-2 text-xs font-medium text-muted-foreground">
-              筛选结果<span className="ml-1.5 tabular-nums font-normal">{results.length}</span>
-              <Button variant="ghost" size="sm" className="ml-auto -mr-1 h-6 px-1.5 text-xs" onClick={() => onFilter({ types: [], statuses: [], confidences: [], riskOnly: false })}><X className="size-3" />清除</Button>
+              {t('sidebar.results')}<span className="ml-1.5 tabular-nums font-normal">{results.length}</span>
+              <Button variant="ghost" size="sm" className="ml-auto -mr-1 h-6 px-1.5 text-xs" onClick={() => onFilter({ types: [], statuses: [], confidences: [], riskOnly: false })}><X className="size-3" />{t('sidebar.clear')}</Button>
             </div>
             <div className="flex flex-col gap-px pt-0.5">
               {results.length
                 ? results.map((node) => <Row key={node.id} node={node} selected={selectedId === node.id} current={node.id === current?.id} onSelect={onSelect} />)
-                : <Empty>没有符合条件的节点，放宽一个条件试试。</Empty>}
+                : <Empty>{t('sidebar.noMatch')}</Empty>}
             </div>
           </>
         ) : (<>
-        <Section title="正在关注" count={current ? 1 : 0}>
-          {current ? <Row node={current} selected={selectedId === current.id} current onSelect={onSelect} /> : <Empty>Agent 尚未设置游标</Empty>}
+        <Section title={t('sidebar.focus')} count={current ? 1 : 0}>
+          {current ? <Row node={current} selected={selectedId === current.id} current onSelect={onSelect} /> : <Empty>{t('sidebar.noCursor')}</Empty>}
         </Section>
-        <Section title="待验证" count={openItems.length}>
-          {openItems.length ? openItems.map((node) => <Row key={node.id} node={node} selected={selectedId === node.id} onSelect={onSelect} />) : <Empty>当前没有开放假设</Empty>}
+        <Section title={t('sidebar.open')} count={openItems.length}>
+          {openItems.length ? openItems.map((node) => <Row key={node.id} node={node} selected={selectedId === node.id} onSelect={onSelect} />) : <Empty>{t('sidebar.noOpen')}</Empty>}
         </Section>
-        <Section title="发现" count={findings.length}>
-          {findings.length ? findings.slice(0, 8).map((node) => <Row key={node.id} node={node} selected={selectedId === node.id} onSelect={onSelect} />) : <Empty>还没有记录发现</Empty>}
+        <Section title={t('sidebar.findings')} count={findings.length}>
+          {findings.length ? findings.slice(0, 8).map((node) => <Row key={node.id} node={node} selected={selectedId === node.id} onSelect={onSelect} />) : <Empty>{t('sidebar.noFindings')}</Empty>}
         </Section>
-        <Section title="未连接" count={inbox.length} defaultOpen={false}>
+        <Section title={t('sidebar.inbox')} count={inbox.length} defaultOpen={false}>
           {inbox.slice(0, 10).map((node) => <Row key={node.id} node={node} selected={selectedId === node.id} onSelect={onSelect} />)}
         </Section>
         </>)}
       </nav>
       <footer className="flex items-center gap-3 border-t px-4 py-2.5 text-xs tabular-nums text-muted-foreground">
-        <span>{counts.nodes} 节点</span>
-        <span>{counts.edges} 关系</span>
-        {counts.open > 0 && <span>{counts.open} 待验证</span>}
-        {counts.candidates > 0 && <span>{counts.candidates} 候选</span>}
-        {counts.risk > 0 && <span className="text-destructive">{counts.risk} 高风险</span>}
-        <button className="ml-auto inline-flex items-center gap-1 rounded text-muted-foreground transition-colors hover:text-foreground" onClick={onShortcuts} aria-label="键盘快捷键">
+        <span>{t('sidebar.nodes', { n: counts.nodes })}</span>
+        <span>{t('sidebar.edges', { n: counts.edges })}</span>
+        {counts.open > 0 && <span>{t('sidebar.openCount', { n: counts.open })}</span>}
+        {counts.candidates > 0 && <span>{t('sidebar.candidates', { n: counts.candidates })}</span>}
+        {counts.risk > 0 && <span className="text-destructive">{t('sidebar.risk', { n: counts.risk })}</span>}
+        <button className="ml-auto inline-flex items-center gap-1 rounded text-muted-foreground transition-colors hover:text-foreground" onClick={onShortcuts} aria-label={t('palette.shortcuts')}>
           <Kbd>?</Kbd>
         </button>
       </footer>

@@ -1,3 +1,5 @@
+import { t } from './i18n';
+
 /** Writes a person makes from the viewer. The server stamps them as human and checks where they came from. */
 export type NodeInput = { type: string; title: string; detail?: string; parent?: string; relation?: string };
 export type NodePatch = Partial<Record<'title' | 'detail' | 'status' | 'severity' | 'confidence', string>>;
@@ -7,10 +9,10 @@ async function send<T>(method: string, url: string, body?: unknown): Promise<T> 
   try {
     response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
   } catch {
-    throw new Error('黑板服务没有响应');
+    throw new Error(t('api.noResponse'));
   }
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error === 'read_only' ? '黑板以只读方式运行' : data.error || `请求失败（${response.status}）`);
+  if (!response.ok) throw new Error(data.error === 'read_only' ? t('api.readOnly') : data.error || t('api.failed', { status: response.status }));
   return data as T;
 }
 
@@ -22,10 +24,10 @@ export const removeEdge = (id: string) => send<unknown>('DELETE', `/api/edges?id
 
 /** How a new card relates to the selected one. Each reads "new <relation> current" except the last. */
 export const LINKS = [
-  { id: 'supports', label: '支持当前节点', from: 'new', kind: 'supports' },
-  { id: 'contradicts', label: '反驳当前节点', from: 'new', kind: 'contradicts' },
-  { id: 'derived-from', label: '由当前节点推出', from: 'new', kind: 'derived-from' },
-  { id: 'related-to', label: '仅相关', from: 'current', kind: 'related-to' },
+  { id: 'supports', label: t('link.supports'), from: 'new', kind: 'supports' },
+  { id: 'contradicts', label: t('link.contradicts'), from: 'new', kind: 'contradicts' },
+  { id: 'derived-from', label: t('link.derived-from'), from: 'new', kind: 'derived-from' },
+  { id: 'related-to', label: t('link.related-to'), from: 'current', kind: 'related-to' },
 ] as const;
 
 export const CREATABLE_TYPES = ['fact', 'observation', 'hypothesis', 'question', 'action', 'result', 'finding', 'note', 'goal'] as const;

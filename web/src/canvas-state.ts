@@ -1,13 +1,14 @@
 import type { BoardNode } from './types';
+import { t } from './i18n';
 
 export type DetailLevel = 'overview' | 'compact' | 'detail';
 export const detailLevel = (zoom: number): DetailLevel => zoom < .65 ? 'overview' : zoom < .9 ? 'compact' : 'detail';
 
 export const BOARD_GROUPS = [
-  { id: 'purpose', title: '目标与摘要', subtitle: '方向 · 当前结论', color: '#647e72' },
-  { id: 'reasoning', title: '推理与证据', subtitle: '观察 · 假设 · 行动', color: '#6b7e95' },
-  { id: 'findings', title: '发现', subtitle: '已记录的发现与风险', color: '#af7969' },
-  { id: 'inbox', title: '未连接记录', subtitle: '尚未建立显式关系', color: '#929088' },
+  { id: 'purpose', title: t('lane.purpose'), subtitle: t('lane.purposeSub'), color: '#647e72' },
+  { id: 'reasoning', title: t('lane.reasoning'), subtitle: t('lane.reasoningSub'), color: '#6b7e95' },
+  { id: 'findings', title: t('lane.findings'), subtitle: t('lane.findingsSub'), color: '#af7969' },
+  { id: 'inbox', title: t('lane.inbox'), subtitle: t('lane.inboxSub'), color: '#929088' },
 ] as const;
 export type BoardGroupId = typeof BOARD_GROUPS[number]['id'];
 export function groupFor(node: BoardNode, connected: Set<string>): BoardGroupId {

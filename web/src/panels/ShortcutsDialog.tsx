@@ -2,24 +2,25 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Kbd } from '@/components/ui/kbd';
+import { t } from '../i18n';
 
 const GROUPS: { title: string; items: { keys: string[]; label: string }[] }[] = [
   {
-    title: '导航',
+    title: t('shortcuts.navigation'),
     items: [
-      { keys: ['⌘ K', '/'], label: '搜索节点与命令' },
-      { keys: ['['], label: '展开或收起侧栏' },
-      { keys: ['?'], label: '显示这份快捷键' },
-      { keys: ['Esc'], label: '取消选中 / 关闭面板' },
+      { keys: ['⌘ K', '/'], label: t('shortcuts.search') },
+      { keys: ['['], label: t('shortcuts.sidebar') },
+      { keys: ['?'], label: t('shortcuts.help') },
+      { keys: ['Esc'], label: t('shortcuts.escape') },
     ],
   },
   {
-    title: '画布',
+    title: t('shortcuts.canvas'),
     items: [
-      { keys: ['← ↑ → ↓'], label: '沿关系跳到相邻节点' },
-      { keys: ['Tab'], label: '在节点间移动焦点' },
-      { keys: ['Enter', 'Space'], label: '选中焦点节点' },
-      { keys: ['滚轮', '拖动'], label: '缩放 / 平移' },
+      { keys: ['← ↑ → ↓'], label: t('shortcuts.arrows') },
+      { keys: ['Tab'], label: t('shortcuts.tab') },
+      { keys: ['Enter', 'Space'], label: t('shortcuts.enter') },
+      { keys: [t('shortcuts.wheel'), t('shortcuts.drag')], label: t('shortcuts.zoomPan') },
     ],
   },
 ];
@@ -30,10 +31,10 @@ export function ShortcutsDialog({ open, onOpenChange }: { open: boolean; onOpenC
       <DialogContent className="max-w-[420px]">
         <header className="flex items-start justify-between gap-4 border-b px-5 py-4">
           <div>
-            <DialogTitle className="m-0 text-[15px] font-semibold">键盘快捷键</DialogTitle>
-            <DialogDescription className="m-0 mt-0.5 text-xs text-muted-foreground">在输入框里时快捷键不会触发。</DialogDescription>
+            <DialogTitle className="m-0 text-[15px] font-semibold">{t('shortcuts.title')}</DialogTitle>
+            <DialogDescription className="m-0 mt-0.5 text-xs text-muted-foreground">{t('shortcuts.hint')}</DialogDescription>
           </div>
-          <DialogClose asChild><Button size="icon-sm" aria-label="关闭快捷键"><X /></Button></DialogClose>
+          <DialogClose asChild><Button size="icon-sm" aria-label={t('shortcuts.close')}><X /></Button></DialogClose>
         </header>
         <div className="flex flex-col gap-5 px-5 py-4">
           {GROUPS.map((group) => (
@@ -46,7 +47,7 @@ export function ShortcutsDialog({ open, onOpenChange }: { open: boolean; onOpenC
                     <span className="flex shrink-0 items-center gap-1">
                       {item.keys.map((key, index) => (
                         <span key={key} className="flex items-center gap-1">
-                          {index > 0 && <span className="text-[11px] text-muted-foreground">或</span>}
+                          {index > 0 && <span className="text-[11px] text-muted-foreground">{t('common.or')}</span>}
                           <Kbd>{key}</Kbd>
                         </span>
                       ))}

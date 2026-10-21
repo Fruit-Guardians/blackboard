@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blackboard-canvas-tests-'));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
-execFileSync(process.execPath, [path.join(root, 'node_modules/typescript/bin/tsc'), '--target', 'ES2022', '--module', 'ESNext', '--moduleResolution', 'Bundler', '--skipLibCheck', '--outDir', dir, path.join(root, 'web/src/graph.ts'), path.join(root, 'web/src/router.ts')], { cwd: dir });
+execFileSync(process.execPath, [path.join(root, 'node_modules/typescript/bin/tsc'), '--target', 'ES2022', '--module', 'ESNext', '--moduleResolution', 'Bundler', '--skipLibCheck', '--outDir', dir, path.join(root, 'web/src/graph.ts'), path.join(root, 'web/src/router.ts'), path.join(root, 'web/src/digest-parse.ts')], { cwd: dir });
 // Keep the tests portable on Node 18+ without a TS execution loader.
 for (const file of fs.readdirSync(dir).filter((name) => name.endsWith('.js'))) {
  const p = path.join(dir, file);
@@ -17,11 +17,12 @@ for (const file of fs.readdirSync(dir).filter((name) => name.endsWith('.js'))) {
 fs.writeFileSync(path.join(dir,'package.json'),JSON.stringify({type:'module'}));
 fs.symlinkSync(path.join(root,'node_modules'),path.join(dir,'node_modules'),'dir');
 const { detailLevel, groupFor, focusedIds, neighborInDirection } = await import(pathToFileURL(path.join(dir,'canvas-state.js')).href);
-const { layoutOverview, project, layoutGraph, gridLayout, relationGroup, RELATION_GROUPS, configureElk } = await import(pathToFileURL(path.join(dir,'graph.js')).href);
+const { layoutOverview, project, layoutGraph, gridLayout, relationGroup, RELATION_GROUPS, configureElk, placementFor } = await import(pathToFileURL(path.join(dir,'graph.js')).href);
 const { default: ELK } = await import('elkjs/lib/elk.bundled.js');
 configureElk(() => new ELK());
 const { roundedPath, routeValid } = await import(pathToFileURL(path.join(dir,'edge-route.js')).href);
 const { routeAround } = await import(pathToFileURL(path.join(dir,'router.js')).href);
+const { parseDigest, parseNodeLine, parseRelationLine, parseTrail, parseCheckpoint, inlineRuns } = await import(pathToFileURL(path.join(dir,'digest-parse.js')).href);
 const { filterNodes, filterActive, EMPTY_FILTER } = await import(pathToFileURL(path.join(dir,'presentation.js')).href);
 const items = [
  {id:'g',type:'goal',title:'Goal'}, {id:'f',type:'finding',title:'Finding'},
@@ -241,4 +242,95 @@ test('a clear line stays straight and a reversed pair loops around its own cards
  const pts=routeAround({x:788,y:64},'right',{x:0,y:64},'left',[left,right]);
  assert.ok(pts.length>=6);
  assert.ok(pts.every(p=>!(p.x>1&&p.x<287&&p.y>1&&p.y<127)&&!(p.x>501&&p.x<787&&p.y>1&&p.y<127)));
+});
+
+const store = await import(pathToFileURL(path.join(root,'lib/store.js')).href);
+const { buildDigest } = await import(pathToFileURL(path.join(root,'lib/digest.js')).href);
+function digestBoard(build) {
+ const board = fs.mkdtempSync(path.join(os.tmpdir(), 'blackboard-digest-parse-'));
+ try { store.ensure(board); build?.(board); return buildDigest(store.replay(board), board); }
+ finally { fs.rmSync(board, { recursive: true, force: true }); }
+}
+const accounted = (parsed) => [parsed.title, parsed.stats.map(s => `${s.label} ${s.value}`).join(' · '), ...parsed.intro, ...parsed.sections.flatMap(s => [s.title, ...s.notes, ...s.items.flatMap(i => [i.text, ...i.children])]), parsed.footer].join('\n');
+
+test('digest parser reads an empty board into stats, empty sections and the disclaimer',()=>{
+ const md = digestBoard();
+ const parsed = parseDigest(md);
+ assert.ok(parsed.title.startsWith('blackboard'));
+ assert.equal(parsed.stats.length, 5);
+ assert.ok(parsed.stats.every(s => s.value === 0 && s.label));
+ assert.ok(parsed.sections.length >= 3);
+ assert.ok(parsed.sections.every(s => s.items.length === 0));
+ assert.match(parsed.footer, /不替 Agent 决定下一步/);
+ assert.ok(!parsed.sections.some(s => s.notes.some(n => n.startsWith('_'))), 'italic markers are stripped');
+});
+
+test('digest parser accounts for every line of a populated digest',()=>{
+ const md = digestBoard((dir) => {
+  const goal = store.addNode({ type:'goal', title:'审计授权边界', enter:true }, dir).node;
+  const h = store.addNode({ type:'hypothesis', title:'所有权校验缺失', status:'active', at:'src/api.js:12', detail:'跨账号读取返回 200' }, dir).node;
+  store.addEdge({ from:h.id, to:goal.id, kind:'derived-from' }, dir);
+  store.moveCursor(h.id, { reason:'验证假设' }, dir);
+  store.addCheckpoint({ summary:'阶段一完成' }, dir);
+ });
+ const parsed = parseDigest(md);
+ const all = accounted(parsed);
+ for (const line of md.split('\n').map(l => l.trim()).filter(Boolean)) {
+  const bare = line.replace(/^#+\s+|^-\s+|^_|_$/g, '');
+  assert.ok(all.includes(bare), `line lost: ${line}`);
+ }
+ assert.ok(parsed.stats.find(s => s.label === '逻辑节点').value === 2);
+ const current = parsed.sections.find(s => s.title === '当前节点');
+ const node = parseNodeLine(current.items[0].text);
+ assert.equal(node.title, '所有权校验缺失');
+ assert.equal(node.location, 'src/api.js:12');
+ assert.ok(node.meta.length >= 2);
+ const trail = parsed.sections.find(s => s.title === '最近轨迹');
+ assert.ok(parseTrail(trail.items[0].text).length >= 2);
+ const neighbour = parsed.sections.find(s => s.title === '当前邻域');
+ assert.equal(parseRelationLine(neighbour.items[0].text).relation.length > 0, true);
+ const cp = parseCheckpoint(parsed.sections.find(s => s.title === '最近检查点').items[0].text);
+ assert.equal(cp.at, node.id);
+ assert.equal(cp.summary, '阶段一完成');
+});
+
+test('digest line helpers keep unrecognised text as text',()=>{
+ assert.equal(parseNodeLine('plain words'), null);
+ assert.equal(parseRelationLine('a - b'), null);
+ assert.equal(parseTrail('not → a trail!'), null);
+ assert.deepEqual(parseRelationLine('[n1] --支持--> [n2]'), { from:'[n1]', relation:'支持', to:'[n2]' });
+ assert.deepEqual(inlineRuns('用 `blackboard cursor` 进入 [n3]。'), [
+  { kind:'text', value:'用 ' }, { kind:'code', value:'blackboard cursor' }, { kind:'text', value:' 进入 ' }, { kind:'ref', value:'n3' }, { kind:'text', value:'。' },
+ ]);
+});
+
+test('large boards trade network-simplex placement for one that stays fast',()=>{
+ const strategy=(n)=>placementFor(n)['elk.layered.nodePlacement.strategy'];
+ assert.equal(strategy(40),'NETWORK_SIMPLEX'); assert.equal(strategy(120),'NETWORK_SIMPLEX');
+ assert.equal(strategy(121),'BRANDES_KOEPF'); assert.equal(strategy(2000),'BRANDES_KOEPF');
+ assert.ok(Number(placementFor(2000)['elk.layered.thoroughness']) < Number(placementFor(40)['elk.layered.thoroughness']));
+});
+
+const { matchLocale } = await import(pathToFileURL(path.join(dir,'i18n.js')).href);
+const catalogues = Object.fromEntries(await Promise.all(['zh-CN','zh-HK','en','ja'].map(async (id) => {
+ const mod = await import(pathToFileURL(path.join(dir,'locales',`${id}.js`)).href);
+ return [id, Object.values(mod)[0]];
+})));
+test('interface language follows the browser, with Traditional Chinese by script or region',()=>{
+ assert.equal(matchLocale(['zh-CN']),'zh-CN'); assert.equal(matchLocale(['zh']),'zh-CN'); assert.equal(matchLocale(['zh-Hans-SG']),'zh-CN');
+ assert.equal(matchLocale(['zh-HK']),'zh-HK'); assert.equal(matchLocale(['zh-TW']),'zh-HK'); assert.equal(matchLocale(['zh-Hant']),'zh-HK'); assert.equal(matchLocale(['zh-MO']),'zh-HK');
+ assert.equal(matchLocale(['ja-JP']),'ja'); assert.equal(matchLocale(['en-GB']),'en');
+ assert.equal(matchLocale(['fr-FR','ja','en']),'ja');
+ assert.equal(matchLocale(['fr-FR']),'en'); assert.equal(matchLocale([]),'en');
+});
+test('every language carries every message with the same placeholders',()=>{
+ const holes = (text) => [...new Set(text.match(/\{\w+\}/g) || [])].sort().join();
+ const source = catalogues['zh-CN'];
+ for (const [id, messages] of Object.entries(catalogues)) {
+  assert.deepEqual(Object.keys(messages).sort(), Object.keys(source).sort(), id);
+  for (const key of Object.keys(source)) {
+   for (const form of messages[key].split('|')) assert.equal(holes(form), holes(source[key]), `${id} ${key}`);
+   assert.ok(messages[key].trim(), `${id} ${key} is empty`);
+  }
+ }
 });

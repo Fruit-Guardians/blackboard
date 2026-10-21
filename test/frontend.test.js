@@ -12,8 +12,12 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blackboard-presenter-'));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 const root = fileURLToPath(new URL('../', import.meta.url));
 execFileSync(process.execPath, [path.join(root, 'node_modules/typescript/bin/tsc'), '--target', 'ES2022', '--module', 'ESNext', '--moduleResolution', 'Bundler', '--skipLibCheck', '--outDir', dir, path.join(root, 'web/src/presentation.ts')], { cwd: dir });
-const modulePath = path.join(dir, 'presentation.mjs');
-fs.renameSync(path.join(dir, 'presentation.js'), modulePath);
+for (const file of fs.readdirSync(dir).filter((name) => name.endsWith('.js'))) {
+  const p = path.join(dir, file);
+  fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace(/from '(\.\/[^']+)'/g, (_all, name) => `from '${name}.js'`));
+}
+fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ type: 'module' }));
+const modulePath = path.join(dir, 'presentation.js');
 const { confidenceLabel, presentNode, matchesNode, statusLabel, severityLabel, typeLabel } = await import(pathToFileURL(modulePath).href);
 const node = { id: 'node-7', type: 'hypothesis', title: 'Gateway policy。Verify middleware next.', detail: 'Session boundary', status: 'open', severity: 'high', confidence: 'static-confirmed' };
 
