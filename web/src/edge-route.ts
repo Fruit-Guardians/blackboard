@@ -3,7 +3,7 @@ export type Pt = { x: number; y: number };
 export type Direction = 'RIGHT' | 'DOWN';
 
 export type EdgeRoute = {
-  /** Start, bend points…, end — in canvas coordinates at layout time. */
+  /** Start, bend points…, end — in canvas coordinates at layout time. Each end sits on its own port on the node border. */
   points: Pt[];
   /** Where the source and target nodes sat when the route was computed. */
   source: Pt;
@@ -16,27 +16,6 @@ const same = (a: Pt, b: Pt) => Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) 
 /** A route is only trustworthy while both of its nodes are where the layout put them. */
 export const routeValid = (route: EdgeRoute | undefined, source: Pt | undefined, target: Pt | undefined): route is EdgeRoute =>
   Boolean(route && source && target && same(route.source, source) && same(route.target, target));
-
-/**
- * ELK ends routes on the node border; React Flow attaches edges to the handles.
- * Pin both ends to the handles and keep the first and last legs perpendicular to the node side.
- */
-export function adaptRoute(route: EdgeRoute, start: Pt, end: Pt): Pt[] {
-  const across: 'x' | 'y' = route.direction === 'RIGHT' ? 'y' : 'x';
-  const along: 'x' | 'y' = route.direction === 'RIGHT' ? 'x' : 'y';
-  const points = route.points.map((point) => ({ ...point }));
-  if (points.length < 2) return [start, end];
-  points[0] = { ...start };
-  points[points.length - 1] = { ...end };
-  if (points.length === 2) {
-    if (Math.abs(start[across] - end[across]) < 0.5) return points;
-    const mid = (start[along] + end[along]) / 2;
-    return [start, { ...start, [along]: mid } as Pt, { ...end, [along]: mid } as Pt, end];
-  }
-  points[1][across] = start[across];
-  points[points.length - 2][across] = end[across];
-  return points;
-}
 
 /** Polyline with every corner rounded by up to `radius`; the radius never exceeds half a segment. */
 export function roundedPath(points: Pt[], radius: number): string {

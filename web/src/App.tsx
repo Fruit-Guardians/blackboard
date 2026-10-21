@@ -11,7 +11,7 @@ import { SecurityNode } from './SecurityNode';
 import { focusedIds, neighborInDirection, type ArrowKey } from './canvas-state';
 import { exportCanvasPng } from './export-image';
 import { RoutedEdge } from './RoutedEdge';
-import { currentNodeId, layoutGraph, NODE_H, NODE_W, project, typeLabel as typeLabelOf, type CanvasNode, type EdgeStyle, type RelationGroup } from './graph';
+import { currentNodeId, layoutGraph, NODE_H, NODE_W, project, typeLabel as typeLabelOf, type CanvasNode, type EdgeStyle, type Positions, type RelationGroup } from './graph';
 import { EMPTY_FILTER, filterActive, filterNodes, type NodeFilter } from './presentation';
 import type { ViewMode } from './types';
 import { values } from './types';
@@ -73,6 +73,8 @@ function Workspace() {
   const digestTrigger = useRef<HTMLButtonElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const layoutKey = useRef('');
+  // Last positions per view, fed back to the layout so the board stays put as the Agent writes.
+  const lastPositions = useRef(new Map<string, Positions>());
   const pendingFocus = useRef<string | null>(null);
   const framedRevision = useRef(0);
   const stamps = useRef<Map<string, number> | null>(null);
@@ -140,13 +142,20 @@ function Workspace() {
   })), [nodes, selectedId, highlighted, fresh]);
   const displayEdges = useMemo(() => edges.map((edge) => {
     const active = Boolean(selectedId) && (edge.source === selectedId || edge.target === selectedId);
+    const recolor = (marker: Edge['markerEnd']) => marker && selectedId
+      ? { ...(marker as object), color: active ? focusColor((edge.data as { group?: string } | undefined)?.group) : 'var(--line)' } as Edge['markerEnd']
+      : marker;
     return {
       ...edge,
       type: 'routed',
       data: { ...edge.data, style: edgeStyle },
       // Arrowheads live outside the path, so they are recoloured here to follow focus and muting.
-      markerEnd: selectedId ? { ...(edge.markerEnd as object), color: active ? focusColor((edge.data as { group?: string } | undefined)?.group) : 'var(--line)' } as Edge['markerEnd'] : edge.markerEnd,
+      markerEnd: recolor(edge.markerEnd),
+      markerStart: recolor(edge.markerStart),
       className: `${edge.className || ''} ${active ? 'is-focused' : selectedId ? 'is-muted' : ''}`,
+      // The overview is a catalogue laid out in a grid, where every line would cut across cards;
+      // it only draws the relations of the selected node.
+      hidden: mode === 'all' && !active,
       zIndex: active ? 10 : 0,
       style: { ...edge.style, opacity: selectedId ? active ? 1 : .12 : mode === 'all' ? .3 : 1, strokeWidth: active ? 1.75 : 1.25 },
     };
@@ -285,8 +294,10 @@ function Workspace() {
       return;
     }
     let cancelled = false;
-    layoutGraph(projection.nodes, projection.edges, direction, mode === 'all', overviewColumns).then((layouted) => {
+    const viewKey = `${mode}:${direction}`;
+    layoutGraph(projection.nodes, projection.edges, direction, mode === 'all', overviewColumns, lastPositions.current.get(viewKey)).then((layouted) => {
       if (cancelled) return;
+      lastPositions.current.set(viewKey, new Map(layouted.nodes.map((node) => [node.id, node.position])));
       layoutKey.current = key;
       setNodes(layouted.nodes);
       setEdges(layouted.edges);

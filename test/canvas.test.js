@@ -18,7 +18,7 @@ fs.writeFileSync(path.join(dir,'package.json'),JSON.stringify({type:'module'}));
 fs.symlinkSync(path.join(root,'node_modules'),path.join(dir,'node_modules'),'dir');
 const { detailLevel, groupFor, focusedIds, neighborInDirection } = await import(pathToFileURL(path.join(dir,'canvas-state.js')).href);
 const { layoutOverview, project, layoutGraph, gridLayout, relationGroup, RELATION_GROUPS } = await import(pathToFileURL(path.join(dir,'graph.js')).href);
-const { adaptRoute, roundedPath, routeValid } = await import(pathToFileURL(path.join(dir,'edge-route.js')).href);
+const { roundedPath, routeValid } = await import(pathToFileURL(path.join(dir,'edge-route.js')).href);
 const { filterNodes, filterActive, EMPTY_FILTER } = await import(pathToFileURL(path.join(dir,'presentation.js')).href);
 const items = [
  {id:'g',type:'goal',title:'Goal'}, {id:'f',type:'finding',title:'Finding'},
@@ -138,11 +138,67 @@ test('layout stores the ELK route of every edge and reuses it only while nodes s
   assert.ok(routeValid(route,s,t)); assert.ok(!routeValid(route,{x:s.x+10,y:s.y},t));
  }
 });
-test('routes are pinned to the handles and rounded corners stay inside their segments',()=>{
- const route={points:[{x:0,y:0},{x:50,y:0},{x:50,y:100},{x:100,y:100}],source:{x:0,y:0},target:{x:100,y:100},direction:'RIGHT'};
- const pts=adaptRoute(route,{x:0,y:4},{x:100,y:96});
- assert.deepEqual(pts[0],{x:0,y:4}); assert.deepEqual(pts.at(-1),{x:100,y:96});
- assert.equal(pts[1].y,4); assert.equal(pts[2].y,96);
+test('rounded corners stay inside their segments',()=>{
+ const pts=[{x:0,y:4},{x:50,y:4},{x:50,y:96},{x:100,y:96}];
  assert.match(roundedPath(pts,44),/^M0,4L.*Q50,4 .*L100,96$/);
  assert.equal(roundedPath([{x:0,y:0},{x:10,y:0},{x:10,y:6}],44).includes('Q10,0 10,3'),true);
+});
+
+// A hub with many relations plus long edges: the shape that used to merge unrelated lines.
+const hubBoard=()=>{
+ const nodes=[{id:'g',type:'goal',title:'goal',ts:1}];
+ const edges=[];
+ for(let i=0;i<6;i++){nodes.push({id:`q${i}`,type:'question',title:`q${i}`,ts:10+i});edges.push({id:`g-q${i}`,from:'g',to:`q${i}`,kind:'related-to'});}
+ for(let i=0;i<4;i++){nodes.push({id:`f${i}`,type:'fact',title:`f${i}`,ts:20+i},{id:`v${i}`,type:'vuln',title:`v${i}`,ts:30+i});
+  edges.push({id:`f${i}-v${i}`,from:`f${i}`,to:`v${i}`,kind:'supports'},{id:`g-v${i}`,from:'g',to:`v${i}`,kind:'related-to'});}
+ nodes.push({id:'h',type:'hypothesis',title:'h',ts:40});
+ edges.push({id:'f0-h',from:'f0',to:'h',kind:'supports'},{id:'h-v1',from:'h',to:'v1',kind:'produce'},{id:'q0-g',from:'q0',to:'g',kind:'derived-from'});
+ return {meta:{},nodes,edges};
+};
+const segmentsOf=(laid)=>laid.edges.flatMap(e=>e.data.route.points.slice(1).map((b,i)=>({e,a:e.data.route.points[i],b})));
+
+test('routes never pass through a card and unrelated relations never share a line',async()=>{
+ const p=project(hubBoard(),'logic',''); const laid=await layoutGraph(p.nodes,p.edges,'RIGHT');
+ const boxes=laid.nodes.map(n=>({id:n.id,x:n.position.x,y:n.position.y,w:n.style.width,h:n.style.height}));
+ const segs=segmentsOf(laid);
+ for(const {e,a,b} of segs) for(const r of boxes){
+  if(r.id===e.source||r.id===e.target) continue;
+  for(let k=0;k<=20;k++){const x=a.x+(b.x-a.x)*k/20,y=a.y+(b.y-a.y)*k/20;
+   assert.ok(!(x>r.x+1&&x<r.x+r.w-1&&y>r.y+1&&y<r.y+r.h-1),`${e.id} crosses ${r.id}`);}
+ }
+ const span=(u0,u1,w0,w1)=>Math.min(Math.max(u0,u1),Math.max(w0,w1))-Math.max(Math.min(u0,u1),Math.min(w0,w1));
+ for(let i=0;i<segs.length;i++) for(let j=i+1;j<segs.length;j++){
+  const A=segs[i],C=segs[j]; if(A.e.id===C.e.id) continue;
+  const flatA=Math.abs(A.a.y-A.b.y)<.5, flatC=Math.abs(C.a.y-C.b.y)<.5;
+  if(flatA&&flatC&&Math.abs(A.a.y-C.a.y)<1) assert.ok(span(A.a.x,A.b.x,C.a.x,C.b.x)<=1,`${A.e.id} and ${C.e.id} drawn on one line`);
+  const upA=Math.abs(A.a.x-A.b.x)<.5, upC=Math.abs(C.a.x-C.b.x)<.5;
+  if(upA&&upC&&Math.abs(A.a.x-C.a.x)<1) assert.ok(span(A.a.y,A.b.y,C.a.y,C.b.y)<=1,`${A.e.id} and ${C.e.id} drawn on one line`);
+ }
+ // Each route starts on its source's right border and ends on its target's left border.
+ const at=new Map(boxes.map(b=>[b.id,b]));
+ for(const e of laid.edges){const s=at.get(e.source),t=at.get(e.target),pts=e.data.route.points;
+  assert.equal(pts[0].x,s.x+s.w,e.id); assert.equal(pts.at(-1).x,t.x,e.id);}
+});
+
+test('passive relations are laid out premise first and keep their arrow on the premise',async()=>{
+ const p=project(hubBoard(),'logic',''); const edge=p.edges.find(e=>e.id==='q0-g');
+ assert.equal(edge.source,'g'); assert.equal(edge.target,'q0'); assert.ok(edge.markerStart); assert.equal(edge.markerEnd,undefined);
+ const forward=p.edges.find(e=>e.id==='f0-v0'); assert.equal(forward.source,'f0'); assert.ok(forward.markerEnd);
+ const laid=await layoutGraph(p.nodes,p.edges,'RIGHT'); const x=id=>laid.nodes.find(n=>n.id===id).position.x;
+ assert.ok(x('g')<x('q0')); assert.ok(x('f0')<x('v0'));
+});
+
+test('a growing board stays put: existing cards keep their order when a node is added',async()=>{
+ const before=hubBoard(); const p0=project(before,'logic',''); const first=await layoutGraph(p0.nodes,p0.edges,'RIGHT');
+ const previous=new Map(first.nodes.map(n=>[n.id,n.position]));
+ const after=hubBoard(); after.nodes.push({id:'f9',type:'fact',title:'new',ts:99}); after.edges.push({id:'f9-q3',from:'f9',to:'q3',kind:'supports'});
+ const p1=project(after,'logic',''); const next=await layoutGraph(p1.nodes,p1.edges,'RIGHT',false,2,previous);
+ const pos=new Map(next.nodes.map(n=>[n.id,n.position]));
+ const columns=new Map();
+ for(const [id,p] of previous){ if(!columns.has(p.x)) columns.set(p.x,[]); columns.get(p.x).push(id); }
+ for(const ids of columns.values()){
+  const was=[...ids].sort((a,b)=>previous.get(a).y-previous.get(b).y);
+  const now=[...ids].filter(id=>pos.get(id).x===pos.get(was[0]).x).sort((a,b)=>pos.get(a).y-pos.get(b).y);
+  assert.deepEqual(now,was.filter(id=>now.includes(id)),'column order changed');
+ }
 });

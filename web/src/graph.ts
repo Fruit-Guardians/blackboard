@@ -116,16 +116,20 @@ export function project(snapshot: GraphSnapshot, mode: ViewMode, query: string) 
   const flowEdges: Edge[] = edges.map((edge) => {
     const important = ['proves', 'supports', 'contradicts', 'supersedes', 'resolves'].includes(edge.kind);
     const group = relationGroup(edge.kind);
+    // Passive relations ("conclusion derived-from premise") are laid out premise-first so the board
+    // always reads left to right; the arrowhead stays on the relation's own `to` end.
+    const reversed = PREMISE_IS_TARGET.has(edge.kind);
+    const marker = { type: 'arrowclosed' as const, width: 12, height: 12, color: `var(--edge-${group})` };
     return {
       id: edge.id,
-      source: edge.from,
-      target: edge.to,
+      source: reversed ? edge.to : edge.from,
+      target: reversed ? edge.from : edge.to,
       type: 'default',
       label: important ? relationLabel(edge.kind) : undefined,
       className: `edge edge-${edge.kind} edge-g-${group}`,
-      data: { kind: edge.kind, group },
+      data: { kind: edge.kind, group, reversed },
       animated: false,
-      markerEnd: { type: 'arrowclosed' as const, width: 12, height: 12, color: `var(--edge-${group})` },
+      ...(reversed ? { markerStart: marker } : { markerEnd: marker }),
       style: { strokeWidth: important ? 1.5 : 1.25 },
     };
   });
@@ -133,11 +137,17 @@ export function project(snapshot: GraphSnapshot, mode: ViewMode, query: string) 
   return { nodes: flowNodes, edges: flowEdges, hidden: allNodes.length - nodes.length };
 }
 
-export async function layoutGraph(nodes: CanvasNode[], edges: Edge[], direction: 'RIGHT' | 'DOWN' = 'RIGHT', grouped = false, overviewColumns: 1 | 2 = 2) {
+export type Positions = ReadonlyMap<string, { x: number; y: number }>;
+
+/**
+ * `previous` is where the same view last placed each node. It keeps a growing board steady: cards
+ * that already existed keep their order within each column instead of being reshuffled.
+ */
+export async function layoutGraph(nodes: CanvasNode[], edges: Edge[], direction: 'RIGHT' | 'DOWN' = 'RIGHT', grouped = false, overviewColumns: 1 | 2 = 2, previous?: Positions) {
   if (!nodes.length) return { nodes, edges };
   if (grouped) return layoutOverview(nodes, edges, overviewColumns);
   try {
-    return await elkLayout(nodes, edges, direction);
+    return await elkLayout(nodes, edges, direction, previous);
   } catch {
     // A layout engine failure must never leave the board blank.
     return gridLayout(nodes, edges, direction);
@@ -158,7 +168,39 @@ export function gridLayout(nodes: CanvasNode[], edges: Edge[], direction: 'RIGHT
   };
 }
 
-async function elkLayout(nodes: CanvasNode[], edges: Edge[], direction: 'RIGHT' | 'DOWN') {
+/** Relations written "conclusion <kind> premise": the premise is the edge's `to`. */
+const PREMISE_IS_TARGET = new Set(['derived-from', 'depends-on', 'caused-by', 'refines', 'supersedes']);
+
+/** Weak links yield: evidence and derivation chains get the straight, short, left-to-right lines. */
+const WEAK_RELATIONS = new Set(['related-to', 'duplicates']);
+const edgePriority = (kind: string) => {
+  const value = WEAK_RELATIONS.has(kind) ? '0' : '10';
+  return {
+    'elk.layered.priority.direction': value,
+    'elk.layered.priority.shortness': value,
+    'elk.layered.priority.straightness': value,
+  };
+};
+
+async function elkLayout(nodes: CanvasNode[], edges: Edge[], direction: 'RIGHT' | 'DOWN', previous?: Positions) {
+  const across = direction === 'RIGHT';
+  const hasIncoming = new Set(edges.map((edge) => edge.target));
+  const inSide = across ? 'WEST' : 'NORTH';
+  const outSide = across ? 'EAST' : 'SOUTH';
+  // Every edge end gets its own port on the node's input or output side. Edges sharing a single
+  // port are merged by ELK into one hyperedge, transitively, so unrelated relations would be drawn
+  // on top of each other; separate ports keep every relation traceable on its own line.
+  const ports = new Map<string, { id: string; layoutOptions: Record<string, string> }[]>();
+  const addPort = (node: string, id: string, side: string) => {
+    if (!ports.has(node)) ports.set(node, []);
+    ports.get(node)!.push({ id, layoutOptions: { 'elk.port.side': side } });
+  };
+  for (const edge of edges) {
+    addPort(edge.source, `${edge.id}::out`, outSide);
+    addPort(edge.target, `${edge.id}::in`, inSide);
+  }
+  // Creation order makes the first layout of a board deterministic.
+  const ordered = [...nodes].sort((a, b) => Number(a.data.item.ts || 0) - Number(b.data.item.ts || 0));
   const result = await elk.layout({
     id: 'root',
     layoutOptions: {
@@ -166,22 +208,38 @@ async function elkLayout(nodes: CanvasNode[], edges: Edge[], direction: 'RIGHT' 
       'elk.direction': direction,
       'elk.spacing.nodeNode': '36',
       'elk.layered.spacing.nodeNodeBetweenLayers': '96',
+      'elk.layered.spacing.edgeEdgeBetweenLayers': '14',
+      'elk.layered.spacing.edgeNodeBetweenLayers': '28',
+      'elk.spacing.portPort': '14',
       'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+      'elk.layered.thoroughness': '40',
+      // With previous positions, ELK keeps known nodes in their old order within a layer and only
+      // fits new nodes in; crossings are still minimised around them.
+      'elk.layered.crossingMinimization.semiInteractive': previous ? 'true' : 'false',
       'elk.edgeRouting': 'ORTHOGONAL',
     },
-    children: nodes.map((node) => {
-      const type = node.data.item.type;
-      const layerConstraint = ['goal', 'start'].includes(type)
-        ? 'FIRST'
-        : ['finding', 'vuln'].includes(type) ? 'LAST' : undefined;
+    children: ordered.map((node) => {
+      // Roots of the reasoning (goals, entry points) start the board unless something points into them.
+      const first = ['goal', 'start'].includes(node.data.item.type) && !hasIncoming.has(node.id);
+      const was = previous?.get(node.id);
       return {
         id: node.id,
         width: NODE_W,
         height: Number(node.style?.height || NODE_H),
-        ...(layerConstraint ? { layoutOptions: { 'org.eclipse.elk.layered.layering.layerConstraint': layerConstraint } } : {}),
+        ports: (ports.get(node.id) || []).map((port) => ({ ...port, width: 0, height: 0 })),
+        layoutOptions: {
+          // ELK may reorder ports along a side to avoid crossings, but keeps them on that side.
+          'elk.portConstraints': 'FIXED_SIDE',
+          'elk.portAlignment.default': 'CENTER',
+          ...(first ? { 'elk.layered.layering.layerConstraint': 'FIRST' } : {}),
+          ...(was ? { 'elk.position': `(${was.x},${was.y})` } : {}),
+        },
       };
     }),
-    edges: edges.map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] })),
+    edges: edges.map((edge) => ({
+      id: edge.id, sources: [`${edge.id}::out`], targets: [`${edge.id}::in`],
+      layoutOptions: edgePriority(String((edge.data as { kind?: string } | undefined)?.kind || 'related-to')),
+    })),
   });
   const positions = new Map((result.children || []).map((node) => [node.id, node]));
   const sections = new Map(((result.edges || []) as ElkExtendedEdge[]).map((edge) => [edge.id, edge.sections?.[0]]));
