@@ -17,7 +17,9 @@ for (const file of fs.readdirSync(dir).filter((name) => name.endsWith('.js'))) {
 fs.writeFileSync(path.join(dir,'package.json'),JSON.stringify({type:'module'}));
 fs.symlinkSync(path.join(root,'node_modules'),path.join(dir,'node_modules'),'dir');
 const { detailLevel, groupFor, focusedIds, neighborInDirection } = await import(pathToFileURL(path.join(dir,'canvas-state.js')).href);
-const { layoutOverview, project, layoutGraph, gridLayout, relationGroup, RELATION_GROUPS } = await import(pathToFileURL(path.join(dir,'graph.js')).href);
+const { layoutOverview, project, layoutGraph, gridLayout, relationGroup, RELATION_GROUPS, configureElk } = await import(pathToFileURL(path.join(dir,'graph.js')).href);
+const { default: ELK } = await import('elkjs/lib/elk.bundled.js');
+configureElk(() => new ELK());
 const { roundedPath, routeValid } = await import(pathToFileURL(path.join(dir,'edge-route.js')).href);
 const { routeAround } = await import(pathToFileURL(path.join(dir,'router.js')).href);
 const { filterNodes, filterActive, EMPTY_FILTER } = await import(pathToFileURL(path.join(dir,'presentation.js')).href);

@@ -221,6 +221,13 @@ test('offline export excludes raw activity input and output', (t) => {
   assert.match(html, /Bash/);
 });
 
+test('offline export is one file: the layout worker is inlined, not fetched by URL', (t) => {
+  const html = renderExport({ cwd: fixture(t) });
+  assert.doesNotMatch(html, /\/assets\/elk-worker/);
+  assert.match(html, /URL\.createObjectURL\(new Blob\(/);
+  assert.doesNotMatch(html, /<script[^>]*\ssrc=/);
+});
+
 test('CLI accumulates repeated tags and keeps legacy intent off the cursor', (t) => {
   const dir = fixture(t);
   const env = { ...process.env, FLOW_CWD: dir, FLOW_QUIET: '1' };

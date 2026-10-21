@@ -1,4 +1,5 @@
-import ELK, { type ElkExtendedEdge } from 'elkjs/lib/elk.bundled.js';
+import type ELK from 'elkjs/lib/elk-api';
+import type { ElkExtendedEdge } from 'elkjs/lib/elk-api';
 import type { Edge, Node } from '@xyflow/react';
 import type { EdgeRoute } from './edge-route';
 import type { BoardEdge, BoardNode, GraphSnapshot, ViewMode } from './types';
@@ -11,7 +12,17 @@ export const NODE_W = 288;
 export const NODE_H = 128;
 export const NODE_H_TITLE = 88;
 
-const elk = new ELK();
+type ElkEngine = InstanceType<typeof ELK>;
+let elk: ElkEngine | undefined;
+
+/**
+ * The layout engine is injected so the 1.4 MB ELK runs in a Web Worker (or, in tests, in-process)
+ * instead of being bundled into this module and blocking the page while a large board lays out.
+ * Without an engine the board falls back to the plain grid.
+ */
+export function configureElk(factory: () => ElkEngine) {
+  elk = factory();
+}
 
 export type CanvasNodeData = Record<string, unknown> & {
   item: BoardNode;
@@ -204,6 +215,7 @@ async function elkLayout(nodes: CanvasNode[], edges: Edge[], direction: 'RIGHT' 
   }
   // Creation order makes the first layout of a board deterministic.
   const ordered = [...nodes].sort((a, b) => Number(a.data.item.ts || 0) - Number(b.data.item.ts || 0));
+  if (!elk) throw new Error('no layout engine configured');
   const result = await elk.layout({
     id: 'root',
     layoutOptions: {
