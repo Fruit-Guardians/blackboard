@@ -46,7 +46,7 @@ export function TypeDot({ type, className }: { type: string; className?: string 
 const handleClass = 'size-1! min-h-0! min-w-0! border-0! bg-transparent! opacity-0! pointer-events-none!';
 
 export const SecurityNode = memo(function SecurityNode({ id, data, selected }: NodeProps<CanvasNode>) {
-  const { item, current, dimmed, direction, compact, muted, fresh } = data;
+  const { item, current, dimmed, direction, compact, muted, fresh, agents } = data;
   const level = useStore((state) => detailLevel(state.transform[2]));
   const vertical = direction === 'DOWN';
   const updateNodeInternals = useUpdateNodeInternals();
@@ -88,6 +88,11 @@ export const SecurityNode = memo(function SecurityNode({ id, data, selected }: N
               <i className="live-dot size-1.5 rounded-full bg-live" />当前
             </span>
           )}
+          {agents?.map((agent) => (
+            <span key={agent} className="ml-1 inline-flex max-w-24 items-center gap-1 truncate text-subtle" title={`${agent} 在这里`}>
+              <i className="size-1.5 shrink-0 rounded-full bg-strong" />{agent}
+            </span>
+          ))}
           {state && (
             <span className={cn('ml-auto truncate', severe && 'rounded-sm bg-danger-soft px-1.5 font-medium text-destructive')}>{state}</span>
           )}

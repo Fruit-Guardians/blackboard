@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -13,6 +14,9 @@ import {
   ensure,
   moveCursor,
   patchNode,
+  removeEdge,
+  removeNode,
+  defaultAgentId,
   paths,
   replay,
   reset,
@@ -25,6 +29,7 @@ import { buildDigest } from '../lib/digest.js';
 import { installHooks, installSkill, redactSensitive, runHook, uninstallHooks } from '../lib/hooks.js';
 import { renderLaunchAgent } from '../lib/setup.js';
 import { renderExport } from '../lib/export.js';
+import { startServer } from '../lib/server.js';
 import { lintGraph } from '../lib/lint.js';
 import { buildAgentContext } from '../lib/context.js';
 
@@ -728,4 +733,112 @@ test('skill install retires the legacy flow skill and teaches explicit linking',
   const skill = fs.readFileSync(path.join(dir, '.claude', 'skills', 'blackboard', 'SKILL.md'), 'utf8');
   assert.match(skill, /让图成为图/);
   assert.match(skill, /--parent/);
+});
+
+test('removing a node takes its relations with it, keeps the log, and clears cursors that pointed at it', (t) => {
+  const dir = fixture(t);
+  const a = addNode({ type: 'fact', title: 'A', enter: true }, dir).node;
+  const b = addNode({ type: 'fact', title: 'B', parent: a.id, relation: 'supports' }, dir).node;
+  const c = addNode({ type: 'fact', title: 'C', parent: b.id, relation: 'supports' }, dir).node;
+  const removed = removeNode(a.id, { by: 'human' }, dir);
+  assert.deepEqual(removed.edges, [`${a.id}->${b.id}:supports`]);
+  const g = replay(dir);
+  assert.deepEqual(Object.keys(g.nodes).sort(), [b.id, c.id].sort());
+  assert.deepEqual(Object.keys(g.edges), [`${b.id}->${c.id}:supports`]);
+  assert.equal(currentCursor(g), null);
+  // The cursor no longer points at the removed card, so a relation "from here" simply has no source.
+  assert.equal(addNode({ type: 'note', title: 'after', relateHere: true }, dir).edge, null);
+  assert.match(fs.readFileSync(paths(dir).events, 'utf8'), /"op":"remove","kind":"node"/);
+  // An edge can be cut by id or by its ends, and re-linking afterwards works.
+  assert.throws(() => removeEdge({ from: b.id, to: c.id, kind: 'refines' }, {}, dir), /no such relation/);
+  removeEdge({ from: b.id, to: c.id }, { by: 'human' }, dir);
+  assert.deepEqual(replay(dir).edges, {});
+  addEdge({ from: b.id, to: c.id, kind: 'supports' }, dir);
+  assert.equal(Object.keys(replay(dir).edges).length, 1);
+});
+
+test('BLACKBOARD_AGENT gives parallel Agents their own cursor', (t) => {
+  assert.equal(defaultAgentId({}), 'agent:primary');
+  assert.equal(defaultAgentId({ BLACKBOARD_AGENT: 'research' }), 'agent:research');
+  assert.equal(defaultAgentId({ FLOW_AGENT: 'agent:review' }), 'agent:review');
+  const dir = fixture(t);
+  const env = { ...process.env, FLOW_CWD: dir, FLOW_QUIET: '1' };
+  const run = (agent, ...args) => execFileSync(process.execPath, [CLI, ...args, '--json'], { env: { ...env, BLACKBOARD_AGENT: agent }, encoding: 'utf8' });
+  const one = JSON.parse(run('one', 'fact', 'from one', '--enter')).node;
+  const two = JSON.parse(run('two', 'fact', 'from two', '--enter')).node;
+  const g = replay(dir);
+  assert.equal(currentCursor(g, 'agent:one'), one.id);
+  assert.equal(currentCursor(g, 'agent:two'), two.id);
+  assert.equal(currentCursor(g, 'agent:primary'), null);
+});
+
+async function serve(t, options = {}) {
+  const dir = fixture(t);
+  const server = await startServer({ cwd: dir, port: 0, ...options });
+  t.after(() => new Promise((resolve) => { server.closeAllConnections?.(); server.close(resolve); }));
+  const { port } = server.address();
+  const origin = `http://127.0.0.1:${port}`;
+  const call = (method, route, { body, headers = {} } = {}) => fetch(origin + route, {
+    method,
+    headers: { 'content-type': 'application/json', origin, ...headers },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  return { dir, origin, port, call };
+}
+
+test('viewer writes: a person adds, edits, links and removes cards, each stamped with who did it', async (t) => {
+  const { dir, call } = await serve(t);
+  const added = await call('POST', '/api/nodes', { body: { type: 'hypothesis', title: '  先验证授权  ', detail: '读 /admin' } });
+  assert.equal(added.status, 201);
+  const node = (await added.json()).node;
+  assert.equal(node.title, '先验证授权');
+  assert.equal(node.author, 'human');
+  const child = (await (await call('POST', '/api/nodes', { body: { type: 'fact', title: '返回 200', parent: node.id, relation: 'supports' } })).json());
+  assert.equal(child.edge.kind, 'supports');
+  const patched = await call('PATCH', `/api/nodes/${node.id}`, { body: { status: 'active', title: '先验证授权边界', id: 'x' } });
+  assert.equal(patched.status, 200);
+  assert.equal((await patched.json()).updatedBy, 'human');
+  assert.equal(replay(dir).nodes[node.id].id, node.id);
+  const bad = await call('PATCH', `/api/nodes/${node.id}`, { body: { status: 'nonsense' } });
+  assert.equal(bad.status, 400);
+  assert.equal((await call('POST', '/api/edges', { body: { from: child.node.id, to: node.id, kind: 'bogus' } })).status, 400);
+  const edge = await (await call('POST', '/api/edges', { body: { from: node.id, to: child.node.id, kind: 'related-to' } })).json();
+  assert.equal((await call('DELETE', `/api/edges?id=${encodeURIComponent(edge.id)}`, {})).status, 200);
+  assert.equal((await call('DELETE', `/api/nodes/${child.node.id}`, {})).status, 200);
+  const g = replay(dir);
+  assert.deepEqual(Object.keys(g.nodes), [node.id]);
+  assert.equal(Object.keys(g.edges).length, 0);
+  assert.equal((await call('POST', '/api/nodes', { body: { type: 'fact' } })).status, 400);
+  assert.equal((await call('POST', '/api/nodes', { body: { type: 'banana', title: 'x' } })).status, 400);
+});
+
+test('the viewer server refuses foreign hosts, cross-site writes and non-JSON bodies', async (t) => {
+  const { dir, port, origin, call } = await serve(t);
+  const body = { type: 'note', title: 'planted' };
+  const count = () => Object.keys(replay(dir).nodes).length;
+  // DNS rebinding: the request arrives with an attacker's host name.
+  const rebound = await new Promise((resolve) => {
+    const req = http.request({ host: '127.0.0.1', port, path: '/api/graph', headers: { host: `evil.example:${port}` } }, (res) => { res.resume(); resolve(res.statusCode); });
+    req.end();
+  });
+  assert.equal(rebound, 403);
+  assert.equal((await call('POST', '/api/nodes', { body, headers: { origin: 'https://evil.example' } })).status, 403);
+  assert.equal((await call('POST', '/api/nodes', { body, headers: { 'sec-fetch-site': 'cross-site' } })).status, 403);
+  // A form post from another site cannot set a JSON content type or this origin.
+  assert.equal((await fetch(origin + '/api/nodes', { method: 'POST', headers: { 'content-type': 'text/plain', origin }, body: JSON.stringify(body) })).status, 415);
+  assert.equal((await fetch(origin + '/api/nodes', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).status, 403);
+  assert.equal((await call('POST', '/api/nodes', { body: 'x'.repeat(300 * 1024) })).status, 413);
+  assert.equal(count(), 0);
+  // The same-origin request is fine, and a read never needs an Origin.
+  assert.equal((await call('POST', '/api/nodes', { body })).status, 201);
+  assert.equal((await fetch(origin + '/api/graph')).status, 200);
+});
+
+test('--read-only serves the board but takes no writes, and says so in the snapshot', async (t) => {
+  const { dir, origin, call } = await serve(t, { readOnly: true });
+  assert.equal((await call('POST', '/api/nodes', { body: { type: 'note', title: 'nope' } })).status, 403);
+  assert.equal(Object.keys(replay(dir).nodes).length, 0);
+  assert.equal((await (await fetch(origin + '/api/graph')).json()).meta.writable, undefined);
+  const open = await serve(t);
+  assert.equal((await (await fetch(open.origin + '/api/graph')).json()).meta.writable, true);
 });

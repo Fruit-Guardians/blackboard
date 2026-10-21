@@ -425,6 +425,8 @@ agent:review    → n72
 
 UI 使用不同颜色或头像显示多个当前节点。Agent 可以读取其他 Agent 的位置，但移动自己的游标不会影响别人。
 
+实现上，CLI 的默认身份取自 `BLACKBOARD_AGENT`（缺省为 `agent:primary`），逐条命令可用 `--agent` 覆盖；并行的 Agent 只要各设一个名字就不会共用游标。查看器把 `agent:primary` 渲染为“当前”，其余 Agent 的名字标在各自所在的卡片上。
+
 ---
 
 ## 9. Digest 与上下文恢复
@@ -605,6 +607,8 @@ board.reset
   "payload": {}
 }
 ```
+
+当前实现里 `edge.deleted` 与节点删除都落成同一个 `remove` 事件：`{"op":"remove","kind":"node"|"edge","id":…,"by":…}`。回放时它让节点（连同关联关系）或关系从图上消失；日志不删除任何历史。人在查看器里写入的节点带 `author: "human"`，修改带 `updatedBy`。
 
 ### 12.2 可重建性要求
 

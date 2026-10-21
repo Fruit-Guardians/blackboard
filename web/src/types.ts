@@ -44,6 +44,8 @@ export type GraphSnapshot = {
     focus?: string;
     count?: number;
     session?: string;
+    /** Set by a server that accepts edits from the viewer. */
+    writable?: boolean;
   };
   nodes: Record<string, BoardNode> | BoardNode[];
   edges: Record<string, BoardEdge> | BoardEdge[];

@@ -27,6 +27,9 @@ import {
   addEdge,
   addCheckpoint,
   patchNode,
+  removeNode,
+  removeEdge,
+  defaultAgentId,
   moveCursor,
   setMeta,
   reset,
@@ -110,6 +113,8 @@ ${b('游标与关系')}
   blackboard focus <id>                      cursor 的兼容别名
   blackboard here                            当前节点、邻域和最近轨迹
   blackboard link <from> <to> [--rel supports]   读作 “from <rel> to”，如 link 观察 猜测 --rel supports
+  blackboard unlink <from> <to> [--rel supports] 断开一条关系
+  blackboard remove <id> [--reason "…"]      把节点及其关系从图上移除（日志保留历史）
   blackboard done|block|revive <id>          修改节点状态
   blackboard edit <id> [--title …|-d …|--status …|--sev …|--confidence …]
 
@@ -127,7 +132,7 @@ ${b('恢复与查看')}
   blackboard show <id>
   blackboard tree [-d 4]
   blackboard tail
-  blackboard serve [--port 4317] [--open]
+  blackboard serve [--port 4317] [--open] [--read-only]   查看器默认允许人在页面上增改节点；--read-only 关闭
   blackboard export [-o blackboard.html]
   blackboard reset --yes
 
@@ -138,7 +143,7 @@ ${b('接入 Claude Code')}
   blackboard launcher
   blackboard hook <event>
 
-环境变量: BLACKBOARD_CWD 指定项目根；BLACKBOARD_QUIET=1 静默。FLOW_* 仍兼容。
+环境变量: BLACKBOARD_CWD 指定项目根；BLACKBOARD_QUIET=1 静默；BLACKBOARD_AGENT=name 让并行的 Agent 各用各的游标（默认 agent:primary）。FLOW_* 仍兼容。
 `);
 }
 /** Resolve a typed id, failing with the candidate list instead of a stack trace. */
@@ -256,7 +261,7 @@ async function cmdServe(args, flags) {
   needInit();
   const { startServer } = await import('../lib/server.js');
   const port = Number(flags.port || process.env.BLACKBOARD_PORT || process.env.FLOW_PORT || 4317);
-  await startServer({ cwd: cwd(), port, open: !!flags.open });
+  await startServer({ cwd: cwd(), port, open: !!flags.open, readOnly: !!flags['read-only'] });
 }
 
 async function cmdExport(args, flags) {
@@ -427,7 +432,7 @@ function cmdContext(args, flags) {
     try { since = resolveRef(g.checkpoints, since, 'checkpoint'); } catch {}
   }
   const packet = buildAgentContext(g, {
-    agentId: flags.agent || 'agent:primary',
+    agentId: flags.agent || defaultAgentId(),
     focus,
     depth: flags.depth === undefined ? 2 : Number(flags.depth),
     budgetTokens: flags.budget === undefined ? 4000 : Number(flags.budget),
@@ -573,6 +578,11 @@ async function main() {
       return cmdEdit(args, flags);
     case 'link':
       return cmdLink(args, flags);
+    case 'unlink':
+      return cmdUnlink(args, flags);
+    case 'remove':
+    case 'rm':
+      return cmdRemove(args, flags);
     case 'ls':
     case 'list':
       return cmdList(args, flags);
@@ -635,7 +645,7 @@ function addSimple(type, args, flags) {
       relateHere: !!flags['relate-here'],
       relation: flags.rel || flags.kind || null,
       reason: flags.reason || '',
-      agentId: flags.agent || 'agent:primary',
+      agentId: flags.agent || defaultAgentId(),
     },
     cwd(),
   );
@@ -655,7 +665,7 @@ function cmdCheckpoint(args, flags) {
     {
       summary,
       trigger: flags.trigger || (process.argv[2] === 'compact' ? 'manual-compact' : 'manual'),
-      agentId: flags.agent || 'agent:primary',
+      agentId: flags.agent || defaultAgentId(),
     },
     cwd(),
   );
@@ -671,7 +681,7 @@ function cmdCursor(args, flags) {
   needInit();
   const g = replay(cwd());
   let id = args[0];
-  const agentId = flags.agent || 'agent:primary';
+  const agentId = flags.agent || defaultAgentId();
   if (!id) {
     const current = currentCursor(g, agentId);
     if (flags.json) return out(flags, { cursor: current, agentId });
@@ -698,7 +708,7 @@ function cmdCursor(args, flags) {
 function cmdHere(args, flags) {
   needInitRead();
   const g = replay(cwd());
-  const agentId = flags.agent || 'agent:primary';
+  const agentId = flags.agent || defaultAgentId();
   const id = currentCursor(g, agentId);
   const node = id ? g.nodes[id] : null;
   const neighbors = neighborsOf(g, id);
@@ -811,6 +821,31 @@ function cmdLink(args, flags) {
   if (flags.json) return out(flags, edge);
   if (!(process.env.BLACKBOARD_QUIET || process.env.FLOW_QUIET)) {
     console.log(`${C.grn('+')} ${edge.from} ${C.dim(EDGE_LABEL[edge.kind] || edge.kind)} ${edge.to}`);
+  }
+}
+
+function cmdUnlink(args, flags) {
+  needInit();
+  const [from, to] = args;
+  if (!from || !to) fail('用法: blackboard unlink <from> <to> [--rel supports]');
+  let edge;
+  try { edge = removeEdge({ from, to, kind: flags.rel || flags.kind || null }, { by: flags.agent || defaultAgentId() }, cwd()); }
+  catch (e) { return fail(e.message); }
+  if (flags.json) return out(flags, edge);
+  if (!(process.env.BLACKBOARD_QUIET || process.env.FLOW_QUIET)) {
+    console.log(`${C.grn('−')} ${edge.from} ${C.dim(EDGE_LABEL[edge.kind] || edge.kind)} ${edge.to}`);
+  }
+}
+
+function cmdRemove(args, flags) {
+  needInit();
+  if (!args[0]) fail('用法: blackboard remove <id> [--reason "…"]（节点及其关系从图上移除，事件日志仍保留历史）');
+  let result;
+  try { result = removeNode(args[0], { by: flags.agent || defaultAgentId(), reason: flags.reason || '' }, cwd()); }
+  catch (e) { return fail(e.message); }
+  if (flags.json) return out(flags, result);
+  if (!(process.env.BLACKBOARD_QUIET || process.env.FLOW_QUIET)) {
+    console.log(`${C.grn('−')} ${result.id}${result.edges.length ? C.dim(`（连带 ${result.edges.length} 条关系）`) : ''}`);
   }
 }
 

@@ -33,6 +33,8 @@ export type CanvasNodeData = Record<string, unknown> & {
   group?: boolean;
   muted?: boolean;
   fresh?: boolean;
+  /** Other Agents whose cursor is on this card (the primary Agent is shown as "current"). */
+  agents?: string[];
   groupCount?: number;
   groupSubtitle?: string;
   groupColor?: string;
@@ -111,6 +113,12 @@ export function project(snapshot: GraphSnapshot, mode: ViewMode, query: string) 
   const q = query.trim();
   const current = currentNodeId(snapshot);
 
+  const watching = new Map<string, string[]>();
+  for (const cursor of Object.values(snapshot.cursors || {})) {
+    if (!cursor.to || cursor.agentId === 'agent:primary') continue;
+    watching.set(cursor.to, [...(watching.get(cursor.to) || []), cursor.agentId.replace(/^agent:/, '')]);
+  }
+
   const flowNodes: CanvasNode[] = nodes.map((item) => ({
     id: item.id,
     type: 'security',
@@ -121,6 +129,7 @@ export function project(snapshot: GraphSnapshot, mode: ViewMode, query: string) 
       current: item.id === current,
       dimmed: Boolean(q) && !matchesNode(item, q),
       degree: degree.get(item.id) || 0,
+      agents: watching.get(item.id),
     },
   }));
 

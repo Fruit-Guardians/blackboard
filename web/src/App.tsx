@@ -24,6 +24,7 @@ import { EmptyBoard } from './panels/EmptyBoard';
 import { Legend } from './panels/Legend';
 import { ShortcutsDialog } from './panels/ShortcutsDialog';
 import { Inspector } from './panels/Inspector';
+import { NewNodeDialog } from './panels/EditPanel';
 import { Sidebar } from './panels/Sidebar';
 import { Topbar } from './panels/Topbar';
 
@@ -60,6 +61,7 @@ function Workspace() {
   const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [digestOpen, setDigestOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [filter, setFilter] = useState<NodeFilter>(EMPTY_FILTER);
   const [notice, setNotice] = useState<string | null>(null);
@@ -209,6 +211,11 @@ function Workspace() {
     setSelectedId(target);
     if (!projection?.nodes.some((node) => node.id === target)) setMode('all');
   }, [snapshot, byId, projection]);
+
+  // A card removed from the board (by a person, from any open page) cannot stay selected.
+  useEffect(() => {
+    if (snapshot && selectedId && !byId.has(selectedId)) setSelectedId(null);
+  }, [snapshot, byId, selectedId]);
 
   // A dropped connection is only worth announcing if it lasts; EventSource usually recovers within a second.
   useEffect(() => {
@@ -404,6 +411,7 @@ function Workspace() {
     );
   }
 
+  const writable = !isStatic && snapshot.meta.writable === true;
   const stats = snapshot.stats || {};
   const risk = Number(stats.vulns?.critical || 0) + Number(stats.vulns?.high || 0);
   const counts = {
@@ -429,6 +437,7 @@ function Workspace() {
         onToggleSidebar={() => setSidebarOpen((open) => !open)}
         onSearch={() => setPaletteOpen(true)}
         onDigest={() => setDigestOpen(true)}
+        onNew={writable ? () => setNewOpen(true) : undefined}
         digestRef={digestTrigger}
         activities={activities}
         activityTotal={stats.activities || activities.length}
@@ -535,7 +544,7 @@ function Workspace() {
 
           <p className="sr-only" role="status" aria-live="polite">{selected ? `已选中${typeLabelOf(selected.type)}：${selected.title}` : ''}</p>
 
-          {selected && <Inspector node={selected} edges={allEdges} byId={byId} onClose={() => setSelectedId(null)} onFocus={focusNode} onCopyLink={isStatic ? undefined : copyNodeLink} linkCopied={linkCopied} />}
+          {selected && <Inspector node={selected} edges={allEdges} byId={byId} onClose={() => setSelectedId(null)} onFocus={focusNode} onCopyLink={isStatic ? undefined : copyNodeLink} linkCopied={linkCopied} writable={writable} />}
         </main>
       </div>
 
@@ -553,6 +562,7 @@ function Workspace() {
         onShortcuts={() => setShortcutsOpen(true)}
       />
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+      {writable && <NewNodeDialog open={newOpen} onOpenChange={setNewOpen} />}
       <DigestDialog open={digestOpen} onOpenChange={setDigestOpen} digest={snapshot.digest || ''} copied={copied} onCopy={copyDigest} returnFocus={digestTrigger} />
     </div>
   );

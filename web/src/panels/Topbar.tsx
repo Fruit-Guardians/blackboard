@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { FileText, Focus, GitBranch, ListTree, Moon, PanelLeft, Search, Sun } from 'lucide-react';
+import { FileText, Focus, GitBranch, ListTree, Moon, PanelLeft, Plus, Search, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
@@ -22,6 +22,7 @@ type Props = {
   onToggleSidebar: () => void;
   onSearch: () => void;
   onDigest: () => void;
+  onNew?: () => void;
   digestRef: RefObject<HTMLButtonElement | null>;
   activities: Activity[];
   activityTotal: number;
@@ -34,7 +35,7 @@ const CONNECTION = {
 } as const;
 
 export function Topbar(props: Props) {
-  const { title, mode, onMode, theme, onTheme, connection, isStatic, sidebarOpen, onToggleSidebar, onSearch, onDigest, digestRef, activities, activityTotal } = props;
+  const { title, mode, onMode, theme, onTheme, connection, isStatic, sidebarOpen, onToggleSidebar, onSearch, onDigest, onNew, digestRef, activities, activityTotal } = props;
   const status = isStatic ? { label: '离线快照', dot: 'bg-strong' } : CONNECTION[connection];
   return (
     <header className="grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b bg-background px-3">
@@ -61,6 +62,7 @@ export function Topbar(props: Props) {
         </Button>
         <IconButton label="搜索" className="md:hidden" onClick={onSearch}><Search /></IconButton>
         <ActivityPopover activities={activities} total={activityTotal} />
+        {onNew && <Button size="sm" onClick={onNew} aria-label="新建节点"><Plus className="size-3.5" /><span className="max-sm:hidden">新建</span></Button>}
         <Button ref={digestRef} size="sm" onClick={onDigest} aria-label="现场摘要"><FileText className="size-3.5" /><span className="max-sm:hidden">摘要</span></Button>
         <IconButton label={theme === 'light' ? '切换深色主题' : '切换浅色主题'} onClick={onTheme}>{theme === 'light' ? <Moon /> : <Sun />}</IconButton>
       </div>

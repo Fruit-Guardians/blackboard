@@ -1,11 +1,13 @@
 import { Collapsible } from 'radix-ui';
-import { Check, ArrowDownLeft, ArrowUpRight, ChevronRight, Link2, X } from 'lucide-react';
+import { Check, ArrowDownLeft, ArrowUpRight, ChevronRight, Link2, Unlink, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { IconButton } from '@/components/icon-button';
 import { Kbd } from '@/components/ui/kbd';
 import { NodeTypeIcon, TypeDot } from '../SecurityNode';
 import { formatTime, relationLabel, typeLabel } from '../graph';
 import { confidenceLabel, presentNode, severityLabel, statusLabel } from '../presentation';
+import { removeEdge } from '../api';
+import { AddSection, EditSection } from './EditPanel';
 import type { BoardEdge, BoardNode } from '../types';
 
 type Props = {
@@ -16,9 +18,11 @@ type Props = {
   onFocus: (id: string) => void;
   onCopyLink?: () => void;
   linkCopied?: boolean;
+  /** The server accepts edits from this page. */
+  writable?: boolean;
 };
 
-export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, linkCopied }: Props) {
+export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, linkCopied, writable }: Props) {
   const relations = edges.filter((edge) => edge.from === node.id || edge.to === node.id);
   const text = presentNode(node);
   const severe = node.severity === 'critical' || node.severity === 'high';
@@ -45,6 +49,7 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
           <Prop label="状态" value={statusLabel(node.status)} />
           <Prop label="风险" value={severityLabel(node.severity)} tone={severe ? 'danger' : undefined} />
           <Prop label="可信度" value={confidenceLabel(node.confidence)} />
+          {typeof node.author === 'string' && node.author && <Prop label="作者" value={node.author === 'human' ? '人工' : node.author} />}
           <Prop label="创建" value={formatTime(Number(node.ts || 0))} />
           <Prop label="更新" value={formatTime(Number(node.updated || node.ts || 0))} />
         </dl>
@@ -60,7 +65,7 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
                 const peer = byId.get(incoming ? edge.from : edge.to);
                 const Arrow = incoming ? ArrowDownLeft : ArrowUpRight;
                 return (
-                  <li key={edge.id}>
+                  <li key={edge.id} className="group/row relative">
                     <button
                       onClick={() => peer && onFocus(peer.id)}
                       className="group flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
@@ -75,6 +80,11 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
                       </span>
                       <ChevronRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                     </button>
+                    {writable && (
+                      <span className="absolute right-1 top-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100">
+                        <IconButton label="断开这条关系" onClick={() => { removeEdge(edge.id).catch(() => undefined); }}><Unlink /></IconButton>
+                      </span>
+                    )}
                   </li>
                 );
               })}
@@ -83,6 +93,9 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
             <p className="m-0 text-xs text-muted-foreground">这个节点尚未建立逻辑关系。</p>
           )}
         </section>
+
+        {writable && <AddSection key={`add-${node.id}`} node={node} />}
+        {writable && <EditSection key={`edit-${node.id}`} node={node} />}
 
         <Collapsible.Root key={node.id} className="mt-6">
           <Collapsible.Trigger className="group flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">

@@ -337,12 +337,24 @@ blackboard compact         # checkpoint 的兼容别名
 
 需要旧式显式来源时仍可使用 `--parent <id>`；它只在明确提供时生效。
 
+### 多个 Agent 并行
+
+默认所有命令都用 `agent:primary` 这一个游标，两个 Agent 同时 `--enter` 会互相覆盖位置。并行工作时，让每个 Agent 带上自己的名字：
+
+```bash
+export BLACKBOARD_AGENT=research       # 之后这个会话的 cursor / --enter / --relate-here 都用 agent:research
+blackboard fact "…" --enter            # 只移动 agent:research 的游标
+blackboard cursor --agent review       # 也可以逐条命令指定
+```
+
+可视化里，`agent:primary` 显示为“当前”，其他 Agent 的名字会出现在它们所在的卡片上。
+
 ## 数据与可靠性
 
 `.flow/events.jsonl` 是唯一事实源。事件包括：
 
 ```text
-node / edge / cursor / activity / checkpoint / patch / meta / reset
+node / edge / cursor / activity / checkpoint / patch / remove / meta / reset
 ```
 
 实现保证：
@@ -355,6 +367,7 @@ node / edge / cursor / activity / checkpoint / patch / meta / reset
 - 追加前会清理 JSONL 尾部的不完整记录；
 - 回放时会跳过无法解析的行，以及缺 `id`/`type` 的节点、自环或端点不存在的关系；跳过的数量会通过 `blackboard lint` 的 `log-integrity` 警告报告，而不是静默丢弃；
 - `patch` 不能改写节点的 `id` 和 `ts`；
+- `remove` 只是让节点（及其关系）或一条关系不再出现在图上，日志里的历史仍在；指向被移除节点的游标会失效为“无位置”，之后可以用同样的 id 重新建立关系；
 - 超长内容会被截断（标题 500 字、detail 20000 字、摘要 12000 字），截断时命令会在 stderr 提示，`--json` 结果带 `truncated` 字段。
 
 ## 可视化
@@ -382,6 +395,23 @@ blackboard serve --open
 ```bash
 blackboard export -o blackboard.html
 ```
+
+### 在页面上动手
+
+查看器不只是看：顶栏的 **新建** 可以写下一个想法，选中节点后详情里可以 **添加相关节点**（支持 / 反驳 / 由它推出 / 仅相关）、**修改文字**、改状态、**断开某条关系**或 **移除节点**。人写入的节点带 `author: "human"`，修改带 `updatedBy`，详情里显示为“作者：人工”；Agent 读取 `context` 时和其他节点一样看到它们。同样的操作也有命令：
+
+```bash
+blackboard unlink <from> <to> [--rel supports]
+blackboard remove <id> [--reason "…"]
+```
+
+写入由本地服务完成，并有三道保护：只接受以 `127.0.0.1` / `localhost` / `[::1]` 为 Host 的请求（防 DNS 重绑定）；写请求必须来自本页自己的 Origin、使用 `application/json`（别的网站无法跨站提交）；请求体上限 256 KB。只想看、不想让页面改动黑板时：
+
+```bash
+blackboard serve --read-only
+```
+
+离线导出的文件始终是只读快照。
 
 ## Claude Code 接入
 
