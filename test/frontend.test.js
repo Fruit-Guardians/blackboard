@@ -14,8 +14,8 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 execFileSync(process.execPath, [path.join(root, 'node_modules/typescript/bin/tsc'), '--target', 'ES2022', '--module', 'ESNext', '--moduleResolution', 'Bundler', '--skipLibCheck', '--outDir', dir, path.join(root, 'web/src/presentation.ts')], { cwd: dir });
 const modulePath = path.join(dir, 'presentation.mjs');
 fs.renameSync(path.join(dir, 'presentation.js'), modulePath);
-const { presentNode, matchesNode, statusLabel, severityLabel, typeLabel } = await import(pathToFileURL(modulePath).href);
-const node = { id: 'node-7', type: 'hypothesis', title: 'Gateway policy。Verify middleware next.', detail: 'Session boundary', status: 'open', severity: 'high' };
+const { confidenceLabel, presentNode, matchesNode, statusLabel, severityLabel, typeLabel } = await import(pathToFileURL(modulePath).href);
+const node = { id: 'node-7', type: 'hypothesis', title: 'Gateway policy。Verify middleware next.', detail: 'Session boundary', status: 'open', severity: 'high', confidence: 'static-confirmed' };
 
 test('node presenter splits a heading from evidence without rewriting it', () => {
   assert.deepEqual(presentNode(node), { headline: 'Gateway policy', summary: 'Verify middleware next.', detail: 'Session boundary' });
@@ -30,8 +30,8 @@ test('node presenter handles multiline and blank authored titles', () => {
   assert.equal(presentNode({ title: 'Heading\nBody' }).summary, 'Body');
   assert.equal(presentNode({ title: '  ' }).headline, '未命名节点');
 });
-test('board search matches id, detail and localized type, case-insensitively', () => {
-  for (const query of ['NODE-7', 'session boundary', '假设', '待验证', '高危']) assert.equal(matchesNode(node, query), true, query);
+test('board search matches id, detail and localized type/confidence, case-insensitively', () => {
+  for (const query of ['NODE-7', 'session boundary', '假设', '待验证', '高危', '静态确认']) assert.equal(matchesNode(node, query), true, query);
 });
 test('board search applies all terms and rejects unrelated text', () => {
   assert.equal(matchesNode(node, 'gateway session'), true);
@@ -42,8 +42,10 @@ test('unknown states and custom types keep their authored labels', () => {
   assert.equal(statusLabel('custom'), 'custom');
   assert.equal(typeLabel('decision'), 'decision');
   assert.equal(severityLabel('custom'), 'custom');
+  assert.equal(confidenceLabel('custom'), 'custom');
 });
 test('missing states are represented explicitly instead of a false status', () => {
   assert.equal(statusLabel(), '未设置');
   assert.equal(severityLabel(), '未评估');
+  assert.equal(confidenceLabel(), '未声明');
 });

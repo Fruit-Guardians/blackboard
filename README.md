@@ -15,6 +15,77 @@
 - 事件目录暂时保留为 `.flow/`，避免升级时搬迁或丢失历史黑板；
 - 新环境变量使用 `BLACKBOARD_CWD`、`BLACKBOARD_PORT`、`BLACKBOARD_QUIET`，对应的 `FLOW_*` 仍可读取。
 
+## 启用
+
+使用 CLI、服务和 Agent 接入不需要安装依赖，只要 Node.js ≥ 18。`public/` 里已经带有构建好的前端。
+
+**最快方式：给 Claude Code 安装一次全局 Skill，之后每个项目一句话启用**
+
+```bash
+node /path/to/blackboard/bin/blackboard.js skill install --user
+```
+
+以后只需在 Claude Code 里说：
+
+> 给当前项目一条龙配置并打开 blackboard
+
+Skill 会调用 `blackboard setup`：初始化数据、安装项目级 Skill、写入只负责恢复的 Hook、关闭工具活动自动采集，并启动随登录常驻的本地可视化服务。它不会替 Agent 选择步骤，也不会把黑板变成执行前置条件。
+
+也可以直接手动执行同一个一条龙命令：
+
+```bash
+blackboard setup --target "$PWD" --title "项目或任务名" --open
+```
+
+重复执行是幂等的；可视化默认在 `http://127.0.0.1:4333`，再次为别的项目 setup 会把这一个工作区服务切换过去。仅配数据时可加 `--no-serve`，不需要恢复 Hook 时可加 `--no-hooks`。
+
+**分步方式 1. 装一个 `blackboard` 命令**（一次即可）
+
+```bash
+git clone https://github.com/Fruit-Guardians/blackboard.git
+cd blackboard
+node bin/blackboard.js launcher        # 在 ~/.local/bin 生成 blackboard
+```
+
+确认 `~/.local/bin` 在 `PATH` 里，然后用 `blackboard help` 检查。不想装的话，下文的 `blackboard` 都可以换成 `node /path/to/blackboard/bin/blackboard.js`。
+
+**分步方式 2. 在要记录的项目里建黑板**
+
+```bash
+cd ~/your-project
+blackboard init --title "项目目标或任务名"
+```
+
+这会创建 `.flow/`（事件日志，自带 `.gitignore`，默认不进版本库）。之后在该项目的任意子目录运行命令，都会自动找到这块黑板。
+
+**分步方式 3. 让 Agent 会用它**（Claude Code，一次即可）
+
+```bash
+blackboard skill install --user              # 装 skill，Agent 才知道怎么读写
+blackboard hooks install --user --write      # 可选：会话开始自动注入现场，压缩前自动存检查点
+```
+
+两条都只对新开的会话生效。之后在带有 `.flow/` 的项目里开会话，Agent 会按 skill 读取现场、在关键判断和结论处写节点并连边；也可以直接对它说“用 blackboard 记录这次审计”。Codex 用 `blackboard skill install --user --codex`。
+
+**分步方式 4. 打开可视化**
+
+```bash
+blackboard serve --open                      # 默认 http://127.0.0.1:4317，可用 --port 指定
+```
+
+页面实时跟随 Agent 的写入。需要分享时用 `blackboard export -o blackboard.html` 导出单文件。
+
+**分步方式 5. 检查是否生效**
+
+```bash
+blackboard digest      # Agent 每次恢复现场看到的内容
+blackboard lint        # 孤立节点、缺证据的结论、日志损坏等提示
+```
+
+如果图里全是互不相连的卡片，通常是 Agent 没有显式连边，或仍在使用旧版 `flow` skill（`blackboard skill install` 会自动停用它）。
+
+关闭：`blackboard hooks uninstall --user --write` 移除 Hook，删除 `~/.claude/skills/blackboard` 移除 skill；项目里的 `.flow/` 可随时删除，Agent 不依赖它也能正常工作。
+
 ## 核心模型
 
 黑板分为三个相互独立的层：
@@ -129,6 +200,23 @@ Tokenizer 的精确计数；裁剪情况会记录在 `omitted` 中。
 ```bash
 blackboard node add decision "暂时停止 fuzz，优先验证权限边界"
 ```
+
+### 风险、状态和可信度相互独立
+
+代码审计里“影响有多大”“当前是否仍在处理”“证据成熟到什么程度”是三个不同维度：
+
+```bash
+# 只有源码链路，尚未端到端验证
+blackboard node add vuln "Windows 前缀权限绕过候选" \
+  --sev medium --status active --confidence static-confirmed
+
+# 实测后只提升可信度，不需要重建节点
+blackboard edit <id> --status confirmed --confidence reproduced
+```
+
+可信度可取：`suspected`、`static-confirmed`、`reproduced`、`confirmed`。旧节点未声明可信度时继续兼容，但 `blackboard lint` 会提示；可信度不会替 Agent 判断问题是否成立。
+
+复现或静态确认的事实可以使用 `--status confirmed`，这样它会进入 Agent 上下文的 `confirmedFacts`。游标应指向此刻真正继续研究的开放问题或猜测，而不是仅仅因为某个历史漏洞重要就长期停在那里。
 
 ## 逻辑关系
 
@@ -281,7 +369,8 @@ blackboard serve --open
 - 当前现场只投影当前节点、两跳邻域、开放节点和最近内容；
 - React Flow 节点卡片，每种类型有自己的色调；
 - ELK 自动层级布局，可切换横向与纵向，连线可选曲线、折线、直线（默认曲线），按关系分为证实 / 反驳 / 推导 / 产出 / 取代 / 关联六种颜色，并带可收起的图例；
-- 左侧导航按“正在关注 / 待验证 / 发现 / 未连接”分区，并支持按类型、状态、风险筛选；
+- 左侧导航按“正在关注 / 待验证 / 发现 / 未连接”分区，并支持按类型、状态、可信度、风险筛选；当前节点不会在“发现”中重复出现；
+- 漏洞卡片和详情同时显示严重度与可信度；顶部隐藏节点提示可直接切换到全局视图；
 - 当前节点标识、新写入节点脉冲，以及可选的“跟随 Agent”；
 - ⌘K 搜索与命令、详情面板、活动时间线、摘要和小地图；
 - 键盘：方向键沿关系跳转，`/` 搜索，`[` 收起侧栏，`?` 查看快捷键；

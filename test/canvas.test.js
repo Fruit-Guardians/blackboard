@@ -104,8 +104,8 @@ test('sidebar filters: values within a facet are alternatives, facets narrow eac
  const nodes=[
   {id:'a',type:'hypothesis',title:'A',status:'open'},
   {id:'b',type:'hypothesis',title:'B',status:'dead'},
-  {id:'c',type:'finding',title:'C',status:'confirmed',severity:'high'},
-  {id:'d',type:'vuln',title:'D',severity:'low'},
+  {id:'c',type:'finding',title:'C',status:'confirmed',severity:'high',confidence:'reproduced'},
+  {id:'d',type:'vuln',title:'D',severity:'low',confidence:'static-confirmed'},
  ];
  const ids=(f)=>filterNodes(nodes,{...EMPTY_FILTER,...f}).map(n=>n.id);
  assert.equal(filterActive(EMPTY_FILTER),false);
@@ -113,6 +113,7 @@ test('sidebar filters: values within a facet are alternatives, facets narrow eac
  assert.deepEqual(ids({types:['hypothesis','finding']}),['a','b','c']);
  assert.deepEqual(ids({types:['hypothesis'],statuses:['open']}),['a']);
  assert.deepEqual(ids({riskOnly:true}),['c']);
+ assert.deepEqual(ids({confidences:['static-confirmed']}),['d']);
  assert.deepEqual(ids({statuses:['']}),['d']);
  assert.equal(filterActive({...EMPTY_FILTER,riskOnly:true}),true);
 });

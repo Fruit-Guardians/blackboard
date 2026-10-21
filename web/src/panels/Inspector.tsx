@@ -5,7 +5,7 @@ import { IconButton } from '@/components/icon-button';
 import { Kbd } from '@/components/ui/kbd';
 import { NodeTypeIcon, TypeDot } from '../SecurityNode';
 import { formatTime, relationLabel, typeLabel } from '../graph';
-import { presentNode, severityLabel, statusLabel } from '../presentation';
+import { confidenceLabel, presentNode, severityLabel, statusLabel } from '../presentation';
 import type { BoardEdge, BoardNode } from '../types';
 
 type Props = {
@@ -44,6 +44,7 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
         <dl className="mt-5 mb-0 divide-y rounded-lg border text-[13px]">
           <Prop label="状态" value={statusLabel(node.status)} />
           <Prop label="风险" value={severityLabel(node.severity)} tone={severe ? 'danger' : undefined} />
+          <Prop label="可信度" value={confidenceLabel(node.confidence)} />
           <Prop label="创建" value={formatTime(Number(node.ts || 0))} />
           <Prop label="更新" value={formatTime(Number(node.updated || node.ts || 0))} />
         </dl>

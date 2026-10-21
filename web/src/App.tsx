@@ -98,10 +98,10 @@ function Workspace() {
   const currentId = snapshot ? currentNodeId(snapshot) : null;
   const current = currentId ? byId.get(currentId) || null : null;
   const findings = useMemo(() => allNodes
-    .filter((node) => ['finding', 'vuln'].includes(node.type) && node.status !== 'superseded')
-    .sort((a, b) => (severityOrder[a.severity || 'info'] ?? 5) - (severityOrder[b.severity || 'info'] ?? 5)), [allNodes]);
+    .filter((node) => node.id !== currentId && ['finding', 'vuln'].includes(node.type) && node.status !== 'superseded')
+    .sort((a, b) => (severityOrder[a.severity || 'info'] ?? 5) - (severityOrder[b.severity || 'info'] ?? 5)), [allNodes, currentId]);
   const openItems = useMemo(() => allNodes
-    .filter((node) => node.id !== currentId && ['intent', 'hypothesis', 'question'].includes(node.type) && !['done', 'dead', 'superseded'].includes(node.status || ''))
+    .filter((node) => node.id !== currentId && ['intent', 'hypothesis', 'question'].includes(node.type) && !['done', 'dead', 'refuted', 'superseded', 'confirmed'].includes(node.status || ''))
     .slice(-8).reverse(), [allNodes, currentId]);
   const inbox = useMemo(() => {
     const linked = new Set(allEdges.flatMap((edge) => [edge.from, edge.to]));
@@ -118,6 +118,7 @@ function Workspace() {
     return {
       types: tally((node) => node.type),
       statuses: tally((node) => node.status || ''),
+      confidences: tally((node) => node.confidence || ''),
       riskCount: allNodes.filter((node) => node.severity === 'critical' || node.severity === 'high').length,
     };
   }, [allNodes]);
@@ -391,7 +392,13 @@ function Workspace() {
 
   const stats = snapshot.stats || {};
   const risk = Number(stats.vulns?.critical || 0) + Number(stats.vulns?.high || 0);
-  const counts = { nodes: allNodes.length, edges: allEdges.length, risk };
+  const counts = {
+    nodes: allNodes.length,
+    edges: allEdges.length,
+    risk,
+    open: Number(stats.frontier || 0),
+    candidates: Number(stats.candidates || 0),
+  };
   const hidden = projection?.hidden || 0;
 
   return (
@@ -502,9 +509,12 @@ function Workspace() {
               </div>
             )}
             {hidden > 0 && (
-              <div className="whitespace-nowrap rounded-full border bg-card px-3 py-1 text-xs text-muted-foreground shadow-xs">
-                另有 {hidden} 个节点未在当前视图显示
-              </div>
+              <button
+                className="pointer-events-auto whitespace-nowrap rounded-full border bg-card px-3 py-1 text-xs text-muted-foreground shadow-xs transition-colors hover:border-strong hover:text-foreground"
+                onClick={() => switchMode('all')}
+              >
+                另有 {hidden} 个节点未显示 · 查看全部
+              </button>
             )}
             {notice && <div role="status" className="whitespace-nowrap rounded-full border bg-card px-3 py-1 text-xs shadow-float">{notice}</div>}
           </div>

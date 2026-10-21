@@ -9,7 +9,7 @@ import type { CanvasNode } from './graph';
 import { typeLabel } from './graph';
 import { BaseNode } from './components/react-flow/base-node';
 import { detailLevel } from './canvas-state';
-import { presentNode, severityLabel, statusLabel } from './presentation';
+import { confidenceLabel, presentNode, severityLabel, statusLabel } from './presentation';
 
 const ICONS = {
   goal: Flag,
@@ -53,7 +53,10 @@ export const SecurityNode = memo(function SecurityNode({ id, data, selected }: N
   useEffect(() => updateNodeInternals(id), [id, direction, updateNodeInternals]);
   const text = presentNode(item);
   const severe = item.severity === 'critical' || item.severity === 'high';
-  const state = item.severity && item.severity !== 'info' ? severityLabel(item.severity) : item.status ? statusLabel(item.status) : '';
+  const state = [
+    item.severity && item.severity !== 'info' ? severityLabel(item.severity) : '',
+    item.confidence ? confidenceLabel(item.confidence) : item.status ? statusLabel(item.status) : '',
+  ].filter(Boolean).join(' · ');
   const overview = level === 'overview';
 
   return (

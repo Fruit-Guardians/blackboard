@@ -5,6 +5,7 @@ export type BoardNode = {
   detail?: string;
   status?: string;
   severity?: string;
+  confidence?: string;
   ts?: number;
   updated?: number;
   session?: string;
@@ -57,8 +58,10 @@ export type GraphSnapshot = {
     checkpoints?: number;
     frontier?: number;
     confirmed?: number;
+    candidates?: number;
     byType?: Record<string, number>;
     vulns?: Record<string, number>;
+    confidence?: Record<string, number>;
   };
   digest?: string;
 };

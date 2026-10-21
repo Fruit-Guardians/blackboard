@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { TypeDot } from '../SecurityNode';
 import { FilterPopover } from './FilterPopover';
-import { presentNode, severityLabel } from '../presentation';
+import { confidenceLabel, presentNode, severityLabel } from '../presentation';
 import { typeLabel } from '../graph';
 import type { NodeFilter } from '../presentation';
 import type { BoardNode } from '../types';
@@ -17,13 +17,13 @@ type Props = {
   findings: BoardNode[];
   inbox: BoardNode[];
   selectedId: string | null;
-  counts: { nodes: number; edges: number; risk: number };
+  counts: { nodes: number; edges: number; risk: number; open: number; candidates: number };
   onSelect: (id: string) => void;
   onSearch: () => void;
   onShortcuts: () => void;
   filter: NodeFilter;
   onFilter: (filter: NodeFilter) => void;
-  filterOptions: { types: { value: string; count: number }[]; statuses: { value: string; count: number }[]; riskCount: number };
+  filterOptions: { types: { value: string; count: number }[]; statuses: { value: string; count: number }[]; confidences: { value: string; count: number }[]; riskCount: number };
   results: BoardNode[] | null;
 };
 
@@ -44,7 +44,7 @@ export function Sidebar({ current, openItems, findings, inbox, selectedId, count
           <>
             <div className="flex h-7 items-center px-2 text-xs font-medium text-muted-foreground">
               筛选结果<span className="ml-1.5 tabular-nums font-normal">{results.length}</span>
-              <Button variant="ghost" size="sm" className="ml-auto -mr-1 h-6 px-1.5 text-xs" onClick={() => onFilter({ types: [], statuses: [], riskOnly: false })}><X className="size-3" />清除</Button>
+              <Button variant="ghost" size="sm" className="ml-auto -mr-1 h-6 px-1.5 text-xs" onClick={() => onFilter({ types: [], statuses: [], confidences: [], riskOnly: false })}><X className="size-3" />清除</Button>
             </div>
             <div className="flex flex-col gap-px pt-0.5">
               {results.length
@@ -70,6 +70,8 @@ export function Sidebar({ current, openItems, findings, inbox, selectedId, count
       <footer className="flex items-center gap-3 border-t px-4 py-2.5 text-xs tabular-nums text-muted-foreground">
         <span>{counts.nodes} 节点</span>
         <span>{counts.edges} 关系</span>
+        {counts.open > 0 && <span>{counts.open} 待验证</span>}
+        {counts.candidates > 0 && <span>{counts.candidates} 候选</span>}
         {counts.risk > 0 && <span className="text-destructive">{counts.risk} 高风险</span>}
         <button className="ml-auto inline-flex items-center gap-1 rounded text-muted-foreground transition-colors hover:text-foreground" onClick={onShortcuts} aria-label="键盘快捷键">
           <Kbd>?</Kbd>
@@ -111,6 +113,7 @@ function Row({ node, current = false, selected, onSelect }: { node: BoardNode; c
         <span className="flex items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
           {typeLabel(node.type)}
           {severe && <span className="text-destructive">· {severityLabel(node.severity)}</span>}
+          {node.confidence && <span>· {confidenceLabel(node.confidence)}</span>}
         </span>
       </span>
       {current && <Crosshair className="mt-1 size-3.5 shrink-0 text-live" />}

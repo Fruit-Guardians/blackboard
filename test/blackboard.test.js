@@ -17,11 +17,13 @@ import {
   replay,
   reset,
   setMeta,
+  stats,
   withLock,
 } from '../lib/store.js';
 import { currentCursor, apply, emptyGraph, resolveRef } from '../lib/model.js';
 import { buildDigest } from '../lib/digest.js';
-import { installHooks, redactSensitive, runHook, uninstallHooks } from '../lib/hooks.js';
+import { installHooks, installSkill, redactSensitive, runHook, uninstallHooks } from '../lib/hooks.js';
+import { renderLaunchAgent } from '../lib/setup.js';
 import { renderExport } from '../lib/export.js';
 import { lintGraph } from '../lib/lint.js';
 import { buildAgentContext } from '../lib/context.js';
@@ -82,6 +84,29 @@ test('Agent context honors checkpoint deltas and reports budget truncation', (t)
   assert.equal(packet.truncated, true);
   assert.ok(Object.keys(packet.omitted).length > 0);
   assert.ok(packet.estimatedTokens < 1000);
+});
+
+test('confidence stays independent from severity/status and improves Agent recovery', (t) => {
+  const dir = fixture(t);
+  const fact = addNode({ type: 'fact', title: '端到端复现返回 200', confidence: 'reproduced' }, dir).node;
+  const candidate = addNode({
+    type: 'vuln', title: 'Windows 前缀绕过候选', severity: 'high',
+    confidence: 'static-confirmed', status: 'active', enter: true,
+  }, dir).node;
+  addEdge({ from: fact.id, to: candidate.id, kind: 'supports' }, dir);
+  moveCursor(candidate.id, { reason: '等待 Windows 环境复现' }, dir);
+
+  const packet = buildAgentContext(replay(dir));
+  assert.equal(packet.currentFocus.confidence, 'static-confirmed');
+  assert.equal(packet.request.cursorReason, '等待 Windows 环境复现');
+  assert.equal(packet.confirmedFacts.some((node) => node.id === fact.id), true);
+  assert.equal(stats(replay(dir)).candidates, 1);
+  assert.equal(stats(replay(dir)).confirmed, 0);
+
+  patchNode(candidate.id, { confidence: 'reproduced', status: 'confirmed' }, dir);
+  assert.equal(stats(replay(dir)).candidates, 0);
+  assert.equal(stats(replay(dir)).confirmed, 1);
+  assert.throws(() => addNode({ type: 'vuln', title: 'bad', confidence: 'guessed' }, dir), /invalid confidence/);
 });
 
 test('creating a node neither moves the cursor nor creates an implicit edge', (t) => {
@@ -291,6 +316,57 @@ test('optional blackboard hooks can be removed without touching unrelated hooks'
 
   assert.match(JSON.stringify(updated), /echo unrelated/);
   assert.doesNotMatch(JSON.stringify(updated), /\.flow\/events\.jsonl/);
+});
+
+test('Codex skill installs project-locally and restores context without constraining the Agent', (t) => {
+  const dir = fixture(t);
+  const message = installSkill({ cwd: dir, cli: PRIMARY_CLI, agent: 'codex' });
+  const file = path.join(dir, '.agents', 'skills', 'blackboard', 'SKILL.md');
+  const content = fs.readFileSync(file, 'utf8');
+
+  assert.match(message, /codex\/project/);
+  assert.match(content, /blackboard context --budget 4000/);
+  assert.match(content, /不应阻止原任务继续/);
+  assert.match(content, /不用于约束普通任务的执行步骤/);
+  assert.equal(fs.existsSync(path.join(dir, '.claude', 'skills', 'blackboard', 'SKILL.md')), false);
+});
+
+test('Claude skill teaches one-shot setup without turning the board into a gate', (t) => {
+  const dir = fixture(t);
+  installSkill({ cwd: dir, cli: PRIMARY_CLI, agent: 'claude' });
+  const content = fs.readFileSync(path.join(dir, '.claude', 'skills', 'blackboard', 'SKILL.md'), 'utf8');
+
+  assert.match(content, /blackboard setup --target/);
+  assert.match(content, /目标锚点只是记录用户目标，不是执行门槛/);
+  assert.match(content, /不应阻止原任务继续/);
+});
+
+test('setup configures a project idempotently without activity capture', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blackboard-setup-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const env = { ...process.env, HOME: dir };
+  const args = [PRIMARY_CLI, 'setup', '--target', dir, '--title', 'one shot', '--no-serve', '--json'];
+  const first = JSON.parse(execFileSync(process.execPath, args, { env, encoding: 'utf8' }));
+  const second = JSON.parse(execFileSync(process.execPath, args, { env, encoding: 'utf8' }));
+  const config = JSON.parse(fs.readFileSync(path.join(dir, '.flow', 'config.json'), 'utf8'));
+  const settings = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf8'));
+
+  assert.equal(first.cwd, dir);
+  assert.equal(second.cwd, dir);
+  assert.equal(config.autoRecord, false);
+  assert.deepEqual(Object.keys(settings.hooks).sort(), ['PreCompact', 'SessionStart']);
+  assert.equal(fs.existsSync(path.join(dir, '.claude', 'skills', 'blackboard', 'SKILL.md')), true);
+  assert.equal(fs.statSync(path.join(dir, '.local', 'bin', 'blackboard')).mode & 0o111, 0o111);
+});
+
+test('launchd service definition pins the project and local-only viewer port', () => {
+  const plist = renderLaunchAgent({
+    cwd: '/tmp/a & b', cli: '/tmp/blackboard.js', node: '/usr/bin/node', port: 4333,
+  });
+  assert.match(plist, /com\.fruitguardians\.blackboard\.workspace/);
+  assert.match(plist, /<string>\/tmp\/a &amp; b<\/string>/);
+  assert.match(plist, /<key>BLACKBOARD_CWD<\/key>/);
+  assert.match(plist, /<string>4333<\/string>/);
 });
 
 
@@ -607,4 +683,42 @@ test('lint evidence follows "from <kind> to": derived-from outgoing counts, inco
   addEdge({ from: obs.id, to: f2.id, kind: 'caused-by' }, dir);
   const unsupported = lintGraph(replay(dir)).issues.find((i) => i.code === 'unsupported-conclusions');
   assert.deepEqual(unsupported.nodeIds, [f2.id]);
+});
+
+test('lint exposes audit handoff drift without changing the graph', (t) => {
+  const dir = fixture(t);
+  addNode({ type: 'goal', title: '全面审计' }, dir);
+  const evidence = addNode({ type: 'fact', title: '静态链路成立', confidence: 'static-confirmed' }, dir).node;
+  const finding = addNode({ type: 'vuln', title: '候选问题', confidence: 'static-confirmed', enter: true }, dir).node;
+  addEdge({ from: evidence.id, to: finding.id, kind: 'supports' }, dir);
+  addNode({
+    type: 'question', title: '剩余覆盖',
+    detail: '(1) 并发资源；(2) 多 vhost；(3) 别名边界',
+  }, dir);
+  const before = fs.readFileSync(paths(dir).events, 'utf8');
+  const codes = lintGraph(replay(dir)).issues.map((item) => item.code);
+
+  assert.equal(codes.includes('unscoped-findings'), true);
+  assert.equal(codes.includes('compound-open-threads'), true);
+  assert.equal(codes.includes('missing-confidence'), false);
+  assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
+});
+
+test('skill install retires the legacy flow skill and teaches explicit linking', (t) => {
+  const dir = bare(t);
+  const legacy = path.join(dir, '.claude', 'skills', 'flow');
+  fs.mkdirSync(legacy, { recursive: true });
+  fs.writeFileSync(path.join(legacy, 'SKILL.md'), '# flow — 探索图\n意图会成为后续节点的父节点');
+  const unrelated = path.join(dir, '.claude', 'skills', 'other');
+  fs.mkdirSync(unrelated, { recursive: true });
+  fs.writeFileSync(path.join(unrelated, 'SKILL.md'), 'keep me');
+
+  const message = installSkill({ cwd: dir, cli: PRIMARY_CLI });
+  assert.match(message, /旧版 flow skill/);
+  assert.equal(fs.existsSync(path.join(legacy, 'SKILL.md')), false);
+  assert.equal(fs.existsSync(path.join(legacy, 'SKILL.md.legacy')), true);
+  assert.equal(fs.readFileSync(path.join(unrelated, 'SKILL.md'), 'utf8'), 'keep me');
+  const skill = fs.readFileSync(path.join(dir, '.claude', 'skills', 'blackboard', 'SKILL.md'), 'utf8');
+  assert.match(skill, /让图成为图/);
+  assert.match(skill, /--parent/);
 });

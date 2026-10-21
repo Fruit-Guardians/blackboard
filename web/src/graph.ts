@@ -169,7 +169,18 @@ async function elkLayout(nodes: CanvasNode[], edges: Edge[], direction: 'RIGHT' 
       'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
       'elk.edgeRouting': 'ORTHOGONAL',
     },
-    children: nodes.map((node) => ({ id: node.id, width: NODE_W, height: Number(node.style?.height || NODE_H) })),
+    children: nodes.map((node) => {
+      const type = node.data.item.type;
+      const layerConstraint = ['goal', 'start'].includes(type)
+        ? 'FIRST'
+        : ['finding', 'vuln'].includes(type) ? 'LAST' : undefined;
+      return {
+        id: node.id,
+        width: NODE_W,
+        height: Number(node.style?.height || NODE_H),
+        ...(layerConstraint ? { layoutOptions: { 'org.eclipse.elk.layered.layering.layerConstraint': layerConstraint } } : {}),
+      };
+    }),
     edges: edges.map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] })),
   });
   const positions = new Map((result.children || []).map((node) => [node.id, node]));

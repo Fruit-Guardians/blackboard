@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TypeDot } from '../SecurityNode';
 import { typeLabel } from '../graph';
-import { filterActive, statusLabel, type NodeFilter } from '../presentation';
+import { confidenceLabel, filterActive, statusLabel, type NodeFilter } from '../presentation';
 
 type Option = { value: string; count: number };
 type Props = {
@@ -12,14 +12,15 @@ type Props = {
   onChange: (filter: NodeFilter) => void;
   types: Option[];
   statuses: Option[];
+  confidences: Option[];
   riskCount: number;
 };
 
 const toggle = (list: string[], value: string) => list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 
-export function FilterPopover({ filter, onChange, types, statuses, riskCount }: Props) {
+export function FilterPopover({ filter, onChange, types, statuses, confidences, riskCount }: Props) {
   const active = filterActive(filter);
-  const total = filter.types.length + filter.statuses.length + Number(filter.riskOnly);
+  const total = filter.types.length + filter.statuses.length + filter.confidences.length + Number(filter.riskOnly);
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -45,11 +46,20 @@ export function FilterPopover({ filter, onChange, types, statuses, riskCount }: 
             ))}
           </Facet>
         )}
+        {confidences.length > 0 && (
+          <Facet title="可信度">
+            {confidences.map((option) => (
+              <Chip key={option.value} pressed={filter.confidences.includes(option.value)} onClick={() => onChange({ ...filter, confidences: toggle(filter.confidences, option.value) })}>
+                {option.value ? confidenceLabel(option.value) : '未声明'}<Count n={option.count} />
+              </Chip>
+            ))}
+          </Facet>
+        )}
         <Facet title="风险">
           <Chip pressed={filter.riskOnly} onClick={() => onChange({ ...filter, riskOnly: !filter.riskOnly })}>仅严重 / 高危<Count n={riskCount} /></Chip>
         </Facet>
         <div className="mt-3 flex justify-end border-t pt-2">
-          <Button variant="ghost" size="sm" disabled={!active} onClick={() => onChange({ types: [], statuses: [], riskOnly: false })}>清除筛选</Button>
+          <Button variant="ghost" size="sm" disabled={!active} onClick={() => onChange({ types: [], statuses: [], confidences: [], riskOnly: false })}>清除筛选</Button>
         </div>
       </PopoverContent>
     </Popover>

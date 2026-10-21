@@ -11,6 +11,8 @@ import {
   INTENT_STATUS,
   NODE_STATES,
   SEVERITIES,
+  CONFIDENCE_LEVELS,
+  CONFIDENCE_LABEL,
   currentCursor,
   resolveRef,
 } from '../lib/model.js';
@@ -84,6 +86,9 @@ ${b('blackboard')} — Agent 外置黑板
 
 ${b('初始化')}
   blackboard init [--title "任务标题"]       建立 .flow/
+  blackboard setup [选项]                   一条龙配置 Claude Skill、恢复 Hook 和持久服务
+    --target <目录> --title "标题" --port 4333 --open
+    --no-hooks --no-skill --no-serve        可按需关闭某一接入项
   blackboard status                          黑板概览
 
 ${b('逻辑节点')}
@@ -98,6 +103,7 @@ ${b('逻辑节点')}
             --tag/-t                   可重复标签
             --status <state>           可选状态
             --sev <severity>           严重度
+            --confidence <level>       suspected|static-confirmed|reproduced|confirmed
 
 ${b('游标与关系')}
   blackboard cursor <id|none> [--reason "…"] 只移动当前游标，不创建逻辑边
@@ -105,7 +111,7 @@ ${b('游标与关系')}
   blackboard here                            当前节点、邻域和最近轨迹
   blackboard link <from> <to> [--rel supports]   读作 “from <rel> to”，如 link 观察 猜测 --rel supports
   blackboard done|block|revive <id>          修改节点状态
-  blackboard edit <id> [--title …|-d …|--status …|--sev …]
+  blackboard edit <id> [--title …|-d …|--status …|--sev …|--confidence …]
 
 ${b('恢复与查看')}
   blackboard checkpoint [--summary "…"]      创建恢复检查点
@@ -128,7 +134,7 @@ ${b('恢复与查看')}
 ${b('接入 Claude Code')}
   blackboard hooks install|uninstall [--write] [--user]   默认只装恢复类 Hook（会话开始注入 digest、压缩前存检查点）
     --with-activity  额外采集工具调用输入输出到活动层（可能含敏感内容，默认关闭）
-  blackboard skill install [--user]
+  blackboard skill install [--user] [--codex]  安装 Claude 或 Codex 项目 Skill
   blackboard launcher
   blackboard hook <event>
 
@@ -192,7 +198,8 @@ function parseArgs(argv, cmd = '') {
 
 const LOOKAHEAD_HAS_FLAG = new Set([
   'json', 'open', 'write', 'all', 'open-only', 'quiet', 'enter', 'relate-here',
-  'user', 'project', 'yes', 'with-activity', 'here',
+  'user', 'project', 'yes', 'with-activity', 'here', 'codex', 'no-hooks',
+  'no-skill', 'no-serve',
 ]);
 
 function cwd() {
@@ -240,8 +247,9 @@ function shortDetail(s, n = 100) {
 function nodeLine(n) {
   const st = n.status ? ` ${C.dim('[' + n.status + ']')}` : '';
   const sev = n.severity ? ` ${C.red(n.severity.toUpperCase())}` : '';
+  const confidence = n.confidence ? ` ${C.dim(CONFIDENCE_LABEL[n.confidence] || n.confidence)}` : '';
   const loc = n.loc ? ` ${C.dim(`@${n.loc.path}${n.loc.line ? `:${n.loc.line}` : ''}`)}` : '';
-  return `${C.dim(n.id.padEnd(5))} ${colorType(n).padEnd(8)}${st}${sev} ${n.title}${loc}`;
+  return `${C.dim(n.id.padEnd(5))} ${colorType(n).padEnd(8)}${st}${sev}${confidence} ${n.title}${loc}`;
 }
 
 async function cmdServe(args, flags) {
@@ -475,6 +483,39 @@ function cmdInit(args, flags) {
   }
 }
 
+async function cmdSetup(args, flags) {
+  const { setupProject } = await import('../lib/setup.js');
+  const target = path.resolve(String(flags.target || args[0] || process.cwd()));
+  if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
+    fail(`项目目录不存在: ${target}`);
+  }
+  const result = await setupProject({
+    cwd: target,
+    cli: path.resolve(process.argv[1]),
+    title: flags.title || path.basename(target),
+    port: Number(flags.port || 4333),
+    hooks: !flags['no-hooks'],
+    skill: !flags['no-skill'],
+    serve: !flags['no-serve'],
+  });
+  if (flags.json) return out(flags, result);
+  console.log(`${C.grn('blackboard 已就绪')} ${result.cwd}`);
+  console.log(`  数据 ${result.board} · autoRecord=false`);
+  if (result.skill) console.log('  Claude Skill 已安装（项目级）');
+  if (result.hooks) console.log(`  恢复 Hook 已安装 ${result.hooks.file}（不采集工具活动）`);
+  if (result.service) {
+    if (result.service.verified) console.log(`  可视化 ${result.service.url} · 已验证`);
+    else console.log(`  可视化需手动启动: ${result.service.command}`);
+  }
+  if (flags.open && result.service?.url) {
+    const { execFile } = await import('node:child_process');
+    const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open';
+    const openerArgs = process.platform === 'win32' ? ['/c', 'start', '', result.service.url] : [result.service.url];
+    execFile(opener, openerArgs, () => {});
+  }
+  console.log(C.dim('下一步由 Agent 自主决定；黑板只在关键判断、结果和交接点记录。'));
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   const cmd = argv[0];
@@ -492,6 +533,8 @@ async function main() {
       return console.log(`blackboard ${VERSION}`);
     case 'init':
       return cmdInit(args, flags);
+    case 'setup':
+      return cmdSetup(args, flags);
     case 'status':
       return cmdStatus(args, flags);
     case 'node':
@@ -573,6 +616,9 @@ function addSimple(type, args, flags) {
   if (flags.sev && !SEVERITIES.includes(flags.sev)) {
     fail(`--sev 只能是 ${SEVERITIES.join('|')}`);
   }
+  if (flags.confidence && !CONFIDENCE_LEVELS.includes(flags.confidence)) {
+    fail(`--confidence 只能是 ${CONFIDENCE_LEVELS.join('|')}`);
+  }
   needInit();
   const result = addNode(
     {
@@ -582,6 +628,7 @@ function addSimple(type, args, flags) {
       parent: flags.parent || null,
       status: flags.status || null,
       severity: flags.sev || null,
+      confidence: flags.confidence || null,
       tags: flags.tag ? [].concat(flags.tag) : [],
       at: flags.at || null,
       enter: !!flags.enter,
@@ -739,12 +786,13 @@ function cmdState(cmd, args, flags) {
 function cmdEdit(args, flags) {
   needInit();
   const id = args[0];
-  if (!id) fail('用法: blackboard edit <id> [--title …] [-d …] [--status …] [--sev …]');
+  if (!id) fail('用法: blackboard edit <id> [--title …] [-d …] [--status …] [--sev …] [--confidence …]');
   const set = {};
   if (flags.title) set.title = String(flags.title);
   if (flags.detail || flags.d) set.detail = String(flags.detail || flags.d);
   if (flags.status) set.status = flags.status;
   if (flags.sev) set.severity = flags.sev;
+  if (flags.confidence) set.confidence = flags.confidence;
   if (flags.tag) set.tags = [].concat(flags.tag);
   if (!Object.keys(set).length) fail('没有要修改的字段');
   const n = patchNode(id, set, cwd());
@@ -805,7 +853,8 @@ async function cmdHooks(args, flags) {
 async function cmdSkill(args, flags) {
   const { installSkill } = await import('../lib/hooks.js');
   const scope = flags.user ? 'user' : 'project';
-  console.log(installSkill({ cwd: cwd(), cli: process.argv[1], scope }));
+  const agent = flags.codex ? 'codex' : 'claude';
+  console.log(installSkill({ cwd: cwd(), cli: process.argv[1], scope, agent }));
 }
 
 async function cmdLauncher(args, flags) {
