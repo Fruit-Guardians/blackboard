@@ -10,7 +10,7 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blackboard-canvas-tests-'));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 execFileSync(process.execPath, [path.join(root, 'node_modules/typescript/bin/tsc'), '--target', 'ES2022', '--module', 'ESNext', '--moduleResolution', 'Bundler', '--skipLibCheck', '--outDir', dir, path.join(root, 'web/src/graph.ts')], { cwd: dir });
 // Keep the tests portable on Node 18+ without a TS execution loader.
-for (const file of ['graph.js','presentation.js','canvas-state.js','types.js']) {
+for (const file of fs.readdirSync(dir).filter((name) => name.endsWith('.js'))) {
  const p = path.join(dir, file);
  fs.writeFileSync(p, fs.readFileSync(p,'utf8').replace(/from '(\.\/[^']+)'/g, (_all, name) => `from '${name}.js'`));
 }
@@ -201,4 +201,10 @@ test('a growing board stays put: existing cards keep their order when a node is 
   const now=[...ids].filter(id=>pos.get(id).x===pos.get(was[0]).x).sort((a,b)=>pos.get(a).y-pos.get(b).y);
   assert.deepEqual(now,was.filter(id=>now.includes(id)),'column order changed');
  }
+});
+test('weak relations wait for a selection unless they are a card\'s only tie to the board',()=>{
+ const board={nodes:[{id:'a',type:'fact',title:'A'},{id:'b',type:'fact',title:'B'},{id:'c',type:'fact',title:'C'},{id:'d',type:'note',title:'D'}],
+  edges:[{id:'s',from:'a',to:'b',kind:'supports'},{id:'s2',from:'b',to:'c',kind:'supports'},{id:'w',from:'a',to:'c',kind:'related-to'},{id:'only',from:'d',to:'c',kind:'related-to'}]};
+ const quiet=Object.fromEntries(project(board,'logic','').edges.map(e=>[e.id,Boolean(e.data.quiet)]));
+ assert.deepEqual(quiet,{s:false,s2:false,w:true,only:false});
 });

@@ -153,9 +153,12 @@ function Workspace() {
       markerEnd: recolor(edge.markerEnd),
       markerStart: recolor(edge.markerStart),
       className: `${edge.className || ''} ${active ? 'is-focused' : selectedId ? 'is-muted' : ''}`,
+      // Labels only name the relations of the selected card; colour already tells the families apart.
+      label: active ? edge.label : undefined,
       // The overview is a catalogue laid out in a grid, where every line would cut across cards;
-      // it only draws the relations of the selected node.
-      hidden: mode === 'all' && !active,
+      // it only draws the relations of the selected node. Elsewhere weak links that would only add
+      // noise wait for a selection.
+      hidden: !active && (mode === 'all' || (!selectedId && Boolean((edge.data as { quiet?: boolean } | undefined)?.quiet))),
       zIndex: active ? 10 : 0,
       style: { ...edge.style, opacity: selectedId ? active ? 1 : .12 : mode === 'all' ? .3 : 1, strokeWidth: active ? 1.75 : 1.25 },
     };

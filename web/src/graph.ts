@@ -113,8 +113,11 @@ export function project(snapshot: GraphSnapshot, mode: ViewMode, query: string) 
     },
   }));
 
+  // A weak relation is only drawn without a selection when it is all that ties one of its cards to the board.
+  const strong = new Set(edges.filter((edge) => !WEAK_RELATIONS.has(edge.kind)).flatMap((edge) => [edge.from, edge.to]));
   const flowEdges: Edge[] = edges.map((edge) => {
     const important = ['proves', 'supports', 'contradicts', 'supersedes', 'resolves'].includes(edge.kind);
+    const quiet = WEAK_RELATIONS.has(edge.kind) && strong.has(edge.from) && strong.has(edge.to);
     const group = relationGroup(edge.kind);
     // Passive relations ("conclusion derived-from premise") are laid out premise-first so the board
     // always reads left to right; the arrowhead stays on the relation's own `to` end.
@@ -125,9 +128,9 @@ export function project(snapshot: GraphSnapshot, mode: ViewMode, query: string) 
       source: reversed ? edge.to : edge.from,
       target: reversed ? edge.from : edge.to,
       type: 'default',
-      label: important ? relationLabel(edge.kind) : undefined,
+      label: relationLabel(edge.kind),
       className: `edge edge-${edge.kind} edge-g-${group}`,
-      data: { kind: edge.kind, group, reversed },
+      data: { kind: edge.kind, group, reversed, quiet },
       animated: false,
       ...(reversed ? { markerStart: marker } : { markerEnd: marker }),
       style: { strokeWidth: important ? 1.5 : 1.25 },
