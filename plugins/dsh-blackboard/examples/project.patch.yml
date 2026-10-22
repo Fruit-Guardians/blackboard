@@ -1,0 +1,8 @@
+# Apply this overlay after the installed dsh-blackboard bundle.
+# Paths below are placeholders; replace them with your own explicit project root.
+# A row config is replaced, not deep-merged: restate all settings you need.
+- id: blackboard
+  config:
+    projects:
+      - workspace: /absolute/path/to/your-project
+        boardRoot: /absolute/path/to/your-project

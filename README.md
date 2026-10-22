@@ -188,6 +188,12 @@ blackboard skill install --codex        # 项目级 .agents/skills/blackboard
 
 Codex 可通过 Skill 和 CLI 读写黑板；用户级安装使用 `~/.agents/skills/blackboard`，不再安装到旧的 `~/.codex/skills`。Claude 的恢复 Hook 不适用于 Codex。当前 `setup` 配置的是 Claude 接入，不要用它代替其他宿主的 Skill 安装。
 
+### DeepSeek Harness（DSH，可选插件）
+
+[`plugins/dsh-blackboard/`](plugins/dsh-blackboard/) 与主项目同仓库维护，保留独立的包清单、依赖、测试和发布入口。DSH SDK 不进入根包依赖，核心 CLI 和查看器不依赖插件；主包发布文件也不包含插件。
+
+插件提供 8 个原生工具，并复用已安装 blackboard 的完整 Skill 包。默认不启用项目、不初始化黑板或安装其他宿主的 Hook；安装、项目配置及验证命令见[插件说明](plugins/dsh-blackboard/README.md)。
+
 ### 其他 Agent（OMP、ZCode 等）
 
 不需要专用适配命令，把这段提示词交给当前 Agent：

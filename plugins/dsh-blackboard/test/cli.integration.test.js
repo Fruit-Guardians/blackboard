@@ -1,0 +1,53 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { normalizeConfig } from '../src/config.js';
+import { CliBridge } from '../src/bridge.js';
+import { toolSpecifications } from '../src/tools.js';
+import { skillProvider } from '../src/skills.js';
+import { temporary, execution } from './helpers.js';
+
+test('real blackboard CLI: all tools, two boards/identities, replay, read-only context and Skill assets', { skip: !process.env.BLACKBOARD_TEST_CLI }, async (t) => {
+  const root = await temporary(t), runtimeCli = process.env.BLACKBOARD_TEST_CLI;
+  const a = path.join(root, 'a'), b = path.join(root, 'b');
+  for (const dir of [a, b]) {
+    await fs.mkdir(dir);
+    execFileSync(process.execPath, [runtimeCli, 'init', '--json'], { cwd: dir, env: { ...process.env, BLACKBOARD_CWD: dir, ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) } });
+  }
+  const config = normalizeConfig({ runtimeCli, projects: [{ workspace: a }, { workspace: b }] });
+  const bridge = new CliBridge(config); t.after(() => bridge.dispose());
+  const specs = new Map(toolSpecifications(config, bridge).map((spec) => [spec.name, spec]));
+  const call = (name, args, project = a, id = 'main') => specs.get(`blackboard_${name}`).execute(args, execution(project, id));
+  const n1 = (await call('node_add', { type: 'custom-research', title: '--enter', detail: '--json' })).data.node;
+  let context = (await call('context', {})).data;
+  assert.equal(context.currentFocus, null); assert.deepEqual(context.relations, []);
+  const n2 = (await call('node_add', { type: 'observation', title: 'Evidence', enter: true })).data.node;
+  await call('link', { from: n2.id, to: n1.id, relation: 'custom-supports' });
+  assert.equal((await call('node_get', { id: n1.id })).data.node.title, '--enter');
+  await call('node_patch', { id: n1.id, title: 'Updated', confidence: 'static-confirmed' });
+  assert.equal((await call('node_get', { id: n1.id })).data.node.confidence, 'static-confirmed');
+  await call('cursor', { id: n1.id });
+  await call('cursor', { id: n2.id }, a, 'child');
+  assert.equal((await call('context', {})).data.currentFocus.id, n1.id);
+  assert.equal((await call('context', {}, a, 'child')).data.currentFocus.id, n2.id);
+  assert.equal((await call('context', { agentId: 'dsh:main' }, a, 'child')).data.currentFocus.id, n1.id);
+  assert.equal((await call('context', {}, b)).data.board.stats.total, 0);
+  const checkpoint = (await call('checkpoint', { summary: 'Known facts; current focus; open questions' })).data;
+  assert.equal(checkpoint.agentId, 'dsh:main');
+  assert.equal((await call('context', { since: checkpoint.id })).data.request.sinceSource, `checkpoint:${checkpoint.id}`);
+  const events = path.join(a, '.blackboard/events.jsonl');
+  const before = createHash('sha256').update(await fs.readFile(events)).digest('hex');
+  const state = path.join(a, '.blackboard/state.json'); await fs.rm(state);
+  context = (await call('context', { budget: 4000 })).data;
+  assert.deepEqual(context.policy, { readOnly: true, prescriptive: false, nextStepSelection: 'agent-controlled' });
+  assert.equal(context.currentFocus.id, n1.id);
+  assert.equal(createHash('sha256').update(await fs.readFile(events)).digest('hex'), before);
+  const status = await call('status', {}); assert.equal(status.data.stats.total, 2);
+  await call('cursor', { id: 'none' }); assert.equal((await call('context', {})).data.currentFocus, null);
+  const provider = skillProvider(bridge, 600), [candidate] = await provider.list(), skill = await provider.get(candidate);
+  assert.match(skill.content, /blackboard/); assert.ok(!skill.content.includes('__BLACKBOARD_CLI__'));
+  for (const rel of [...skill.content.matchAll(/\]\((references\/[^)]+)\)/g)].map((m) => m[1])) await fs.access(path.join(candidate.resourceBase.path, rel));
+});

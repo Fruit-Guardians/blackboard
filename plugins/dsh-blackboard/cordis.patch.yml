@@ -1,0 +1,5 @@
+- insert:
+    - id: blackboard
+      name: dsh-blackboard
+      config:
+        projects: []
