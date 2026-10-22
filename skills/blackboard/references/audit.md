@@ -26,10 +26,11 @@ BLACKBOARD_CWD="/已确认项目" blackboard node add vuln "候选：某入口�
 BLACKBOARD_CWD="/已确认项目" blackboard node add fact "已核对入口到敏感操作的调用链" --status confirmed --detail "实际文件位置、检查路径、成立条件与限制"
 BLACKBOARD_CWD="/已确认项目" blackboard link "<证据ID>" "<候选ID>" --rel supports
 BLACKBOARD_CWD="/已确认项目" blackboard edit "<候选ID>" --confidence static-confirmed
+# 仅在候选与目标存在明确关系时，可选执行：
 BLACKBOARD_CWD="/已确认项目" blackboard link "<候选ID>" "<目标ID>" --rel related-to
 ```
 
-事实 `supports` 结论，或结论 `derived-from` 事实，选择能准确表达已知证据的方向。正式发现应能沿显式关系回到目标；暂缺证据可照常记录候选，`lint` 的 `unsupported-conclusions` 仅提示补证，不拒绝写入。
+事实 `supports` 结论，或结论 `derived-from` 事实，选择能准确表达已知证据的方向。若发现与目标存在明确关系，可以显式记录；没有已知关系时保持独立，不为图的完整性补边。暂缺证据可照常记录候选，`lint` 的 `unsupported-conclusions` 仅提示补证，不拒绝写入。
 
 真实复现后，再用 `node add result` 记录环境、输入、可观察结果及复核位置，关联该结果与候选，最后更新候选为 `--confidence reproduced`。不要在尚未执行或未观察到预期结果时提前使用该值。失败实验也可以是 confirmed 的观察，但不因此确认漏洞不存在；结论必须受实验覆盖范围约束。
 
