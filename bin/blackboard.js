@@ -104,8 +104,9 @@ ${b('逻辑节点')}
   blackboard start|goal|intent|fact|vuln|hint "标题"  兼容简写
   可用选项: --enter                    创建后进入该节点
             --relate-here              与当前节点建立弱关系
-            --parent <id>              显式来源节点（兼容）
-            --rel <relation>           关系，默认 related-to
+            --to <id>                  新节点指向已有节点，读作 “新节点 <rel> id”
+            --parent <id>              显式来源节点，读作 “id <rel> 新节点”（兼容）
+            --rel <relation>           上述关系的类型，默认 related-to
             --at <file:line>           文件位置
             --detail/-d                详情
             --tag/-t                   可重复标签
@@ -127,7 +128,7 @@ ${b('恢复与查看')}
   blackboard checkpoint [--summary "…"]      创建恢复检查点
   blackboard compact [--summary "…"]         checkpoint 的兼容别名
   blackboard activity ls|show [id]           查看原始活动层
-  blackboard promote <activity-id> [--kind observation] [--title "…"]
+  blackboard promote <activity-id> [--kind observation] [--title "…"] [--to <id> --rel …]
   blackboard digest [--write] [--agent <名称>] 当前节点/邻域/轨迹/开放节点
   blackboard context [选项]                  Agent 可读的结构化上下文包
     --focus <id> --depth <0-5> --budget <tokens> --since <checkpoint|timestamp>
@@ -179,7 +180,7 @@ const BOOLEAN_FLAGS = new Set([
   'user', 'project', 'yes', 'with-activity', 'here', 'codex', 'no-hooks',
   'no-skill', 'no-serve', 'read-only', 'markdown', 'force',
 ]);
-const NODE_FLAGS = 'detail tag status sev confidence at parent enter relate-here rel kind reason agent json';
+const NODE_FLAGS = 'detail tag status sev confidence at parent to enter relate-here rel kind reason agent json';
 const COMMAND_FLAGS = {
   init: 'title here json',
   setup: 'target title port open no-hooks no-skill no-serve json',
@@ -189,7 +190,7 @@ const COMMAND_FLAGS = {
   checkpoint: 'summary title trigger agent write json', compact: 'summary title trigger agent write json',
   cursor: 'agent reason json', focus: 'agent reason json', here: 'agent json',
   activity: 'limit json',
-  promote: 'kind type title detail enter relate-here rel reason json',
+  promote: 'kind type title detail to enter relate-here rel reason json',
   done: 'json', block: 'json', revive: 'json',
   edit: 'title detail status sev confidence tag json',
   link: 'rel kind label json', unlink: 'rel kind agent json',
@@ -241,6 +242,7 @@ function parseArgs(argv, cmd = '') {
     } else flags[key] = value;
   }
   for (const pair of [['user', 'project'], ['rel', 'kind'], ['markdown', 'json'],
+    ['to', 'parent'], ['to', 'relate-here'],
     ...(cmd === 'promote' ? [['kind', 'type']] : []),
     ...(['checkpoint', 'compact'].includes(cmd) ? [['summary', 'title']] : [])]) {
     if (pair.every((key) => flags[key] !== undefined)) fail(`选项 --${pair[0]} 与 --${pair[1]} 冲突`);
@@ -737,6 +739,7 @@ function addSimple(type, args, flags) {
       title,
       detail: flags.detail || flags.d || '',
       parent: flags.parent || null,
+      target: flags.to || null,
       status: flags.status || null,
       severity: flags.sev || null,
       confidence: flags.confidence || null,
@@ -753,7 +756,10 @@ function addSimple(type, args, flags) {
   warnTruncated(result);
   if (flags.json) return out(flags, result);
   if (!process.env.BLACKBOARD_QUIET) {
-    const via = result.edge ? ` ${EDGE_LABEL[result.edge.kind] || result.edge.kind} ${result.edge.from}` : '';
+    const { edge } = result;
+    const via = !edge ? '' : edge.from === result.node.id
+      ? ` → ${EDGE_LABEL[edge.kind] || edge.kind} ${edge.to}`
+      : ` ${EDGE_LABEL[edge.kind] || edge.kind} ${edge.from}`;
     const entered = result.cursor ? ' · 已进入' : '';
     console.log(`${C.grn('+')} ${nodeLine(result.node)}${C.dim(via + entered)}`);
   }
@@ -877,6 +883,7 @@ function cmdPromote(args, flags) {
     extra: { activityId: activity.id },
     enter: !!flags.enter,
     relateHere: !!flags['relate-here'],
+    target: flags.to || null,
     relation: flags.rel || null,
     reason: flags.reason || '',
   }, cwd());

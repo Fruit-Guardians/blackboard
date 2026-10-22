@@ -305,6 +305,62 @@ test('relate-here creates a logic edge without moving the cursor', (t) => {
   assert.equal(currentCursor(g), a.id);
 });
 
+test('link on create points the new node at an explicit target without moving the cursor', (t) => {
+  const dir = fixture(t);
+  const goal = addNode({ type: 'goal', title: 'G', enter: true }, dir).node;
+  const claim = addNode({ type: 'hypothesis', title: 'H' }, dir).node;
+  const evidence = addNode({
+    type: 'observation', title: 'E', target: `[${claim.id}]`, relation: 'supports',
+  }, dir);
+  const weak = addNode({ type: 'question', title: 'Q', target: goal.id }, dir);
+  const custom = addNode({ type: 'counterexample', title: 'C', target: claim.id, relation: 'weakens' }, dir);
+  const g = replay(dir);
+
+  assert.deepEqual(
+    [evidence.edge.from, evidence.edge.to, evidence.edge.kind],
+    [evidence.node.id, claim.id, 'supports'],
+  );
+  assert.equal(weak.edge.kind, 'related-to', 'no relation stated means the weak default');
+  assert.equal(g.edges[custom.edge.id].kind, 'weakens');
+  assert.equal(g.nodes[evidence.node.id].parent, undefined);
+  assert.equal(currentCursor(g), goal.id);
+  assert.equal(g.cursorTrail.length, 1);
+});
+
+test('link on create rejects unknown targets and ambiguous combinations before writing', (t) => {
+  const dir = fixture(t);
+  const a = addNode({ type: 'note', title: 'A', enter: true }, dir).node;
+  const before = fs.readFileSync(paths(dir).events, 'utf8');
+
+  assert.throws(() => addNode({ type: 'note', title: 'B', target: 'nope' }, dir), /no such target node/);
+  assert.throws(() => addNode({ type: 'note', title: 'B', target: a.id, parent: a.id }, dir), /use link/);
+  assert.throws(() => addNode({ type: 'note', title: 'B', target: a.id, relateHere: true }, dir), /use link/);
+  assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
+
+  const env = cliEnv(t, dir);
+  const conflict = spawnSync(process.execPath, [CLI, 'node', 'add', 'note', 'B', '--to', a.id, '--relate-here'], { env, encoding: 'utf8' });
+  assert.equal(conflict.status, 1);
+  assert.match(conflict.stderr, /--to 与 --relate-here 冲突/);
+  assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
+});
+
+test('CLI --to creates the node and its outgoing relation in one call', (t) => {
+  const dir = fixture(t);
+  const claim = addNode({ type: 'hypothesis', title: 'H' }, dir).node;
+  const env = cliEnv(t, dir);
+  const raw = execFileSync(process.execPath, [
+    CLI, 'node', 'add', 'observation', '证据', '--to', claim.id, '--rel', 'supports', '--json',
+  ], { env, encoding: 'utf8' });
+  const result = JSON.parse(raw);
+
+  assert.equal(result.edge.from, result.node.id);
+  assert.equal(result.edge.to, claim.id);
+  assert.equal(result.cursor, null);
+  const { BLACKBOARD_QUIET, ...loud } = env;
+  const line = execFileSync(process.execPath, [CLI, 'node', 'add', 'question', '为何', '--to', claim.id], { env: loud, encoding: 'utf8' });
+  assert.match(line, new RegExp(`→ 相关 ${claim.id}`));
+});
+
 test('cursor trail is independent from logic edges and supports multiple agents', (t) => {
   const dir = fixture(t);
   const a = addNode({ type: 'note', title: 'A' }, dir).node;

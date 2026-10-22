@@ -66,7 +66,7 @@ BLACKBOARD_CWD="/已确认项目" blackboard checkpoint --summary "已确认内�
 - 不把每次命令、读取、成功提示或原始输出写成逻辑节点。工具活动默认不采集；显式启用后仍是独立活动层，不自动成为事实。
 - 一个节点表达一个主要判断，标题可扫描，证据和条件放 `--detail`。
 - 未验证的 finding/vuln 候选用 `suspected`；已有静态核对证据可直接用 `static-confirmed`，真实复现后才用 `reproduced`，不要求依次升级。严重度、状态和可信度相互独立。
-- 关系读作 “from relation to”：证据 `supports` 或 `contradicts` 论断；有足够证据推翻时才将旧论断设为 `refuted`。新结论确实取代旧结论时才用 `supersedes` 和 `superseded`；反驳不等于取代。
+- 关系读作 “from relation to”：证据 `supports` 或 `contradicts` 论断。创建时已知新节点与已有节点的关系，可用 `--to <已有ID> --rel <关系>` 一并声明（新节点在左，不移动游标）；不确定关系时不连，而不是套用默认值。有足够证据推翻时才将旧论断设为 `refuted`。新结论确实取代旧结论时才用 `supersedes` 和 `superseded`；反驳不等于取代。
 
 ## 按需读取参考
 
