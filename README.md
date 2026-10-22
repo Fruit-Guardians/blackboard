@@ -20,6 +20,7 @@
   <a href="#workspace">可视化工作台</a> ·
   <a href="#agent-integration">Agent 接入</a> ·
   <a href="#cli">CLI 参考</a> ·
+  <a href="#release">版本与升级</a> ·
   <a href="#upgrade">旧版迁移</a> ·
   <a href="docs/BLACKBOARD_DESIGN.md">设计文档</a>
 </p>
@@ -54,14 +55,14 @@
 ```bash
 git clone https://github.com/Fruit-Guardians/blackboard.git
 cd blackboard
-node bin/blackboard.js launcher
+node bin/blackboard.js release install
 
 # 当前终端立即可用；长期使用请把这一行加入 shell 配置
 export PATH="$HOME/.local/bin:$PATH"
 blackboard --help
 ```
 
-不想安装 launcher，也可以把后文的 `blackboard` 换成 `node /path/to/blackboard/bin/blackboard.js`。
+`release install` 把包文件复制成独立版本 `~/.local/share/blackboard/versions/<版本>/`，用 `current` 链接指向它，并安装指向 `current` 的 `blackboard` 启动器。之后 Skill、Hook 和常驻服务都运行这份副本，修改或切换仓库分支不会影响正在使用的黑板。见[版本与升级](#release)。
 
 ### 2. 在你的项目里启用
 
@@ -418,6 +419,34 @@ blackboard service uninstall      # 停止任务并删除本工具受管 plist
 
 `waiting` 表示任务已加载但未在运行，不等于查看器在线；页面是否可用仍以 `blackboard status` 的实际探测为准。`setup` 切换项目会报告原归属与新归属。停止/卸载针对共享服务的当前项目，即使它不是命令所在项目；不删除黑板数据，不操作其他服务。非 macOS 明确报告不支持持久服务管理，前台服务仍手动启动和停止。
 
+<a id="release"></a>
+
+## 版本与升级
+
+日常使用的 CLI、启动器、Skill、Hook 和常驻服务都指向 `~/.local/share/blackboard/current`（设置了 `XDG_DATA_HOME` 时位于其下），不指向开发仓库：
+
+```text
+~/.local/share/blackboard/
+├── versions/0.6.0/    已安装版本，安装后不再改动
+├── versions/0.7.0/
+└── current -> versions/0.7.0
+```
+
+```bash
+# 在仓库里：测试、构建，再安装为新版本并切换
+npm test && npm run build
+node bin/blackboard.js release install
+
+blackboard release ls          # 已安装版本，* 为 current
+blackboard release use 0.6.0   # 回滚或切换
+blackboard --version           # 显示版本，以及运行的是 current 还是开发目录
+```
+
+- **版本不可变**：同一版本号重复安装会报错，请提升 `package.json` 的版本号；确需覆盖时加 `--force`。
+- **切换即生效**：`install` 和 `use` 原子地切换 `current`，再由新版本自己刷新启动器、已安装的用户级 Skill（Claude / Codex）、用户级 Hook，并重启正在运行的受管常驻服务（已停止的服务只更新配置）。从 `current` 运行的 `setup`、`skill install`、`hooks install` 也记录 `current` 路径，而不是具体版本。
+- **项目级接入不自动刷新**：`setup` 写入各项目 `.claude/` 的 Skill 和 Hook 无法从这里发现；它们指向 `current` 时无需改动，若曾从开发仓库安装，请在对应项目重新运行 `blackboard setup`。从开发目录运行安装类命令时，CLI 会在 stderr 提示接入将指向仓库。
+- **跨版本读取**：每个事件带 `eventVersion`。旧版本遇到更高版本格式的事件时跳过它们、在 `lint` 中报告 `log-version`，并暂停写入以免 ID 冲突，切回较新版本即可恢复；遇到同格式下不认识的事件类型只忽略并报告 `unknown-events`，不影响写入。
+
 <a id="upgrade"></a>
 
 ## 从旧版迁移
@@ -425,7 +454,7 @@ blackboard service uninstall      # 停止任务并删除本工具受管 plist
 > **不兼容切换**：唯一命令是 `blackboard`，唯一数据目录是 `.blackboard/`，只读取 `BLACKBOARD_*`。不再提供 `flow` 命令、`FLOW_*` 回退或 `.flow/` 自动发现，也不自动搬迁旧数据。
 
 1. 停止旧服务和写入进程，备份数据。在没有 `.blackboard/` 的项目里将 `.flow/` 重命名为 `.blackboard/`；若两者都存在，先核对，**不要覆盖或直接拼接日志**。
-2. 更新脚本中的命令和环境变量，重新执行 `node /path/to/blackboard/bin/blackboard.js launcher`，手动移除旧 launcher。
+2. 更新脚本中的命令和环境变量，在仓库里执行 `node bin/blackboard.js release install`，手动移除旧 launcher。
 3. 移除所用范围的旧 `skills/flow` 和 Claude settings 中指向旧命令、旧目录的 Hook，只处理旧接入，不动无关配置。重新安装 blackboard Skill 与可选 Hook；用户级安装加 `--user`，Codex Skill 加 `--codex`。
 4. 重启服务并开启新的 Agent 会话，用 `blackboard status` 和 `blackboard digest` 核对现场。迁移只重命名目录，**不改写事件原文**。
 
@@ -442,7 +471,7 @@ npm run build     # 更新 public/，供 CLI 服务和离线导出使用
 npm test
 ```
 
-开发页需要另行启动 `blackboard serve`。生成演示可用 `node scripts/demo.js [目录]`（默认 `demo/`）：它创建独立黑板，**会重建目标目录里已有的演示黑板**，但不改上级黑板。
+开发时使用 `node bin/blackboard.js`，并用 `BLACKBOARD_CWD` 指向演示黑板，不要让开发中的代码写入真实项目的 `.blackboard/`；改动通过 `release install` 才进入日常使用。开发页需要另行启动 `node bin/blackboard.js serve`。生成演示可用 `node scripts/demo.js [目录]`（默认 `demo/`）：它创建独立黑板，**会重建目标目录里已有的演示黑板**，但不改上级黑板。
 
 ```text
 bin/blackboard.js           唯一 CLI 入口
@@ -452,6 +481,7 @@ lib/store.js               事件存储、写锁、游标和检查点
 lib/context.js · digest.js  面向 Agent 的只读上下文投影
 lib/hooks.js · setup.js     Agent 接入与项目初始化
 lib/server.js · service.js  本地服务、端口选择和身份探测
+lib/release.js             已安装版本、current 切换与接入刷新
 lib/export.js              单文件离线导出
 web/ · public/             前端源码与随仓库分发的构建产物
 test/                      自动化测试

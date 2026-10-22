@@ -41,3 +41,5 @@ blackboard 不是行动前置条件，不替 Agent 决定下一步。具体体�
 - 写接口（server 页面编辑）必须维持三道防护：loopback Host 校验（防 DNS 重绑定）、同 Origin + `application/json`、256KB 请求体上限；`--read-only` 与离线导出永远只读。
 - 页面协作编辑只提交实际修改字段，并在事件写锁内核对字段基准；冲突保留草稿，不自动覆盖或合并。选择 Agent 阅读视角不写事件、不移动任何人的游标；实时与离线投影须保持同一身份语义。
 - 新建 `.blackboard/` 自带 `.gitignore`（内容 `*`）：黑板可能含敏感原文，默认不进版本库。
+- 开发仓库与日常使用隔离：启动器、Skill、Hook 和常驻服务只指向 `<data>/blackboard/current`，由 `release install|use` 切换，已安装版本不可变。从 `current` 运行时 CLI 路径必须记录为 `current` 而不是具体版本；刷新接入只能由 current 指向的版本自己执行。开发中的代码只写演示黑板，不写真实项目的 `.blackboard/`。
+- 事件格式跨版本兼容：新字段、新操作保持 `EVENT_VERSION` 不变，旧版本忽略不认识的操作并在 `lint` 报告；只有旧版本按旧逻辑回放会得到错误投影时才提升 `EVENT_VERSION`。遇到更高版本的事件，回放跳过并报告，写入在锁内拒绝（防止 ID 冲突），读取不受影响。

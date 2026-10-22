@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import {
   NODE_TYPES,
   TYPE_LABEL,
@@ -41,11 +42,14 @@ import {
 import { buildDigest, neighborsOf, tail } from '../lib/digest.js';
 import { buildAgentContext, renderAgentContext } from '../lib/context.js';
 import { DEFAULT_PORT, resolvePort, rememberViewerPort, probeViewer } from '../lib/service.js';
+import { stableCliPath, cliOrigin } from '../lib/release.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const CLI = path.join(ROOT, 'bin', 'blackboard.js');
-const VERSION = '0.5.0';
+// Integrations record this path. Started through an installed release it is the
+// stable `current` path, so an upgrade does not leave them on the old version.
+const CLI = stableCliPath(path.join(ROOT, 'bin', 'blackboard.js'));
+const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
 
 const C = process.stdout.isTTY
   ? {
@@ -145,6 +149,12 @@ ${b('宿主接入与服务')}
   blackboard launcher
   blackboard hook <event>
 
+${b('版本发布')}
+  blackboard release install [--force]      在开发仓库里运行：复制成独立版本并切换 current
+  blackboard release use <版本>              切换或回滚到已安装的版本
+  blackboard release ls [--json]             列出已安装版本
+  启动器、用户级 Skill/Hook 和常驻服务只指向 current；install/use 后会从新版本刷新它们。
+
 所有命令支持 --help / -h；init/setup/status/skill/hooks/launcher/service 支持 --json，供脚本读取。
 端口优先级: --port > BLACKBOARD_PORT > 项目 viewerPort > ${DEFAULT_PORT}；地址统一为 127.0.0.1。
 环境变量: BLACKBOARD_CWD 指定项目根；BLACKBOARD_QUIET=1 静默；BLACKBOARD_AGENT=name 让并行的 Agent 各用各的游标（默认 agent:primary）。
@@ -167,7 +177,7 @@ function fail(msg) {
 const BOOLEAN_FLAGS = new Set([
   'json', 'open', 'write', 'all', 'open-only', 'quiet', 'enter', 'relate-here',
   'user', 'project', 'yes', 'with-activity', 'here', 'codex', 'no-hooks',
-  'no-skill', 'no-serve', 'read-only', 'markdown',
+  'no-skill', 'no-serve', 'read-only', 'markdown', 'force',
 ]);
 const NODE_FLAGS = 'detail tag status sev confidence at parent enter relate-here rel kind reason agent json';
 const COMMAND_FLAGS = {
@@ -191,7 +201,7 @@ const COMMAND_FLAGS = {
   export: 'out json', reset: 'yes',
   hooks: 'write user project with-activity json',
   skill: 'codex user project json', launcher: 'user project json',
-  service: 'json', hook: '', help: '', version: '', '-v': '', '--version': '',
+  service: 'json', release: 'force json', hook: '', help: '', version: '', '-v': '', '--version': '',
 };
 
 function parseArgs(argv, cmd = '') {
@@ -574,6 +584,7 @@ async function cmdSetup(args, flags) {
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
     fail(`项目目录不存在: ${target}`);
   }
+  checkoutNote();
   const result = await setupProject({
     cwd: target,
     cli: CLI,
@@ -621,7 +632,7 @@ async function main() {
     case '-v':
     case '--version':
     case 'version':
-      return console.log(`blackboard ${VERSION}`);
+      return cmdVersion();
     case 'init':
       return cmdInit(args, flags);
     case 'setup':
@@ -698,6 +709,8 @@ async function main() {
       return cmdSkill(args, flags);
     case 'launcher':
       return cmdLauncher(args, flags);
+    case 'release':
+      return cmdRelease(args, flags);
     case 'hook':
       return hookEntry(args[0], args.slice(1), flags);
     default:
@@ -955,6 +968,7 @@ async function cmdHooks(args, flags) {
   }
   const scope = flags.user ? 'user' : 'project';
   const action = sub === 'install' ? installHooks : uninstallHooks;
+  if (sub === 'install' && flags.write) checkoutNote();
   const res = action({
     cwd: cwd(), write: !!flags.write, cli: CLI, scope, withActivity: !!flags['with-activity'],
   });
@@ -981,6 +995,7 @@ async function cmdSkill(args, flags) {
   if (sub !== 'install') fail('用法: blackboard skill install [--codex] [--project|--user]');
   const scope = flags.user ? 'user' : 'project';
   const agent = flags.codex ? 'codex' : 'claude';
+  checkoutNote();
   const message = installSkill({ cwd: cwd(), cli: CLI, scope, agent });
   if (flags.json) return out(flags, { agent, scope, message });
   console.log(message);
@@ -1004,10 +1019,108 @@ async function cmdService(args, flags) {
 
 async function cmdLauncher(args, flags) {
   const { installLauncher } = await import('../lib/hooks.js');
+  checkoutNote();
   const res = installLauncher({ cli: CLI, scope: flags.project ? 'project' : 'user' });
   if (flags.json) return out(flags, res);
   console.log(`${C.grn('已安装')} ${res.file}`);
   if (!res.onPath) console.log(C.yel(`注意: ${res.dir} 不在 PATH 中，请把它加进 shell 配置。`));
+}
+
+function cmdVersion() {
+  const origin = cliOrigin(CLI);
+  const where = origin.kind === 'release'
+    ? (origin.active ? '已安装版本 · current' : `已安装版本 ${origin.version} · 不是 current`)
+    : origin.kind === 'checkout' ? `开发目录 ${origin.root}` : ROOT;
+  console.log(`blackboard ${VERSION} (${where})`);
+}
+
+/** Integrations written from a checkout follow every edit in it; say so, but do not refuse. */
+function checkoutNote() {
+  if (cliOrigin(CLI).kind !== 'checkout') return;
+  console.error(C.yel(`提示：当前从开发目录运行，接入将指向 ${CLI}，仓库里的改动会立即影响它。日常使用请先 blackboard release install。`));
+}
+
+/** The refresh runs in the newly active release, so its own code writes the integrations. */
+function refreshFromRelease(cli) {
+  const res = spawnSync(process.execPath, [cli, 'release', 'refresh', '--json'], { encoding: 'utf8', env: process.env });
+  if (res.status !== 0) return { error: (res.stderr || '').trim() || `exit ${res.status}` };
+  try {
+    return JSON.parse(res.stdout);
+  } catch {
+    return { error: `无法解析刷新结果: ${res.stdout.slice(0, 200)}` };
+  }
+}
+
+function printRefresh(refresh) {
+  if (refresh.error) {
+    console.error(C.red(`接入刷新失败：${refresh.error}`));
+    console.error(C.dim('current 已切换；修复后可再次运行 blackboard release use <版本>。'));
+    process.exitCode = 1;
+    return;
+  }
+  const parts = [`启动器 ${refresh.launcher.file}`];
+  if (refresh.skills.length) parts.push(`用户级 Skill ${refresh.skills.join(', ')}`);
+  if (refresh.hooks) parts.push(`用户级 Hook ${refresh.hooks.events.join(', ')}`);
+  const service = refresh.service || {};
+  if (service.refreshed) parts.push(service.restarted ? `服务已重启 · 归属 ${service.cwd}` : '服务配置已更新（未运行）');
+  console.log(`  已刷新 ${parts.join(' · ')}`);
+  if (service.warning) console.log(C.yel(`  ${service.warning}`));
+  if (refresh.launcher && !refresh.launcher.onPath) console.log(C.yel(`  命令目录 ${refresh.launcher.dir} 不在 PATH；请加入 shell 配置。`));
+  console.log(C.dim('  项目级接入（setup 写入各项目 .claude/ 的 Skill 与 Hook）不在此刷新；需要时在对应项目重新运行 blackboard setup。'));
+}
+
+async function cmdRelease(args, flags) {
+  const release = await import('../lib/release.js');
+  const sub = args[0] || 'ls';
+  const origin = cliOrigin(CLI);
+  if (sub === 'ls' || sub === 'list') {
+    if (args.length > 1) fail('用法: blackboard release ls [--json]');
+    const list = release.listReleases();
+    if (flags.json) return out(flags, list);
+    if (!list.versions.length) return console.log(C.dim(`尚未安装任何版本（${list.home}）；在开发仓库里运行 blackboard release install。`));
+    console.log(C.dim(list.home));
+    for (const v of list.versions) {
+      const git = v.git ? ` ${v.git.commit}${v.git.dirty ? '+dirty' : ''}` : '';
+      console.log(`${v.active ? C.grn('* ') : '  '}${v.version}${C.dim(`${git} ${v.installedAt || ''}`)}`);
+    }
+    return;
+  }
+  if (sub === 'install') {
+    if (args.length > 1) fail('用法: blackboard release install [--force]');
+    if (origin.kind === 'release') fail('release install 需要在开发仓库里运行，例如 node /path/to/blackboard/bin/blackboard.js release install');
+    const installed = release.installRelease({ source: ROOT, force: !!flags.force });
+    const switched = release.useRelease(installed.version);
+    const refresh = refreshFromRelease(switched.cli);
+    if (flags.json) {
+      out(flags, { ...installed, previous: switched.previous, cli: switched.cli, refresh });
+      if (refresh.error) process.exitCode = 1;
+      return;
+    }
+    for (const warning of installed.warnings) console.log(C.yel(`注意: ${warning}`));
+    console.log(`${C.grn(installed.replaced ? '已覆盖' : '已安装')} blackboard ${installed.version} → ${installed.dir}`);
+    console.log(`  current ${switched.previous || '（无）'} → ${switched.version}`);
+    return printRefresh(refresh);
+  }
+  if (sub === 'use') {
+    if (!args[1] || args.length > 2) fail('用法: blackboard release use <版本>');
+    if (flags.force) fail('release use 不接受 --force');
+    const switched = release.useRelease(args[1]);
+    const refresh = refreshFromRelease(switched.cli);
+    if (flags.json) {
+      out(flags, { ...switched, refresh });
+      if (refresh.error) process.exitCode = 1;
+      return;
+    }
+    console.log(`${C.grn('已切换')} current ${switched.previous || '（无）'} → ${switched.version}`);
+    return printRefresh(refresh);
+  }
+  if (sub === 'refresh') {
+    // Internal step of install/use: only the active release may repoint integrations,
+    // otherwise a checkout or an inactive version would capture them again.
+    if (origin.kind !== 'release' || !origin.active) fail('release refresh 只能由 current 指向的版本运行；请使用 release install 或 release use');
+    return out({ json: true }, await release.refreshIntegrations({ cli: CLI }));
+  }
+  fail('用法: blackboard release install|use|ls');
 }
 
 async function hookEntry(event, args, flags) {
