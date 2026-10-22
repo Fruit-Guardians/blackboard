@@ -700,6 +700,33 @@ test('replay ignores malformed nodes and edges that do not connect two existing 
   assert.deepEqual(Object.keys(g.edges), ['ok']);
 });
 
+test('events from a newer format are skipped, reported, and pause writes instead of risking id clashes', (t) => {
+  const dir = fixture(t);
+  addNode({ type: 'note', title: 'kept' }, dir);
+  appendEvent({ op: 'node', eventVersion: 2, node: { id: 'n2', type: 'note', title: 'from a newer release' } }, dir);
+  const g = replay(dir);
+  assert.deepEqual(Object.values(g.nodes).map((n) => n.title), ['kept']);
+  assert.equal(g.integrity.futureEvents, 1);
+  assert.equal(readEvents(dir).future, 1);
+  const issue = lintGraph(g).issues.find((i) => i.code === 'log-version');
+  assert.equal(issue.level, 'warn');
+  assert.equal(issue.futureEvents, 1);
+  const before = fs.readFileSync(paths(dir).events, 'utf8');
+  assert.throws(() => addNode({ type: 'note', title: 'would reuse n2' }, dir), /eventVersion > 1/);
+  assert.throws(() => moveCursor('n1', {}, dir), /拒绝写入/);
+  assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
+});
+
+test('unknown event ops from the same format are ignored and reported without blocking writes', (t) => {
+  const dir = fixture(t);
+  appendEvent({ op: 'annotate', target: 'n1', text: 'added by a newer release' }, dir);
+  const g = replay(dir);
+  assert.equal(g.integrity.unknownOps, 1);
+  assert.equal(g.integrity.futureEvents, 0);
+  assert.equal(lintGraph(g).issues.find((i) => i.code === 'unknown-events').level, 'info');
+  assert.equal(addNode({ type: 'note', title: 'still writable' }, dir).node.id, 'n1');
+});
+
 test('concurrent writer processes never lose or duplicate a node', async (t) => {
   const dir = fixture(t);
   const store = path.resolve(HERE, '..', 'lib', 'store.js');
