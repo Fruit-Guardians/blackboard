@@ -14,6 +14,7 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   digest: string;
+  agentId: string;
   copied: boolean;
   onCopy: () => void;
   returnFocus: React.RefObject<HTMLButtonElement | null>;
@@ -28,7 +29,7 @@ const SECTION_ICON: Record<string, typeof Crosshair> = {
   最近轨迹: Footprints, 开放节点: CircleDot, 最近检查点: Flag, 最近逻辑节点: History,
 };
 
-export function DigestDialog({ open, onOpenChange, digest, copied, onCopy, returnFocus, byId, onFocus }: Props) {
+export function DigestDialog({ open, onOpenChange, digest, agentId, copied, onCopy, returnFocus, byId, onFocus }: Props) {
   const [view, setView] = useState<'formatted' | 'raw'>('formatted');
   const parsed = useMemo(() => parseDigest(digest), [digest]);
   const jump = (id: string) => { onOpenChange(false); onFocus(id); };
@@ -41,10 +42,11 @@ export function DigestDialog({ open, onOpenChange, digest, copied, onCopy, retur
         className="flex max-h-[84vh] max-w-[680px] flex-col"
         onCloseAutoFocus={(event) => { event.preventDefault(); returnFocus.current?.focus(); }}
       >
-        <header className="flex items-start justify-between gap-4 border-b px-5 py-4">
+        <header className="flex flex-wrap items-start justify-between gap-3 border-b px-5 py-4">
           <div className="min-w-0">
             <DialogTitle className="m-0 text-[15px] font-semibold">{t('digest.title')}</DialogTitle>
             <DialogDescription className="m-0 mt-0.5 text-xs text-muted-foreground">{t('digest.description')}</DialogDescription>
+            <p className="m-0 mt-1 break-all font-mono text-[11px] text-muted-foreground">{agentId}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Segmented<'formatted' | 'raw'> value={view} onValueChange={setView} aria-label={t('digest.viewLabel')}>

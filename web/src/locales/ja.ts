@@ -127,6 +127,13 @@ export const ja: Messages = {
   'digest.stat.nodes': '論理ノード', 'digest.stat.edges': '論理関係', 'digest.stat.open': '未解決のノード',
   'digest.stat.activities': 'アクティビティ', 'digest.stat.checkpoints': 'チェックポイント',
 
+  'topbar.agent': 'Agent 視点',
+  'topbar.agentHint': '表示の視点だけを切り替え、Agent のカーソルは移動しません。',
+  'edit.discard': '下書きを破棄',
+  'edit.reload': '現在の内容を再読込（下書きを破棄）',
+  'edit.conflict': '他の人または Agent が内容を変更しました。入力は保持されています。現在の内容を再読込するか、下書きを破棄してください。自動では上書きしません。',
+  'edit.draftHint': '下書きはこのページのセッション内だけで保持されます。ノードや表示の切り替え、パネルを閉じても残りますが、再読込やページを離れると消去されます。',
+
   'edit.label': 'ノードを編集', 'edit.heading': '編集',
   'edit.title': 'タイトル', 'edit.detail': '詳細', 'edit.detailPlaceholder': '詳細（任意）',
   'edit.save': '保存', 'edit.editText': 'テキストを編集', 'edit.status': '状態',

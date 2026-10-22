@@ -128,6 +128,13 @@ export const en: Messages = {
   'digest.stat.nodes': 'Nodes', 'digest.stat.edges': 'Relations', 'digest.stat.open': 'Open nodes',
   'digest.stat.activities': 'Activities', 'digest.stat.checkpoints': 'Checkpoints',
 
+  'topbar.agent': 'Agent view',
+  'topbar.agentHint': 'Changes only the viewing perspective; never moves any Agent cursor.',
+  'edit.discard': 'Discard draft',
+  'edit.reload': 'Reload current content (discard draft)',
+  'edit.conflict': 'Someone or an Agent changed this content. Your input is preserved. Reload current content or discard the draft; nothing will be overwritten automatically.',
+  'edit.draftHint': 'Drafts stay only in this page session, including across node/view switches and closed panels. Reloading or leaving the page clears them.',
+
   'edit.label': 'Edit node', 'edit.heading': 'Edit',
   'edit.title': 'Title', 'edit.detail': 'Details', 'edit.detailPlaceholder': 'Details (optional)',
   'edit.save': 'Save', 'edit.editText': 'Edit text', 'edit.status': 'Status',

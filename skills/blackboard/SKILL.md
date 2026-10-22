@@ -23,6 +23,7 @@ blackboard 只提供数据，不是工作流引擎：不批准、阻断、排序
 | 仅打开查看器 | 先 `status`；若对应项目在线，访问其 URL；离线再按需启动服务 |
 | 首次 Claude Code 接入或明确重配 | 先读 [接入与打开](references/setup.md)，说明 setup 副作用后使用 |
 | 首次 Codex 接入 | 读 [接入与打开](references/setup.md)，用 init 和 Codex Skill 安装；不默认执行 Claude setup |
+| OMP、ZCode 等其他宿主接入 | 按当前宿主机制安装完整 Skill 包并展开 CLI 路径；不增加专用 CLI 分支、不安装其他宿主的 Hook |
 | 已启用，只记录关键判断 | 使用下方最小命令；复杂关系见 [记录语义](references/recording.md) |
 
 ## 命令位置与项目归属
@@ -71,7 +72,7 @@ BLACKBOARD_CWD="/已确认项目" blackboard checkpoint --summary "已确认内�
 
 只打开当前操作需要的参考，不一次加载全部：
 
-- [接入与打开](references/setup.md)：首次 Claude/Codex、已有黑板、服务与平台差异、setup 副作用。
+- [接入与打开](references/setup.md)：首次接入、其他宿主的通用安装、已有黑板、服务生命周期与 setup 副作用。
 - [记录语义](references/recording.md)：阈值、关系方向、可信度、短 ID、游标与检查点。
 - [并行 Agent](references/parallel-agents.md)：每次显式项目/身份、Hook 继承边界、恢复与交接查询。
 - [审计记录](references/audit.md)：仅在代码审计需要时读取；约束记录含义，不规定研究步骤。

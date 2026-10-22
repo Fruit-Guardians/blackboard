@@ -123,7 +123,8 @@ blackboard lint            # 只报告上下文质量，不阻断工作
 - **结构化摘要**：统计、当前节点、邻域关系、最近轨迹和检查点分区展示；点击节点引用可跳回画布。可切换原文，复制的仍是 Agent 读取的原始摘要。
 - **多语言**：简体中文、繁體中文、English、日本語。默认跟随浏览器，也可在 `⌘K` 命令面板切换并保存；作者写下的内容不会被翻译或改写。
 - **布局与阅读**：横向 / 纵向布局，曲线 / 折线 / 直线，小地图与明暗主题；大图使用不同布局策略，拖动后连线会尝试绕开卡片。
-- **人工参与**：顶栏新建节点，详情中添加相关节点、修改文字和状态、断开关系或移除节点。人工写入带作者标记，也会进入 Agent 上下文。
+- **人工参与**：顶栏新建节点，详情中添加相关节点、修改文字和状态、断开关系或移除节点。添加相关节点默认使用弱关系 `related-to`，支持、反驳等强关系需明确选择；人工写入保留作者标记。
+- **协作编辑与草稿**：只保存实际修改的字段；同字段被其他人或 Agent 更新时，提示冲突并保留输入，不自动覆盖或合并。草稿在当前页面内跨节点、视图与面板开关保留，明确保存或丢弃后清除；离开页面时提示未保存更改，不写入浏览器持久存储。
 
 常用快捷键：`⌘K` 或 `/` 搜索，方向键沿关系跳转，`[` 收起侧栏，`?` 查看完整快捷键。选中的节点写入 `?node=`，刷新或分享地址可恢复定位。
 
@@ -140,7 +141,7 @@ blackboard serve --read-only          # 关闭页面写入
 
 ## Agent 接入与恢复
 
-[`skills/blackboard/`](skills/blackboard/) 是随仓库和发布包分发的完整、标准 Skill 包；Claude / Codex 安装器复制整个包，并在 Markdown 中替换 CLI 路径占位符，不维护内嵌副本。安装只覆盖分发源中存在的文件，保留目标目录中的无关用户文件。
+[`skills/blackboard/`](skills/blackboard/) 是随仓库和发布包分发的完整、标准 Skill 包；Claude / Codex 安装器复制整个包，并在 Markdown 中替换 CLI 路径占位符，不维护内嵌副本。安装只覆盖分发源中存在的文件，保留目标目录中的无关用户文件；其他宿主复用同一份包，由 Agent 按宿主机制完成接入。
 
 ```text
 skills/blackboard/
@@ -180,11 +181,19 @@ blackboard hooks install --user --write
 
 ```bash
 blackboard init --title "项目目标"
-blackboard skill install --codex       # 项目级 .agents/skills/blackboard
+blackboard skill install --codex        # 项目级 .agents/skills/blackboard
 # 全局安装可加 --user
 ```
 
-Codex 可通过 Skill 和 CLI 读写黑板；用户级安装使用 `~/.agents/skills/blackboard`，不再安装到旧的 `~/.codex/skills`。Claude 的恢复 Hook 不适用于 Codex。当前 `setup` 配置的是 Claude 接入，不要用它代替 Codex Skill 安装。
+Codex 可通过 Skill 和 CLI 读写黑板；用户级安装使用 `~/.agents/skills/blackboard`，不再安装到旧的 `~/.codex/skills`。Claude 的恢复 Hook 不适用于 Codex。当前 `setup` 配置的是 Claude 接入，不要用它代替其他宿主的 Skill 安装。
+
+### 其他 Agent（OMP、ZCode 等）
+
+不需要专用适配命令，把这段提示词交给当前 Agent：
+
+> 请给当前项目接入 blackboard：定位本机 CLI，把仓库的 `skills/blackboard/` 完整包安装到当前宿主的 Skill 目录，展开 CLI 路径占位符。已有黑板直接恢复，没有则初始化；不要安装其他宿主的 Hook。完成后验证 Skill 加载和项目状态，不创建虚构研究记录。
+
+同一份 Skill 和 CLI 跨宿主复用；安装位置、刷新与加载由宿主处理，blackboard 不维护一套宿主适配表。
 
 ### 给 Agent 的只读上下文
 
@@ -201,7 +210,7 @@ blackboard context --markdown                    # 人类可读形式
 GET /api/context?agent=agent:primary&focus=hy1&depth=2&budget=4000&since=cp1
 ```
 
-返回包的 `policy` 明确声明 `readOnly: true`、`prescriptive: false`、`nextStepSelection: "agent-controlled"`。它整理目标、邻域、开放问题、发现、已确认事实和检查点，不生成下一步指令。`budget` 是基于 JSON 大小的近似 Token 预算，裁剪记录在 `omitted` 中。
+返回包的 `policy` 明确声明 `readOnly: true`、`prescriptive: false`、`nextStepSelection: "agent-controlled"`。它整理目标、邻域、开放问题、发现、已确认事实和检查点，不生成下一步指令。`budget` 是基于 JSON 大小的近似 Token 预算，裁剪记录在 `omitted` 中。指定 `since` 时，`recentChanges` 返回仍存在的新增或修改节点，`changes` 按新到旧报告 `relation-added`、`relation-removed`、`node-removed`；节点删除同时使其关联关系失效。检查点按事件位置划界，同一毫秒内的后续写入也纳入增量；时间戳则只包含严格晚于该时间的事件。无效检查点明确报错，不静默返回空增量。删除摘要同样受预算约束，需检查 `omitted.changes`。
 
 ### 多个 Agent 并行
 
@@ -215,7 +224,7 @@ BLACKBOARD_AGENT=research BLACKBOARD_CWD=/path/to/project blackboard here
 BLACKBOARD_CWD=/path/to/project blackboard context --agent agent:research
 ```
 
-默认游标是 `agent:primary`；并行 Agent 应使用不同身份，避免互相覆盖位置。`status`、`digest`、`tail`、`context` 可用 `--agent` 读取指定视角；工作台会在相应卡片上标记其他 Agent 的位置。
+默认游标是 `agent:primary`；并行 Agent 应使用不同身份，避免互相覆盖位置。`status`、`digest`、`tail`、`context` 可用 `--agent` 读取指定视角。工作台的 **Agent 视角** 下拉会同步切换当前焦点、现场投影、游标跟随和摘要，节点分享链接保留身份；没有游标时不借用其他 Agent 的位置。切换只改变阅读视角，不写事件、不移动游标；离线导出也支持已有身份的独立摘要。
 
 Claude 恢复 Hook 仅使用其进程实际继承到的 `BLACKBOARD_AGENT`：会话开始时恢复该身份的 Digest，压缩前保存该身份及其游标的检查点；启用工具活动采集时，活动也关联该身份。不设置时仍为 `agent:primary`，不会从宿主 `session_id` 自动创建身份。不要假设不同工具调用或所有子 Agent 会话都会继承环境；普通子 Agent 应在每次命令中显式指定身份与项目，并主动调用 `context` 恢复或交接。上下文只整理已记录的现场，不自动决定下一步。
 
@@ -285,6 +294,7 @@ blackboard edit hy1 --title "修订后的猜测" --detail "补充证据"
 - `--at <file:line>` 记录证据位置；`--detail` / `-d` 添加详情；`--tag` / `-t` 可重复指定标签。
 - ID 按类型递增，如 `g1`、`o1`、`hy1`；活动和检查点如 `act1`、`cp1`。接受 ID 的命令支持 `[hy1]`、大小写不敏感及唯一前缀，存在歧义时列出候选。
 - `start`、`goal`、`intent`、`fact`、`vuln`、`hint` 可用同名简写；`focus` 是 `cursor` 的别名，`compact` 是 `checkpoint` 的别名。这些写法也不会隐式连边或进入节点。
+- 未知 CLI 选项、缺失参数值、冲突选项与无效数值会明确报错，且不执行写入；`--tag` 可重复，其他单值选项不可重复。标题以 `-` 开头时放在 `--` 后；自定义节点类型和关系名仍可使用。
 
 </details>
 
@@ -398,7 +408,15 @@ blackboard hooks uninstall --user --write
 # 项目级 Hook 去掉 --user；Skill 位于对应的 skills/blackboard 目录
 ```
 
-macOS 的 `setup` 常驻服务不是前台进程；需单独用 `launchctl bootout "gui/$(id -u)/com.fruitguardians.blackboard.workspace"` 卸载当前任务，并移除 `~/Library/LaunchAgents/com.fruitguardians.blackboard.workspace.plist`，防止下次登录重新启动。它是共享工作区服务，停用前确认没有其他项目正在使用。
+macOS 的 `setup` 常驻服务是共享工作区服务，不是前台进程。先确认归属，再选择停止或卸载：
+
+```bash
+blackboard service status --json  # 归属 cwd、是否当前项目、loaded/running 与状态
+blackboard service stop           # 卸载运行任务，保留 plist；用 setup 重新启动
+blackboard service uninstall      # 停止任务并删除本工具受管 plist
+```
+
+`waiting` 表示任务已加载但未在运行，不等于查看器在线；页面是否可用仍以 `blackboard status` 的实际探测为准。`setup` 切换项目会报告原归属与新归属。停止/卸载针对共享服务的当前项目，即使它不是命令所在项目；不删除黑板数据，不操作其他服务。非 macOS 明确报告不支持持久服务管理，前台服务仍手动启动和停止。
 
 <a id="upgrade"></a>
 

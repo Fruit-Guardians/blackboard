@@ -54,7 +54,7 @@ macOS setup 默认配置并启动 launchd 持久服务，并核对它服务的�
 
 ## 首次 Codex 接入
 
-Codex 不默认执行 setup，不默认安装 Claude Hook，也不承诺存在 Codex 自动恢复 Hook。用户同意初始化与安装后：
+Codex 不默认执行 Claude 专用 setup，不安装 Claude Hook。用户同意初始化与安装后：
 
 ```sh
 BLACKBOARD_CWD="/已确认项目" blackboard init --title "项目或任务标题"
@@ -62,7 +62,29 @@ BLACKBOARD_CWD="/已确认项目" blackboard skill install --codex
 BLACKBOARD_CWD="/已确认项目" blackboard status
 ```
 
-已有黑板不必重新 init。项目级 Codex Skill 位于 `.agents/skills/blackboard/`；若用户明确要求用户级安装，使用 `skill install --codex --user`，安装到 `~/.agents/skills/blackboard/`。不回退到旧安装路径。不要因文件已安装就宣称当前宿主已发现或加载；是否需要新会话取决于宿主实际加载机制。若同时要求打开查看器，另用 status/serve 分支。
+已有黑板不必重新 init。项目级安装到 `.agents/skills/blackboard/`；用户明确要求全局安装时加 `--user`，安装到 `~/.agents/skills/blackboard/`。
+
+## OMP、ZCode 等其他宿主
+
+复用同一份 `skills/blackboard/`，由当前 Agent 按宿主自身的 Skill 机制完成接入，不为每个宿主维护安装命令或路径分支：
+
+- 定位实际 CLI 和源 Skill 包，复制完整目录，包含 references、agents 与 assets；在 Markdown 中将 CLI 占位符展开为真实绝对路径。
+- 安装到当前宿主支持的 Skill 目录，按其机制刷新或开启会话；已有黑板直接恢复，没有黑板且用户已同意接入时才初始化。
+- 不默认运行 Claude setup 或安装其他宿主的 Hook；用实际的 Skill 加载结果和 `status` 核对接入，不创建虚构研究记录。
+
+文件已安装不等于当前会话已加载。若同时要求打开查看器，另用 status/serve 分支。
+
+## macOS 共享工作区服务生命周期
+
+```sh
+BLACKBOARD_CWD="/已确认项目" blackboard service status --json
+BLACKBOARD_CWD="/已确认项目" blackboard service stop
+BLACKBOARD_CWD="/已确认项目" blackboard service uninstall
+```
+
+服务是用户级固定共享工作区，并非每项目独立。`service status` 无需初始化黑板，报告 plist、实际归属与是否当前项目；`loaded` 与 `running` 分开，`waiting` 表示已加载但尚未运行，不能当作页面在线。`setup` 切换时报告 `previousCwd` → `cwd`（JSON 同时给出 `switched`），不把其他项目的服务误当当前项目。
+
+`stop` 停止服务但保留 plist；用 setup 显式重新启动。`uninstall` 停止后仅删除本工具固定受管 plist；两者均不删除黑板数据，不修改其他服务。它们针对共享服务当前归属，并非只针对命令所在项目，操作前说明影响。非 macOS 明确返回 unsupported；setup 仍返回 manual，不声称完成后台服务管理。
 
 ## 结果汇报
 

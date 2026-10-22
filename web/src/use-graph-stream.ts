@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GraphSnapshot } from './types';
+import { t } from './i18n';
 
 export type Connection = 'connecting' | 'live' | 'offline';
 
@@ -9,6 +10,15 @@ export function useGraphStream() {
   const [snapshot, setSnapshot] = useState<GraphSnapshot | null>(embedded);
   const [connection, setConnection] = useState<Connection>(embedded ? 'live' : 'connecting');
   const [syncedAt, setSyncedAt] = useState<number | null>(null);
+  const applySnapshot = useRef<((data: GraphSnapshot, at: number) => void) | null>(null);
+  const reload = useCallback(async () => {
+    if (embedded) return;
+    let response: Response;
+    try { response = await fetch('/api/graph'); }
+    catch { throw new Error(t('api.noResponse')); }
+    if (!response.ok) throw new Error(t('api.failed', { status: response.status }));
+    applySnapshot.current?.(await response.json(), Date.now());
+  }, [embedded]);
 
   useEffect(() => {
     if (embedded) return;
@@ -24,6 +34,7 @@ export function useGraphStream() {
       setSyncedAt(at);
       setConnection('live');
     };
+    applySnapshot.current = apply;
     fetch('/api/graph')
       .then((response) => response.json())
       .then((data) => { if (alive) apply(data, Date.now()); })
@@ -41,5 +52,5 @@ export function useGraphStream() {
       stream.close();
     };
   }, [embedded]);
-  return { snapshot, connection, syncedAt, isStatic: Boolean(embedded) };
+  return { snapshot, connection, syncedAt, isStatic: Boolean(embedded), reload };
 }

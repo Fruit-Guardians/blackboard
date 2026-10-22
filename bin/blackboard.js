@@ -35,6 +35,7 @@ import {
   reset,
   replay,
   readState,
+  readEvents,
   stats,
 } from '../lib/store.js';
 import { buildDigest, neighborsOf, tail } from '../lib/digest.js';
@@ -136,14 +137,15 @@ ${b('恢复与查看')}
   blackboard export [-o blackboard.html]
   blackboard reset --yes
 
-${b('接入 Claude Code')}
-  blackboard hooks install|uninstall [--write] [--user]   默认只装恢复类 Hook（会话开始注入 digest、压缩前存检查点）
-    --with-activity  额外采集工具调用输入输出到活动层（可能含敏感内容，默认关闭）
-  blackboard skill install [--user] [--codex]  安装 Claude 或 Codex 项目 Skill
+${b('宿主接入与服务')}
+  blackboard hooks install|uninstall [--write] [--user|--project]   仅 Claude Code 恢复 Hook
+    --with-activity  安装时额外采集工具活动（可能含敏感内容，默认关闭）
+  blackboard skill install [--codex] [--user|--project]   安装 Claude 或 Codex Skill
+  blackboard service status|stop|uninstall [--json]   管理 macOS 共享工作区服务
   blackboard launcher
   blackboard hook <event>
 
-所有命令支持 --help / -h；init/setup/status/skill/hooks/launcher 支持 --json，供脚本读取。
+所有命令支持 --help / -h；init/setup/status/skill/hooks/launcher/service 支持 --json，供脚本读取。
 端口优先级: --port > BLACKBOARD_PORT > 项目 viewerPort > ${DEFAULT_PORT}；地址统一为 127.0.0.1。
 环境变量: BLACKBOARD_CWD 指定项目根；BLACKBOARD_QUIET=1 静默；BLACKBOARD_AGENT=name 让并行的 Agent 各用各的游标（默认 agent:primary）。
 `);
@@ -162,56 +164,97 @@ function fail(msg) {
   process.exit(1);
 }
 
-function setFlag(flags, key, value) {
-  // Repeated flags accumulate: --tag a --tag b → ['a','b']
-  if (flags[key] === undefined) flags[key] = value;
-  else if (Array.isArray(flags[key])) flags[key].push(value);
-  else flags[key] = [flags[key], value];
-}
+const BOOLEAN_FLAGS = new Set([
+  'json', 'open', 'write', 'all', 'open-only', 'quiet', 'enter', 'relate-here',
+  'user', 'project', 'yes', 'with-activity', 'here', 'codex', 'no-hooks',
+  'no-skill', 'no-serve', 'read-only', 'markdown',
+]);
+const NODE_FLAGS = 'detail tag status sev confidence at parent enter relate-here rel kind reason agent json';
+const COMMAND_FLAGS = {
+  init: 'title here json',
+  setup: 'target title port open no-hooks no-skill no-serve json',
+  status: 'port agent json',
+  node: NODE_FLAGS, start: NODE_FLAGS, goal: NODE_FLAGS, intent: NODE_FLAGS,
+  fact: NODE_FLAGS, vuln: NODE_FLAGS, hint: NODE_FLAGS,
+  checkpoint: 'summary title trigger agent write json', compact: 'summary title trigger agent write json',
+  cursor: 'agent reason json', focus: 'agent reason json', here: 'agent json',
+  activity: 'limit json',
+  promote: 'kind type title detail enter relate-here rel reason json',
+  done: 'json', block: 'json', revive: 'json',
+  edit: 'title detail status sev confidence tag json',
+  link: 'rel kind label json', unlink: 'rel kind agent json',
+  remove: 'reason agent json', rm: 'reason agent json',
+  ls: 'type open open-only limit json', list: 'type open open-only limit json',
+  show: 'json', tree: 'depth', digest: 'agent write quiet json',
+  context: 'focus depth budget since limit agent markdown json',
+  lint: 'json', tail: 'agent json', serve: 'port open read-only',
+  export: 'out json', reset: 'yes',
+  hooks: 'write user project with-activity json',
+  skill: 'codex user project json', launcher: 'user project json',
+  service: 'json', hook: '', help: '', version: '', '-v': '', '--version': '',
+};
 
 function parseArgs(argv, cmd = '') {
   const args = [];
   const flags = {};
+  const allowed = new Set((COMMAND_FLAGS[cmd] || '').split(' ').filter(Boolean));
+  const aliases = {
+    '-d': cmd === 'tree' ? 'depth' : 'detail',
+    '-t': ['ls', 'list'].includes(cmd) ? 'type' : 'tag',
+    '-n': 'limit', '-o': 'out', n: 'limit', o: 'out', md: 'markdown',
+    d: cmd === 'tree' ? 'depth' : 'detail',
+    t: ['ls', 'list'].includes(cmd) ? 'type' : 'tag',
+  };
   for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === '--') {
-      args.push(...argv.slice(i + 1));
-      break;
-    }
-    if (a.startsWith('--')) {
-      const key = a.slice(2);
-      const eq = key.indexOf('=');
-      if (eq !== -1) {
-        setFlag(flags, key.slice(0, eq), key.slice(eq + 1));
-      } else {
-        const next = argv[i + 1];
-        if (next !== undefined && !next.startsWith('--') && !LOOKAHEAD_HAS_FLAG.has(key)) {
-          setFlag(flags, key, next);
-          i++;
-        } else {
-          setFlag(flags, key, true);
-        }
-      }
-    } else if (a === '-d' || a === '-t' || a === '-n' || a === '-o') {
-      const map = {
-        '-d': cmd === 'tree' ? 'depth' : 'detail',
-        '-t': ['ls', 'list'].includes(cmd) ? 'type' : 'tag',
-        '-n': 'limit',
-        '-o': 'out',
-      };
-      setFlag(flags, map[a], argv[++i]);
+    const token = argv[i];
+    if (token === '--') { args.push(...argv.slice(i + 1)); break; }
+    if (!token.startsWith('-') || token === '-') { args.push(token); continue; }
+    const eq = token.indexOf('=');
+    const spelling = eq < 0 ? token : token.slice(0, eq);
+    const raw = spelling.startsWith('--') ? spelling.slice(2) : spelling;
+    const key = aliases[raw] || raw;
+    if (!allowed.has(key)) fail(`未知选项 ${spelling}（命令 ${cmd}）`);
+    let value;
+    if (BOOLEAN_FLAGS.has(key)) {
+      if (eq >= 0) fail(`选项 ${spelling} 不接受值`);
+      value = true;
     } else {
-      args.push(a);
+      value = eq >= 0 ? token.slice(eq + 1) : argv[++i];
+      if (value === undefined || (eq < 0 && value.startsWith('-') && !/^-\d/.test(value))) {
+        fail(`选项 ${spelling} 缺少值`);
+      }
+      if (!value.length) fail(`选项 ${spelling} 缺少值`);
     }
+    if (flags[key] !== undefined) {
+      if (key !== 'tag') fail(`选项 ${spelling} 不可重复`);
+      flags.tag = [].concat(flags.tag, value);
+    } else flags[key] = value;
+  }
+  for (const pair of [['user', 'project'], ['rel', 'kind'], ['markdown', 'json'],
+    ...(cmd === 'promote' ? [['kind', 'type']] : []),
+    ...(['checkpoint', 'compact'].includes(cmd) ? [['summary', 'title']] : [])]) {
+    if (pair.every((key) => flags[key] !== undefined)) fail(`选项 --${pair[0]} 与 --${pair[1]} 冲突`);
+  }
+  for (const [key, min, max] of [
+    ['port', cmd === 'serve' ? 0 : 1, 65535],
+    ['depth', 0, cmd === 'context' ? 5 : Number.MAX_SAFE_INTEGER],
+    ['budget', 1, Number.MAX_SAFE_INTEGER], ['limit', 1, Number.MAX_SAFE_INTEGER],
+  ]) {
+    if (flags[key] !== undefined && (!/^\d+$/.test(flags[key])
+      || !Number.isSafeInteger(Number(flags[key])) || Number(flags[key]) < min || Number(flags[key]) > max)) {
+      fail(`--${key} 应为 ${min}–${max} 的整数，收到 ${flags[key]}`);
+    }
+  }
+  for (const [key, values] of [['status', NODE_STATES], ['sev', SEVERITIES], ['confidence', CONFIDENCE_LEVELS]]) {
+    if (flags[key] !== undefined && !values.includes(flags[key])) fail(`--${key} 只能是 ${values.join('|')}`);
+  }
+  if (cmd === 'setup' && flags.target && args.length) fail('--target 与位置目录冲突');
+  if (['skill', 'hooks'].includes(cmd) && args.length > 1) fail(`${cmd} 只接受一个子命令`);
+  if (cmd === 'hooks' && args[0] === 'uninstall' && flags['with-activity']) {
+    fail('--with-activity 只用于 hooks install');
   }
   return { args, flags };
 }
-
-const LOOKAHEAD_HAS_FLAG = new Set([
-  'json', 'open', 'write', 'all', 'open-only', 'quiet', 'enter', 'relate-here',
-  'user', 'project', 'yes', 'with-activity', 'here', 'codex', 'no-hooks',
-  'no-skill', 'no-serve', 'read-only', 'markdown', 'md',
-]);
 
 function cwd() {
   const projectCwd = process.env.BLACKBOARD_CWD;
@@ -265,7 +308,7 @@ function nodeLine(n) {
 
 async function cmdServe(args, flags) {
   const target = cwd();
-  const port = resolvePort({ cwd: target, port: flags.port });
+  const port = resolvePort({ cwd: target, port: flags.port, allowZero: true });
   needInit();
   const { startServer } = await import('../lib/server.js');
   const server = await startServer({ cwd: target, port, open: !!flags.open, readOnly: !!flags['read-only'] });
@@ -328,7 +371,7 @@ async function cmdStatus(args, flags) {
   if (cursor) console.log(`当前节点 ${nodeLine(cursor)}`);
   else console.log(C.dim('当前游标未设置；使用 blackboard cursor <id> 或创建节点时加 --enter。'));
   const scopes = (value) => ['project', 'user'].filter((scope) => value[scope] === true).join(', ') || '未安装';
-  console.log(`接入配置 Claude Skill: ${scopes(integration.claude.skill)} · Codex Skill: ${scopes(integration.codex.skill)}`);
+  console.log(`接入配置 ${['claude', 'codex'].map((agent) => `${agent} Skill: ${scopes(integration[agent].skill)}`).join(' · ')}`);
   for (const scope of ['project', 'user']) {
     const events = integration.claude.hooks[scope];
     if (events.length) console.log(`  Claude Hook (${scope}): ${events.join(', ')}`);
@@ -412,7 +455,7 @@ function childrenOf(g, id) {
 function cmdTree(args, flags) {
   needInitRead();
   const g = replay(cwd());
-  const depth = Number(flags.depth || flags.d || 4);
+  const depth = Number(flags.depth ?? 4);
   const kids = new Map();
   for (const e of Object.values(g.edges)) {
     if (!kids.has(e.from)) kids.set(e.from, []);
@@ -471,6 +514,7 @@ function cmdContext(args, flags) {
     depth: flags.depth === undefined ? 2 : Number(flags.depth),
     budgetTokens: flags.budget === undefined ? 4000 : Number(flags.budget),
     since,
+    ...(flags.since ? { events: readEvents(cwd()).events } : {}),
     maxItems: flags.limit || flags.n,
   });
   if (flags.markdown || flags.md) console.log(renderAgentContext(packet));
@@ -552,6 +596,7 @@ async function cmdSetup(args, flags) {
   if (result.skill) console.log('  Claude Skill 已安装（项目级）');
   if (result.hooks) console.log(`  恢复 Hook 已安装 ${result.hooks.file}（不采集工具活动）`);
   if (result.service) {
+    if (result.service.switched) console.log(C.yel(`  共享服务归属切换: ${result.service.previousCwd} → ${result.service.cwd}`));
     if (result.service.verified) console.log(`  可视化 ${result.service.url} · 已验证`);
     else console.log(`  可视化需手动启动: ${result.service.command}`);
   }
@@ -647,6 +692,8 @@ async function main() {
       return cmdReset(args, flags);
     case 'hooks':
       return cmdHooks(args, flags);
+    case 'service':
+      return cmdService(args, flags);
     case 'skill':
       return cmdSkill(args, flags);
     case 'launcher':
@@ -931,12 +978,28 @@ async function cmdHooks(args, flags) {
 async function cmdSkill(args, flags) {
   const { installSkill } = await import('../lib/hooks.js');
   const sub = args[0] || 'install';
-  if (sub !== 'install') fail('用法: blackboard skill install [--user] [--codex]');
+  if (sub !== 'install') fail('用法: blackboard skill install [--codex] [--project|--user]');
   const scope = flags.user ? 'user' : 'project';
   const agent = flags.codex ? 'codex' : 'claude';
   const message = installSkill({ cwd: cwd(), cli: CLI, scope, agent });
   if (flags.json) return out(flags, { agent, scope, message });
   console.log(message);
+}
+
+async function cmdService(args, flags) {
+  const { workspaceServiceStatus, stopWorkspaceService } = await import('../lib/setup.js');
+  const sub = args[0] || 'status';
+  if (!['status', 'stop', 'uninstall'].includes(sub) || args.length > 1) {
+    fail('用法: blackboard service status|stop|uninstall [--json]');
+  }
+  const result = sub === 'status'
+    ? workspaceServiceStatus({ cwd: cwd() })
+    : stopWorkspaceService({ cwd: cwd(), uninstall: sub === 'uninstall' });
+  if (flags.json) return out(flags, result);
+  console.log(`共享工作区服务: ${result.state} (${result.mode})`);
+  if (result.cwd) console.log(`  归属 ${result.cwd} · ${result.currentProject ? '当前项目' : '其他项目'}`);
+  if (result.file) console.log(`  配置 ${result.file}${result.removed ? ' · 已删除' : ''}`);
+  if (result.message) console.log(`  ${result.message}`);
 }
 
 async function cmdLauncher(args, flags) {

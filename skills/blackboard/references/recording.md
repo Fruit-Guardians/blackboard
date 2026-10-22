@@ -83,3 +83,5 @@ BLACKBOARD_CWD="/已确认项目" blackboard checkpoint --summary "已确认内�
 ```
 
 检查点是恢复锚点，不等于证明任务完成。需要时用 `context --since "<检查点ID>" --budget 4000` 读取增量现场。`lint` 可提示孤立节点、缺失证据等质量问题，但只读、不修图、不阻断；不要求每次写入后运行。
+
+增量包的 `recentChanges` 是仍存在的新增或修改节点；`changes` 按新到旧报告 `relation-added`、`relation-removed` 与 `node-removed`。删除节点也使其关联关系失效，不要因节点不再出现在快照里就保留旧结论链。检查 `omitted.changes`，被预算裁剪不等于没有变更；无效检查点会明确报错。检查点按事件顺序划界，不遗漏同一毫秒内的后续写入。

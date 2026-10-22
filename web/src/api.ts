@@ -2,7 +2,14 @@ import { t } from './i18n';
 
 /** Writes a person makes from the viewer. The server stamps them as human and checks where they came from. */
 export type NodeInput = { type: string; title: string; detail?: string; parent?: string; relation?: string };
-export type NodePatch = Partial<Record<'title' | 'detail' | 'status' | 'severity' | 'confidence', string>>;
+type PatchFields = Partial<Record<'title' | 'detail' | 'status' | 'severity' | 'confidence', string>>;
+export type NodePatch = PatchFields & { expected?: PatchFields };
+
+export class NodeConflict extends Error {
+  constructor(public fields: string[]) {
+    super(t('edit.conflict'));
+  }
+}
 
 async function send<T>(method: string, url: string, body?: unknown): Promise<T> {
   let response: Response;
@@ -12,7 +19,10 @@ async function send<T>(method: string, url: string, body?: unknown): Promise<T> 
     throw new Error(t('api.noResponse'));
   }
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error === 'read_only' ? t('api.readOnly') : data.error || t('api.failed', { status: response.status }));
+  if (!response.ok) {
+    if (response.status === 409 && data.error === 'node_conflict') throw new NodeConflict(Array.isArray(data.fields) ? data.fields : []);
+    throw new Error(data.error === 'read_only' ? t('api.readOnly') : data.error || t('api.failed', { status: response.status }));
+  }
   return data as T;
 }
 

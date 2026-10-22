@@ -52,7 +52,7 @@ export type GraphSnapshot = {
   cursors?: Record<string, Cursor>;
   cursorTrail?: unknown[];
   activities?: Record<string, Activity> | Activity[];
-  checkpoints?: Record<string, unknown>;
+  checkpoints?: Record<string, { agentId?: string; [key: string]: unknown }>;
   stats?: {
     total?: number;
     edges?: number;
@@ -66,6 +66,7 @@ export type GraphSnapshot = {
     confidence?: Record<string, number>;
   };
   digest?: string;
+  digests?: Record<string, string>;
 };
 
 export type ViewMode = 'context' | 'logic' | 'all';

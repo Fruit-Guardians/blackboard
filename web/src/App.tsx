@@ -28,6 +28,7 @@ import { NewNodeDialog } from './panels/EditPanel';
 import { Sidebar } from './panels/Sidebar';
 import { Topbar } from './panels/Topbar';
 import { locale, t } from './i18n';
+import { SessionDrafts } from './session-drafts';
 
 const nodeTypes = { security: SecurityNode, boardGroup: BoardGroup };
 const edgeTypes = { routed: RoutedEdge };
@@ -46,7 +47,8 @@ const initialTheme = (): 'light' | 'dark' => {
 };
 
 function Workspace() {
-  const { snapshot, connection, syncedAt, isStatic } = useGraphStream();
+  const { snapshot, connection, syncedAt, isStatic, reload } = useGraphStream();
+  const [agentId, setAgentId] = useState(() => new URLSearchParams(location.search).get('agent') || 'agent:primary');
   const [mode, setMode] = useState<ViewMode>(() => {
     const view = new URLSearchParams(location.search).get('view');
     return view === 'logic' || view === 'all' ? view : 'context';
@@ -97,14 +99,27 @@ function Workspace() {
   const updateNodeInternals = useUpdateNodeInternals();
   const laidOutDirection = useRef<string | null>(null);
 
-  const projection = useMemo(() => snapshot ? project(snapshot, mode, '') : null, [snapshot, mode]);
+  const projection = useMemo(() => snapshot ? project(snapshot, mode, '', agentId) : null, [snapshot, mode, agentId]);
+  const agentIds = useMemo(() => {
+    const ids = new Set(['agent:primary', ...Object.keys(snapshot?.cursors || {})]);
+    values(snapshot?.checkpoints).forEach((checkpoint) => { if (checkpoint.agentId) ids.add(checkpoint.agentId); });
+    // Keep an explicit URL identity selected even before that Agent has a cursor or checkpoint.
+    ids.add(agentId);
+    return [...ids].sort((a, b) => a === 'agent:primary' ? -1 : b === 'agent:primary' ? 1 : a.localeCompare(b));
+  }, [snapshot, agentId]);
+  const digest = snapshot?.digests?.[agentId] ?? (agentId === 'agent:primary' ? snapshot?.digest || '' : '');
+
+  useEffect(() => {
+    setCopied(false);
+    clearTimeout(copyTimer.current ?? undefined);
+  }, [digest, agentId]);
 
   const allNodes = useMemo(() => snapshot ? values(snapshot.nodes) : [], [snapshot]);
   const allEdges = useMemo(() => snapshot ? values(snapshot.edges) : [], [snapshot]);
   const activities = useMemo(() => snapshot ? values(snapshot.activities).sort((a, b) => Number(b.at || 0) - Number(a.at || 0)) : [], [snapshot]);
   const byId = useMemo(() => new Map(allNodes.map((node) => [node.id, node])), [allNodes]);
   const selected = selectedId ? byId.get(selectedId) || null : null;
-  const currentId = snapshot ? currentNodeId(snapshot) : null;
+  const currentId = snapshot ? currentNodeId(snapshot, agentId) : null;
   const current = currentId ? byId.get(currentId) || null : null;
   const findings = useMemo(() => allNodes
     .filter((node) => node.id !== currentId && ['finding', 'vuln'].includes(node.type) && node.status !== 'superseded')
@@ -213,8 +228,9 @@ function Workspace() {
   useEffect(() => {
     const url = new URL(location.href);
     url.searchParams.set('view', mode);
+    url.searchParams.set('agent', agentId);
     history.replaceState(null, '', url);
-  }, [mode]);
+  }, [mode, agentId]);
 
   // Keep the selected node in the address so the view can be shared and survives reloads.
   useEffect(() => {
@@ -372,7 +388,7 @@ function Workspace() {
   useEffect(() => {
     const previous = lastCurrent.current;
     lastCurrent.current = currentId;
-    if (!currentId || previous === null || previous === currentId || !follow || mode === 'all') return;
+    if (!currentId || previous === currentId || !follow || mode === 'all') return;
     const frame = requestAnimationFrame(() => centerOnNode(currentId, Boolean(live.current.selectedId)));
     return () => cancelAnimationFrame(frame);
   }, [currentId, follow, mode, centerOnNode]);
@@ -421,7 +437,7 @@ function Workspace() {
 
   const copyDigest = async () => {
     try {
-      await navigator.clipboard.writeText(snapshot?.digest || '');
+      await navigator.clipboard.writeText(digest);
       setCopied(true);
       if (copyTimer.current) clearTimeout(copyTimer.current);
       copyTimer.current = setTimeout(() => setCopied(false), 2000);
@@ -463,6 +479,9 @@ function Workspace() {
         title={snapshot.meta.title || t('app.untitledTask')}
         mode={mode}
         onMode={switchMode}
+        agentId={agentId}
+        agentIds={agentIds}
+        onAgent={setAgentId}
         theme={theme}
         onTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
         connection={connection}
@@ -579,7 +598,7 @@ function Workspace() {
 
           <p className="sr-only" role="status" aria-live="polite">{selected ? t('app.selected', { type: typeLabelOf(selected.type), title: selected.title }) : ''}</p>
 
-          {selected && <Inspector node={selected} edges={allEdges} byId={byId} onClose={() => setSelectedId(null)} onFocus={focusNode} onCopyLink={isStatic ? undefined : copyNodeLink} linkCopied={linkCopied} writable={writable} />}
+          {selected && <Inspector node={selected} edges={allEdges} byId={byId} onClose={() => setSelectedId(null)} onFocus={focusNode} onCopyLink={copyNodeLink} linkCopied={linkCopied} writable={writable} onReload={reload} />}
         </main>
       </div>
 
@@ -598,11 +617,11 @@ function Workspace() {
       />
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       {writable && <NewNodeDialog open={newOpen} onOpenChange={setNewOpen} />}
-      <DigestDialog open={digestOpen} onOpenChange={setDigestOpen} digest={snapshot.digest || ''} copied={copied} onCopy={copyDigest} returnFocus={digestTrigger} byId={byId} onFocus={focusNode} />
+      <DigestDialog open={digestOpen} onOpenChange={setDigestOpen} digest={digest} copied={copied} onCopy={copyDigest} returnFocus={digestTrigger} byId={byId} onFocus={focusNode} agentId={agentId} />
     </div>
   );
 }
 
 export function App() {
-  return <TooltipProvider delayDuration={300}><ReactFlowProvider><Workspace /></ReactFlowProvider></TooltipProvider>;
+  return <TooltipProvider delayDuration={300}><ReactFlowProvider><SessionDrafts><Workspace /></SessionDrafts></ReactFlowProvider></TooltipProvider>;
 }

@@ -35,7 +35,7 @@ export type CanvasNodeData = Record<string, unknown> & {
   group?: boolean;
   muted?: boolean;
   fresh?: boolean;
-  /** Other Agents whose cursor is on this card (the primary Agent is shown as "current"). */
+  /** Other Agents whose cursor is on this card (the selected Agent is shown as "current"). */
   agents?: string[];
   groupCount?: number;
   groupSubtitle?: string;
@@ -47,15 +47,14 @@ export type CanvasNodeData = Record<string, unknown> & {
 
 export type CanvasNode = Node<CanvasNodeData, 'security' | 'boardGroup'>;
 
-export const currentNodeId = (snapshot: GraphSnapshot): string | null =>
-  snapshot.cursors?.['agent:primary']?.to ||
-  snapshot.meta?.focus ||
-  Object.values(snapshot.cursors || {})[0]?.to ||
-  null;
+export const currentNodeId = (snapshot: GraphSnapshot, agentId = 'agent:primary'): string | null => {
+  const id = snapshot.cursors?.[agentId]?.to || (agentId === 'agent:primary' ? snapshot.meta?.focus : null);
+  return id && (Array.isArray(snapshot.nodes) ? snapshot.nodes.some((node) => node.id === id) : snapshot.nodes[id]) ? id : null;
+};
 
-function contextIds(snapshot: GraphSnapshot, nodes: BoardNode[], edges: BoardEdge[]) {
+function contextIds(snapshot: GraphSnapshot, nodes: BoardNode[], edges: BoardEdge[], agentId: string) {
   const ids = new Set<string>();
-  const current = currentNodeId(snapshot);
+  const current = currentNodeId(snapshot, agentId);
   const adjacency = new Map(nodes.map((node) => [node.id, [] as string[]]));
   for (const edge of edges) {
     adjacency.get(edge.from)?.push(edge.to);
@@ -96,7 +95,7 @@ function contextIds(snapshot: GraphSnapshot, nodes: BoardNode[], edges: BoardEdg
   return ids;
 }
 
-export function project(snapshot: GraphSnapshot, mode: ViewMode, query: string) {
+export function project(snapshot: GraphSnapshot, mode: ViewMode, query: string, agentId = 'agent:primary') {
   const allNodes = values(snapshot.nodes);
   const existing = new Set(allNodes.map((node) => node.id));
   const allEdges = values(snapshot.edges).filter((edge) => existing.has(edge.from) && existing.has(edge.to));
@@ -105,7 +104,7 @@ export function project(snapshot: GraphSnapshot, mode: ViewMode, query: string) 
     ? new Set(allNodes.map((node) => node.id))
     : mode === 'logic'
       ? linked
-      : contextIds(snapshot, allNodes, allEdges);
+      : contextIds(snapshot, allNodes, allEdges, agentId);
   const nodes = allNodes.filter((node) => visibleIds.has(node.id));
   const nodeIds = new Set(nodes.map((node) => node.id));
   const edges = allEdges.filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to));
@@ -115,11 +114,11 @@ export function project(snapshot: GraphSnapshot, mode: ViewMode, query: string) 
     degree.set(edge.to, (degree.get(edge.to) || 0) + 1);
   });
   const q = query.trim();
-  const current = currentNodeId(snapshot);
+  const current = currentNodeId(snapshot, agentId);
 
   const watching = new Map<string, string[]>();
   for (const cursor of Object.values(snapshot.cursors || {})) {
-    if (!cursor.to || cursor.agentId === 'agent:primary') continue;
+    if (!cursor.to || cursor.agentId === agentId) continue;
     watching.set(cursor.to, [...(watching.get(cursor.to) || []), cursor.agentId.replace(/^agent:/, '')]);
   }
 

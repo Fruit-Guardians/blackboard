@@ -126,6 +126,13 @@ export const zhCN = {
   'digest.stat.nodes': '逻辑节点', 'digest.stat.edges': '逻辑关系', 'digest.stat.open': '开放节点',
   'digest.stat.activities': '原始活动', 'digest.stat.checkpoints': '检查点',
 
+  'topbar.agent': 'Agent 视角',
+  'topbar.agentHint': '仅切换观察视角，不移动任何 Agent 游标。',
+  'edit.discard': '丢弃草稿',
+  'edit.reload': '重新载入当前内容（丢弃草稿）',
+  'edit.conflict': '内容已被其他人或 Agent 修改。你的输入已保留；请重新载入当前内容或丢弃草稿，不会自动覆盖。',
+  'edit.draftHint': '草稿仅保留在本页面会话中；切换节点、视图或关闭面板不会丢失，刷新或离开页面后清除。',
+
   'edit.label': '编辑节点', 'edit.heading': '编辑',
   'edit.title': '标题', 'edit.detail': '详情', 'edit.detailPlaceholder': '详情（可选）',
   'edit.save': '保存', 'edit.editText': '修改文字', 'edit.status': '状态',

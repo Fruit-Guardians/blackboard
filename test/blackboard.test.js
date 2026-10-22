@@ -12,6 +12,7 @@ import {
   addCheckpoint,
   addEdge,
   addNode,
+  appendEvent,
   ensure,
   findRoot,
   isInitialized,
@@ -22,6 +23,7 @@ import {
   defaultAgentId,
   paths,
   replay,
+  readEvents,
   reset,
   setMeta,
   stats,
@@ -243,6 +245,7 @@ test('Agent context honors checkpoint deltas and reports budget truncation', (t)
 
   const packet = buildAgentContext(replay(dir), {
     since: checkpoint.id,
+    events: readEvents(dir).events,
     budgetTokens: 800,
     maxItems: 50,
   });
@@ -627,11 +630,12 @@ test('status identifies the current viewer, another project, offline and unrelat
     port: Number(port), url: `http://127.0.0.1:${port}`, state: 'online',
     cwd: fs.realpathSync(dir), readOnly: true,
   });
-  assert.deepEqual(online.integration, {
-    claude: { skill: { project: false, user: false }, hooks: { project: [], user: [] } },
-    codex: { skill: { project: false, user: false } },
-    errors: [],
+  assert.deepEqual(online.integration.claude, {
+    skill: { project: false, user: false }, hooks: { project: [], user: [] },
   });
+  assert.deepEqual(online.integration.codex.skill, { project: false, user: false });
+  assert.equal(online.integration.codex.hooks, undefined);
+  assert.deepEqual(online.integration.errors, []);
   const foreign = await statusJson(otherEnv, '--port', port);
   assert.equal(foreign.viewer.state, 'other-project');
   assert.equal(foreign.viewer.cwd, fs.realpathSync(dir));
@@ -1100,4 +1104,288 @@ test('--read-only serves the board but takes no writes, and says so in the snaps
   assert.equal((await (await fetch(origin + '/api/graph')).json()).meta.writable, undefined);
   const open = await serve(t);
   assert.equal((await (await fetch(open.origin + '/api/graph')).json()).meta.writable, true);
+});
+
+// CLI usability regressions: exercise subprocess-visible behavior, not parser internals.
+test('invalid CLI options fail before initializing, installing or appending events', (t) => {
+  const empty = bare(t);
+  const board = fixture(t);
+  for (const dir of [empty, board]) {
+    const env = cliEnv(t, dir);
+    const before = dir === board ? fs.readFileSync(paths(dir).events, 'utf8') : null;
+    for (const args of [
+      ['fact', 'title', '--confidnce', 'confirmed'],
+      ['fact', 'title', '--detail'],
+      ['fact', 'title', '-d'],
+      ['fact', 'title', '--detail', '--enter'],
+      ['fact', 'title', '--enter=false'],
+      ['fact', 'title', '--confidence', 'confirmed', '--confidence', 'suspected'],
+      ['fact', 'title', '-d', 'one', '--detail', 'two'],
+      ['fact', 'title', '--confidence', 'invalid'],
+      ['link', 'a', 'b', '--rel', 'custom', '--kind', 'other'],
+      ['init', '--title', 'one', '--title', 'two'],
+      ['init', '--port', '4333'],
+      ['context', '--budget', 'NaN'],
+      ['context', '--depth', '6'],
+      ['ls', '-n', '-1'],
+      ['tree', '-d', '1.5'],
+      ['setup', '--port', '65536'],
+      ['skill', 'install', '--agent', 'zcode'],
+      ['skill', 'install', '--codex', '--user', '--project'],
+    ]) {
+      const result = spawnSync(process.execPath, [CLI, ...args], { cwd: dir, env, encoding: 'utf8' });
+      assert.notEqual(result.status, 0, args.join(' '));
+      assert.match(result.stderr, /未知选项|缺少值|不接受值|不可重复|冲突|只能是|应为/, args.join(' '));
+      if (before !== null) assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
+      else assert.deepEqual(fs.readdirSync(dir), []);
+      assert.deepEqual(fs.readdirSync(env.HOME), []);
+    }
+  }
+});
+
+test('CLI preserves custom semantics, repeated tags, aliases and delimiter titles', (t) => {
+  const dir = fixture(t);
+  const env = cliEnv(t, dir);
+  const run = (...args) => JSON.parse(execFileSync(process.execPath, [CLI, ...args], { env, encoding: 'utf8' }));
+  const first = run('node', 'add', 'custom-kind', '--tag', 'one', '-t', 'two', '-d', 'details', '--json', '--', '--help title').node;
+  assert.equal(first.type, 'custom-kind');
+  assert.equal(first.title, '--help title');
+  assert.equal(first.detail, 'details');
+  assert.deepEqual(first.tags, ['one', 'two']);
+  const second = run('fact', 'alias title', '--json').node;
+  const edge = run('link', first.id, second.id, '--kind', 'custom-relation', '--json');
+  assert.equal(edge.kind, 'custom-relation');
+  run('focus', second.id, '--json');
+  assert.equal(run('cursor', '--json').cursor, second.id);
+  assert.equal(run('list', '-t', 'custom-kind', '-n', '1', '--json')[0].id, first.id);
+  const before = fs.readFileSync(paths(dir).events, 'utf8');
+  for (const command of ['skill', 'hooks', 'service', 'fact']) {
+    const result = spawnSync(process.execPath, [CLI, command, '--invalid', '--help'], { env, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+  }
+  assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
+  assert.deepEqual(fs.readdirSync(env.HOME), []);
+});
+
+
+test('CLI serve accepts port zero and reports its actual listening port', async (t) => {
+  const dir = fixture(t);
+  const child = spawn(process.execPath, [CLI, 'serve', '--port', '0'], {
+    env: cliEnv(t, dir), stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  t.after(() => child.kill());
+  let stdout = '';
+  let stderr = '';
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const port = await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(`serve did not start: ${stderr}`)), 10000);
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+      const match = /127\.0\.0\.1:(\d+)/.exec(stdout);
+      if (match && Number(match[1])) { clearTimeout(timeout); resolve(Number(match[1])); }
+    });
+    child.once('exit', (code) => { clearTimeout(timeout); reject(new Error(`serve exited ${code}: ${stderr}`)); });
+  });
+  const response = await fetch(`http://127.0.0.1:${port}/api/status`);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).cwd, fs.realpathSync(dir));
+});
+
+test('macOS shared service lifecycle operates only on an isolated managed launchd job', {
+  skip: process.platform !== 'darwin',
+}, async (t) => {
+  let serviceState;
+  t.after(() => {
+    if (serviceState && fs.existsSync(serviceState)) {
+      try { process.kill(Number(fs.readFileSync(serviceState, 'utf8'))); } catch {}
+    }
+  });
+  const dir = fixture(t);
+  const other = fixture(t);
+  const env = cliEnv(t, dir);
+  const fakeBin = path.join(env.HOME, 'fake-bin');
+  fs.mkdirSync(fakeBin);
+  env.PATH = `${fakeBin}${path.delimiter}${env.PATH}`;
+  env.BLACKBOARD_TEST_SERVICE_STATE = path.join(env.HOME, 'service-pid');
+  serviceState = env.BLACKBOARD_TEST_SERVICE_STATE;
+  const fakeLaunchctl = `#!${process.execPath}
+const fs = require('node:fs');
+const { spawn } = require('node:child_process');
+const state = process.env.BLACKBOARD_TEST_SERVICE_STATE;
+const args = process.argv.slice(2);
+const pid = () => fs.existsSync(state) ? Number(fs.readFileSync(state, 'utf8')) : null;
+if (args[0] === 'print') {
+  if (!pid()) process.exit(113);
+  try { process.kill(pid(), 0); } catch { process.exit(113); }
+  console.log('  state = ' + (fs.existsSync(state + '.waiting') ? 'waiting' : 'running'));
+} else if (args[0] === 'bootout') {
+  if (pid()) { try { process.kill(pid()); } catch {} }
+  fs.rmSync(state, { force: true });
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 200);
+} else if (args[0] === 'bootstrap') {
+  const raw = fs.readFileSync(args[2], 'utf8');
+  const strings = [...raw.matchAll(/<string>([^<]*)<\\/string>/g)].map(m => m[1]);
+  const cliIndex = strings.findIndex(s => s.endsWith('/bin/blackboard.js'));
+  const owner = /<key>WorkingDirectory<\\/key>\\s*<string>([^<]*)<\\/string>/.exec(raw)[1];
+  const port = strings[strings.indexOf('--port') + 1];
+  const child = spawn(strings[cliIndex - 1], [strings[cliIndex], 'serve', '--port', port], {
+    cwd: owner, env: { ...process.env, BLACKBOARD_CWD: owner }, detached: true, stdio: 'ignore',
+  });
+  child.unref();
+  fs.writeFileSync(state, String(child.pid));
+} else process.exit(2);
+`;
+  fs.writeFileSync(path.join(fakeBin, 'launchctl'), fakeLaunchctl, { mode: 0o755 });
+  const run = async (...args) => JSON.parse((await execFileAsync(process.execPath, [CLI, ...args, '--json'], {
+    env, encoding: 'utf8', timeout: 15000,
+  })).stdout);
+  const listener = http.createServer();
+  await new Promise((resolve) => listener.listen(0, '127.0.0.1', resolve));
+  const port = listener.address().port;
+  await new Promise((resolve) => listener.close(resolve));
+  assert.equal((await run('service', 'status')).state, 'not-installed');
+  const first = await run('setup', '--target', dir, '--port', String(port), '--no-hooks', '--no-skill');
+  assert.equal(first.service.verified, true);
+  assert.equal(first.service.switched, false);
+  const installed = await run('service', 'status');
+  assert.equal(installed.state, 'running');
+  assert.equal(installed.currentProject, true);
+  const switched = await run('setup', '--target', other, '--port', String(port), '--no-hooks', '--no-skill');
+  assert.equal(switched.service.previousCwd, dir);
+  assert.equal(switched.service.cwd, other);
+  assert.equal(switched.service.switched, true);
+  const foreign = await run('service', 'status');
+  assert.equal(foreign.cwd, other);
+  assert.equal(foreign.currentProject, false);
+  const before = fs.readFileSync(paths(other).events, 'utf8');
+  const unrelated = path.join(path.dirname(installed.file), 'org.example.unrelated.plist');
+  fs.writeFileSync(unrelated, '<plist>unrelated</plist>');
+  fs.writeFileSync(env.BLACKBOARD_TEST_SERVICE_STATE + '.waiting', '');
+  const waiting = await run('service', 'status');
+  assert.equal(waiting.loaded, true);
+  assert.equal(waiting.running, false);
+  assert.equal(waiting.state, 'waiting');
+  assert.equal((await run('service', 'stop')).state, 'stopped');
+  assert.equal(fs.existsSync(installed.file), true);
+  assert.equal((await run('service', 'status')).state, 'stopped');
+  const removed = await run('service', 'uninstall');
+  assert.equal(removed.removed, true);
+  assert.equal(fs.existsSync(installed.file), false);
+  assert.equal(fs.readFileSync(unrelated, 'utf8'), '<plist>unrelated</plist>');
+  assert.equal(fs.readFileSync(paths(other).events, 'utf8'), before);
+  assert.equal((await run('service', 'status')).state, 'not-installed');
+  fs.writeFileSync(installed.file, '<plist>not owned by blackboard</plist>');
+  const refused = spawnSync(process.execPath, [CLI, 'service', 'uninstall'], { env, encoding: 'utf8' });
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stderr, /拒绝修改/);
+  assert.equal(fs.readFileSync(installed.file, 'utf8'), '<plist>not owned by blackboard</plist>');
+});
+
+test('non-macOS lifecycle accurately reports unsupported without changing installation or data', {
+  skip: process.platform === 'darwin',
+}, (t) => {
+  const dir = bare(t);
+  const env = cliEnv(t, dir);
+  for (const action of ['status', 'stop', 'uninstall']) {
+    const result = JSON.parse(execFileSync(process.execPath, [CLI, 'service', action, '--json'], { env, encoding: 'utf8' }));
+    assert.equal(result.mode, 'unsupported');
+    assert.equal(result.state, 'unsupported');
+  }
+  assert.deepEqual(fs.readdirSync(dir), []);
+  assert.deepEqual(fs.readdirSync(env.HOME), []);
+});
+
+test('CLI incremental context consumes events for removals and relationship changes without writing', (t) => {
+  const dir = fixture(t);
+  const env = cliEnv(t, dir);
+  const from = addNode({ type: 'note', title: 'remove this observation' }, dir).node;
+  const to = addNode({ type: 'note', title: 'surviving observation' }, dir).node;
+  const checkpoint = addCheckpoint({ summary: 'delta baseline' }, dir);
+  const edge = addEdge({ from: from.id, to: to.id, kind: 'custom-relation' }, dir);
+  removeEdge({ from: from.id, to: to.id, kind: edge.kind }, {}, dir);
+  removeNode(from.id, {}, dir);
+  const before = fs.readFileSync(paths(dir).events, 'utf8');
+  const packet = JSON.parse(execFileSync(process.execPath,
+    [CLI, 'context', '--since', checkpoint.id, '--budget', '12000'], { env, encoding: 'utf8' }));
+  assert.ok(packet.changes.some((change) => change.kind === 'node-removed' && change.id === from.id));
+  assert.ok(packet.changes.some((change) => change.kind === 'relation-added' && change.id === edge.id));
+  assert.ok(packet.changes.some((change) => change.kind === 'relation-removed' && change.id === edge.id));
+  assert.equal(packet.policy.readOnly, true);
+  assert.equal(packet.policy.prescriptive, false);
+  const invalid = spawnSync(process.execPath, [CLI, 'context', '--since', 'does-not-exist'], { env, encoding: 'utf8' });
+  assert.notEqual(invalid.status, 0);
+  assert.match(invalid.stderr, /checkpoint/);
+  assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
+});
+
+test('conditional viewer edits preserve disjoint updates and reject stale fields without appending', async (t) => {
+  const { dir, call } = await serve(t);
+  const node = addNode({ type: 'note', title: 'original title', detail: 'original detail' }, dir).node;
+  patchNode(node.id, { title: 'Agent title', detail: 'Agent detail' }, dir);
+  const before = fs.readFileSync(paths(dir).events, 'utf8');
+  const stale = await call('PATCH', `/api/nodes/${node.id}`, {
+    body: { detail: 'human draft', expected: { detail: 'original detail' } },
+  });
+  assert.equal(stale.status, 409);
+  assert.deepEqual(await stale.json(), { error: 'node_conflict', fields: ['detail'] });
+  assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
+  const accepted = await call('PATCH', `/api/nodes/${node.id}`, {
+    body: { detail: 'human draft', expected: { detail: 'Agent detail' } },
+  });
+  assert.equal(accepted.status, 200);
+  assert.equal(replay(dir).nodes[node.id].title, 'Agent title');
+  assert.equal(replay(dir).nodes[node.id].detail, 'human draft');
+  for (const expected of [null, [], { title: 1 }, { status: 'open' }]) {
+    const invalid = await call('PATCH', `/api/nodes/${node.id}`, { body: { title: 'invalid update', expected } });
+    assert.equal(invalid.status, 400);
+  }
+  assert.equal(replay(dir).nodes[node.id].title, 'Agent title');
+});
+
+test('incremental recovery follows checkpoint event order and reports structural removals within one millisecond', async (t) => {
+  const { dir, call } = await serve(t);
+  const a = addNode({ type: 'note', title: 'keep' }, dir).node;
+  const b = addNode({ type: 'note', title: 'remove' }, dir).node;
+  const at = Date.now();
+  const old = { id: `${a.id}->${b.id}:related-to`, from: a.id, to: b.id, kind: 'related-to', ts: at };
+  appendEvent({ op: 'edge', edge: old }, dir);
+  appendEvent({ op: 'checkpoint', checkpoint: { id: 'cp1', agentId: 'agent:primary', at, summary: 'boundary' } }, dir);
+  const added = { ...old, id: `${a.id}->${b.id}:supports`, kind: 'supports' };
+  appendEvent({ op: 'edge', edge: added }, dir);
+  appendEvent({ op: 'remove', kind: 'edge', id: old.id, at }, dir);
+  appendEvent({ op: 'patch', id: a.id, set: { title: 'updated after checkpoint', updated: at } }, dir);
+  appendEvent({ op: 'remove', kind: 'node', id: b.id, at }, dir);
+  const before = fs.readFileSync(paths(dir).events, 'utf8');
+  const response = await call('GET', '/api/context?since=cp1&budget=12000');
+  assert.equal(response.status, 200);
+  const packet = await response.json();
+  assert.deepEqual(packet.recentChanges.map((node) => node.id), [a.id]);
+  assert.deepEqual(packet.changes.map((change) => [change.kind, change.id]), [
+    ['node-removed', b.id], ['relation-removed', old.id], ['relation-added', added.id],
+  ]);
+  assert.deepEqual(packet.relations, []);
+  assert.equal((await call('GET', '/api/context?since=missing')).status, 400);
+  assert.equal((await call('GET', '/api/graph')).status, 200);
+  assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
+  const limited = buildAgentContext(replay(dir), { since: 'cp1', events: readEvents(dir).events, maxItems: 1 });
+  assert.equal(limited.changes[0].kind, 'node-removed');
+  assert.equal(limited.omitted.changes, 2);
+  assert.equal(limited.truncated, true);
+});
+
+test('live recovery digests keep independent cursor and checkpoint-only Agent perspectives', async (t) => {
+  const { dir, call } = await serve(t);
+  const primary = addNode({ type: 'note', title: 'primary position', enter: true }, dir).node;
+  const research = addNode({ type: 'note', title: 'research position', enter: true, agentId: 'agent:research' }, dir).node;
+  addCheckpoint({ agentId: 'agent:research', summary: 'research recovery marker' }, dir);
+  addCheckpoint({ agentId: 'agent:handoff', summary: 'handoff without cursor' }, dir);
+  const before = fs.readFileSync(paths(dir).events, 'utf8');
+  const snapshot = await (await call('GET', '/api/graph')).json();
+  assert.equal(digestCursor(snapshot.digests['agent:primary']), primary.id);
+  assert.equal(digestCursor(snapshot.digests['agent:research']), research.id);
+  assert.equal(digestCursor(snapshot.digests['agent:handoff']), null);
+  assert.match(snapshot.digests['agent:research'], /research recovery marker/);
+  assert.doesNotMatch(snapshot.digests['agent:primary'], /research recovery marker/);
+  assert.match(snapshot.digests['agent:handoff'], /handoff without cursor/);
+  assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
 });

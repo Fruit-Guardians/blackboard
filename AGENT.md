@@ -39,4 +39,5 @@ blackboard 不是行动前置条件，不替 Agent 决定下一步。具体体�
 - 命名已完成 breaking cutover：唯一 CLI 是 `blackboard`（`bin/blackboard.js`），环境变量只用 `BLACKBOARD_*`，数据目录只用 `.blackboard/`。不保留 `flow` 入口、`FLOW_*` 读取或 `.flow/` 回退，不新增自动迁移/别名；其他项目按 README 手动重命名目录、重装 Skill/Hook，事件原文不改写。
 - Skill 的唯一源是完整的 `skills/blackboard/` 包：`SKILL.md` 保持聚焦，参考资料按需加载，`agents/openai.yaml` 与 `assets/` 承载展示信息。安装和发布必须包含完整目录，不恢复内嵌副本，也不只复制入口而遗漏资源。
 - 写接口（server 页面编辑）必须维持三道防护：loopback Host 校验（防 DNS 重绑定）、同 Origin + `application/json`、256KB 请求体上限；`--read-only` 与离线导出永远只读。
+- 页面协作编辑只提交实际修改字段，并在事件写锁内核对字段基准；冲突保留草稿，不自动覆盖或合并。选择 Agent 阅读视角不写事件、不移动任何人的游标；实时与离线投影须保持同一身份语义。
 - 新建 `.blackboard/` 自带 `.gitignore`（内容 `*`）：黑板可能含敏感原文，默认不进版本库。

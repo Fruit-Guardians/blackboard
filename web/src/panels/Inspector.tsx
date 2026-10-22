@@ -21,9 +21,10 @@ type Props = {
   linkCopied?: boolean;
   /** The server accepts edits from this page. */
   writable?: boolean;
+  onReload: () => Promise<void>;
 };
 
-export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, linkCopied, writable }: Props) {
+export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, linkCopied, writable, onReload }: Props) {
   const relations = edges.filter((edge) => edge.from === node.id || edge.to === node.id);
   const text = presentNode(node);
   const severe = node.severity === 'critical' || node.severity === 'high';
@@ -96,7 +97,7 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
         </section>
 
         {writable && <AddSection key={`add-${node.id}`} node={node} />}
-        {writable && <EditSection key={`edit-${node.id}`} node={node} />}
+        {writable && <EditSection key={`edit-${node.id}`} node={node} onReload={onReload} />}
 
         <Collapsible.Root key={node.id} className="mt-6">
           <Collapsible.Trigger className="group flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">

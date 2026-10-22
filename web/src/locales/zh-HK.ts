@@ -127,6 +127,13 @@ export const zhHK: Messages = {
   'digest.stat.nodes': '邏輯節點', 'digest.stat.edges': '邏輯關係', 'digest.stat.open': '開放節點',
   'digest.stat.activities': '原始活動', 'digest.stat.checkpoints': '檢查點',
 
+  'topbar.agent': 'Agent 視角',
+  'topbar.agentHint': '僅切換觀察視角，不移動任何 Agent 游標。',
+  'edit.discard': '捨棄草稿',
+  'edit.reload': '重新載入目前內容（捨棄草稿）',
+  'edit.conflict': '內容已被其他人或 Agent 修改。你的輸入已保留；請重新載入目前內容或捨棄草稿，不會自動覆寫。',
+  'edit.draftHint': '草稿僅保留在本頁面工作階段；切換節點、檢視或關閉面板不會遺失，重新整理或離開頁面後清除。',
+
   'edit.label': '編輯節點', 'edit.heading': '編輯',
   'edit.title': '標題', 'edit.detail': '詳情', 'edit.detailPlaceholder': '詳情（選填）',
   'edit.save': '儲存', 'edit.editText': '修改文字', 'edit.status': '狀態',
