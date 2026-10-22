@@ -4,7 +4,10 @@ import { labelPoint, roundedPath, routeValid, type EdgeRoute } from './edge-rout
 import { routeAround, type Rect } from './router';
 import type { EdgeStyle } from './graph';
 
-type RoutedData = { route?: EdgeRoute; style?: EdgeStyle };
+type RoutedData = { route?: EdgeRoute; style?: EdgeStyle; text?: string; group?: string; quiet?: boolean };
+
+/** From here on a card is legible, so the relation it hangs on is worth naming too. */
+const LABEL_ZOOM = .6;
 
 /**
  * Follows ELK's route while the nodes are where the layout put them. Once a card has been dragged,
@@ -12,7 +15,10 @@ type RoutedData = { route?: EdgeRoute; style?: EdgeStyle };
  */
 export const RoutedEdge = memo(function RoutedEdge(props: EdgeProps) {
   const { source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerStart, markerEnd, style, label, interactionWidth } = props;
-  const { route, style: shape = 'curve' } = (props.data || {}) as RoutedData;
+  const { route, style: shape = 'curve', text, group, quiet } = (props.data || {}) as RoutedData;
+  // Weak, quiet links stay unnamed until focused; the strong families say what they are once readable.
+  const named = useStore((state) => state.transform[2] >= LABEL_ZOOM);
+  const shown = label ?? (named && text && group !== 'link' && !quiet ? text : undefined);
   const sourcePos = useStore((state) => state.nodeLookup.get(source)?.internals.positionAbsolute);
   const targetPos = useStore((state) => state.nodeLookup.get(target)?.internals.positionAbsolute);
   const sourceRun = useStore((state) => state.nodeLookup.get(source)?.data.layoutRun as number | undefined);
@@ -49,5 +55,5 @@ export const RoutedEdge = memo(function RoutedEdge(props: EdgeProps) {
     // Boxed in on every side: a plain curve is the last resort.
     [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
   }
-  return <BaseEdge path={path} labelX={labelX} labelY={labelY} label={label} markerStart={markerStart} markerEnd={markerEnd} style={style} interactionWidth={interactionWidth} />;
+  return <BaseEdge path={path} labelX={labelX} labelY={labelY} label={shown} markerStart={markerStart} markerEnd={markerEnd} style={style} interactionWidth={interactionWidth} />;
 });

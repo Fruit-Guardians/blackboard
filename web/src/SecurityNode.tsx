@@ -57,6 +57,8 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
     item.confidence ? confidenceLabel(item.confidence) : item.status ? statusLabel(item.status) : '',
   ].filter(Boolean).join(' · ');
   const overview = level === 'overview';
+  // The header that names severity is gone in the overview, so it moves to a badge that survives zooming out.
+  const rated = item.severity && item.severity !== 'info' ? severityLabel(item.severity) : '';
 
   return (
     <BaseNode
@@ -68,8 +70,10 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
         'flex flex-col gap-1.5 py-3 pl-4 pr-3.5 text-left',
         // Each kind carries its own hue: a faint wash, a tinted edge and an accent bar.
         'border-[color-mix(in_srgb,var(--c)_24%,var(--line))] bg-[color-mix(in_srgb,var(--c)_7%,var(--surface))]',
-        current && !selected && 'border-live/70 ring-1 ring-live/30',
+        current && 'current-halo',
+        current && !selected && 'border-live ring-2 ring-live/60',
         selected && 'ring-1 ring-foreground',
+        overview && severe && 'border-destructive/60',
         dimmed && 'opacity-25',
         muted && 'opacity-35',
         fresh && 'fresh-pulse',
@@ -77,6 +81,14 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
     >
       <i aria-hidden className="absolute bottom-3 left-0 top-3 w-[3px] rounded-r-full bg-(--c)" />
       <Handle type="target" position={vertical ? Position.Top : Position.Left} className={handleClass} />
+      {overview && current && (
+        <span className="zoom-chip at-left inline-flex items-center gap-1 rounded-md bg-live px-2 text-[11px] text-white">
+          <i className="size-1.5 rounded-full bg-white" />{t('node.current')}
+        </span>
+      )}
+      {overview && rated && (
+        <span className={cn('zoom-chip at-right rounded-md border px-2 text-[11px]', severe ? 'border-destructive bg-danger-soft text-destructive' : 'border-border bg-card text-muted-foreground')}>{rated}</span>
+      )}
       {!overview && (
         <header className="flex items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
           <span className="inline-flex items-center gap-1 font-medium text-[color-mix(in_srgb,var(--c)_78%,var(--ink))]">

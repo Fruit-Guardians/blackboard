@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Background, BackgroundVariant, MiniMap, ReactFlow, ReactFlowProvider,
+  Background, BackgroundVariant, MiniMap, ReactFlow, ReactFlowProvider, getNodesBounds, getViewportForBounds,
   useEdgesState, useNodesInitialized, useNodesState, useReactFlow, useUpdateNodeInternals,
   type Edge, type NodeMouseHandler, type OnNodesChange,
 } from '@xyflow/react';
@@ -8,7 +8,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { BoardGroup } from './BoardGroup';
 import { BrandMark } from './BrandMark';
 import { SecurityNode } from './SecurityNode';
-import { focusedIds, neighborInDirection, type ArrowKey } from './canvas-state';
+import { focusedIds, frameStrategy, neighborInDirection, pickFocus, type ArrowKey } from './canvas-state';
 import { exportCanvasPng } from './export-image';
 import { RoutedEdge } from './RoutedEdge';
 import { currentNodeId, layoutGraph, NODE_H, NODE_W, project, typeLabel as typeLabelOf, type CanvasNode, type EdgeStyle, type Positions, type RelationGroup } from './graph';
@@ -58,7 +58,8 @@ function Workspace() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
   const [showMap, setShowMap] = usePref('minimap', false);
-  const [showLegend, setShowLegend] = usePref('legend', true);
+  // Closed by default: it covers cards, and the toolbar opens it when a reader wants the key.
+  const [showLegend, setShowLegend] = usePref('legend-open', false);
   const [edgeStyle, setEdgeStyle] = usePref<EdgeStyle>('edge-style', 'curve');
   const [follow, setFollow] = usePref('follow', false);
   const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
@@ -379,10 +380,22 @@ function Workspace() {
         centerOnNode(requested, true, duration);
         pendingFocus.current = null;
       } else if (following) centerOnNode(following, Boolean(live.current.selectedId), duration);
-      else fitView({ padding: .14, duration, minZoom: .08, maxZoom: 1 });
+      else {
+        // A board that only fits at an unreadable zoom opens where reading starts; "fit" still shows it all.
+        const cards = getNodes().filter((node) => !node.data.group);
+        const box = viewportRef.current;
+        const fitZoom = mode !== 'all' && cards.length && box
+          ? getViewportForBounds(getNodesBounds(cards), box.clientWidth, box.clientHeight, .08, 1, .14).zoom
+          : 1;
+        const start = frameStrategy(fitZoom) === 'focus'
+          ? pickFocus(cards.map((node) => ({ id: node.id, degree: node.data.degree, ts: node.data.item.ts })), live.current.currentId)
+          : null;
+        if (start) centerOnNode(start, false, duration);
+        else fitView({ padding: .14, duration, minZoom: .08, maxZoom: 1 });
+      }
     });
     return () => cancelAnimationFrame(frame);
-  }, [initialized, layoutRevision, centerOnNode, fitView, getNode, mode, motion]);
+  }, [initialized, layoutRevision, centerOnNode, fitView, getNode, getNodes, mode, motion]);
 
   // Follow mode: when the Agent's cursor moves, bring the new position into view.
   useEffect(() => {
@@ -537,6 +550,7 @@ function Workspace() {
             colorMode={theme}
             fitView
             fitViewOptions={{ padding: .14, minZoom: .08, maxZoom: 1 }}
+            onMove={(_, viewport) => viewportRef.current?.style.setProperty('--zoom', String(viewport.zoom))}
             proOptions={{ hideAttribution: true }}
           >
             <Background variant={BackgroundVariant.Dots} gap={22} size={1} />

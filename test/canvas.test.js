@@ -16,8 +16,8 @@ for (const file of fs.readdirSync(dir).filter((name) => name.endsWith('.js'))) {
 }
 fs.writeFileSync(path.join(dir,'package.json'),JSON.stringify({type:'module'}));
 fs.symlinkSync(path.join(root,'node_modules'),path.join(dir,'node_modules'),'dir');
-const { detailLevel, groupFor, focusedIds, neighborInDirection } = await import(pathToFileURL(path.join(dir,'canvas-state.js')).href);
-const { layoutOverview, project, layoutGraph, gridLayout, relationGroup, RELATION_GROUPS, configureElk, placementFor } = await import(pathToFileURL(path.join(dir,'graph.js')).href);
+const { detailLevel, groupFor, focusedIds, neighborInDirection, frameStrategy, pickFocus, READABLE_ZOOM } = await import(pathToFileURL(path.join(dir,'canvas-state.js')).href);
+const { layoutOverview, project, layoutGraph, gridLayout, relationGroup, RELATION_GROUPS, RELATION_DASH, configureElk, placementFor } = await import(pathToFileURL(path.join(dir,'graph.js')).href);
 const { default: ELK } = await import('elkjs/lib/elk.bundled.js');
 configureElk(() => new ELK());
 const { roundedPath, routeValid } = await import(pathToFileURL(path.join(dir,'edge-route.js')).href);
@@ -32,6 +32,26 @@ const snapshot = { meta:{focus:'o'}, nodes:items, edges:[{id:'e',from:'o',to:'f'
 
 test('semantic zoom has three stable, explicit thresholds',()=>{
  assert.equal(detailLevel(.2),'overview'); assert.equal(detailLevel(.65),'compact'); assert.equal(detailLevel(.9),'detail');
+});
+test('a board is fitted only while it stays readable, otherwise reading starts at one card',()=>{
+ assert.equal(frameStrategy(READABLE_ZOOM),'fit'); assert.equal(frameStrategy(1),'fit');
+ assert.equal(frameStrategy(.2),'focus');
+ assert.ok(READABLE_ZOOM>.4 && READABLE_ZOOM<=.65,'the readable floor sits where card titles are still legible');
+});
+test('the starting card is the current one, else the most connected, and never an invented path',()=>{
+ const cards=[{id:'a',degree:1,ts:5},{id:'b',degree:3,ts:9},{id:'c',degree:3,ts:2}];
+ assert.equal(pickFocus(cards,'a'),'a');
+ assert.equal(pickFocus(cards,'gone'),'c','a cursor that is not on this view is ignored; ties go to the earliest');
+ assert.equal(pickFocus(cards,null),'c');
+ assert.equal(pickFocus([],null),null);
+});
+test('every relation family has its own stroke pattern besides its colour',()=>{
+ const patterns=RELATION_GROUPS.map(({id})=>String(RELATION_DASH[id]));
+ assert.equal(new Set(patterns).size,patterns.length);
+ const p=project({meta:{},nodes:items,edges:[{id:'e',from:'o',to:'f',kind:'contradicts'},{id:'e2',from:'g',to:'o',kind:'related-to'}]},'logic','');
+ const byKind=Object.fromEntries(p.edges.map(e=>[e.data.kind,e]));
+ assert.equal(byKind.contradicts.style.strokeDasharray,RELATION_DASH.oppose);
+ assert.equal(byKind.contradicts.data.text,'反驳');
 });
 test('grouping classifies content without changing node type or data',()=>{
  const before=JSON.stringify(items); const connected=new Set(['f','o']);

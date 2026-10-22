@@ -169,10 +169,10 @@
   --edge-replace: color-mix(in srgb, var(--rel-replace) 70%, var(--line-strong));
 }
 .react-flow__edge.edge-g-support .react-flow__edge-path { stroke: var(--edge-support); }
-.react-flow__edge.edge-g-oppose .react-flow__edge-path { stroke: var(--edge-oppose); stroke-dasharray: 5 4; }
+.react-flow__edge.edge-g-oppose .react-flow__edge-path { stroke: var(--edge-oppose); }
 .react-flow__edge.edge-g-derive .react-flow__edge-path { stroke: var(--edge-derive); }
 .react-flow__edge.edge-g-produce .react-flow__edge-path { stroke: var(--edge-produce); }
-.react-flow__edge.edge-g-replace .react-flow__edge-path { stroke: var(--edge-replace); stroke-dasharray: 2 4; }
+.react-flow__edge.edge-g-replace .react-flow__edge-path { stroke: var(--edge-replace); }
 /* A focused edge keeps its family colour at full strength; unclassified links turn to ink. */
 .react-flow__edge.is-focused .react-flow__edge-path { stroke: var(--ink); }
 .react-flow__edge.is-focused.edge-g-support .react-flow__edge-path { stroke: var(--rel-support); }
@@ -226,3 +226,20 @@
   100% { box-shadow: 0 0 0 10px transparent; }
 }
 .fresh-pulse { animation: fresh-ring 1.4s ease-out 3; }
+
+/* The current node must be findable at a glance, at any zoom. */
+.current-halo { box-shadow: 0 0 0 5px color-mix(in srgb, var(--live) 16%, transparent); }
+
+/* Badges that stay about the same size on screen while the board is zoomed out (--zoom is set on the canvas). */
+.zoom-chip {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  white-space: nowrap;
+  font-weight: 600;
+  line-height: 1.35;
+  /* Sits on the card's top edge, mostly in the gap above it, so it does not cover the title. */
+  transform: translateY(-88%) scale(clamp(1, calc(1.1 / var(--zoom, 1)), 3));
+}
+.zoom-chip.at-right { right: 8px; transform-origin: right center; }
+.zoom-chip.at-left { left: 8px; transform-origin: left center; }
