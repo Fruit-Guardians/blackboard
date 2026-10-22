@@ -701,16 +701,17 @@ function addSimple(type, args, flags) {
 
 function cmdCheckpoint(args, flags) {
   needInit();
-  const summary = flags.summary || flags.title || args.join(' ').trim() || buildDigest(replay(cwd()), cwd());
+  const agentId = flags.agent || defaultAgentId();
+  const summary = flags.summary || flags.title || args.join(' ').trim() || buildDigest(replay(cwd()), cwd(), agentId);
   const checkpoint = addCheckpoint(
     {
       summary,
       trigger: flags.trigger || (process.argv[2] === 'compact' ? 'manual-compact' : 'manual'),
-      agentId: flags.agent || defaultAgentId(),
+      agentId,
     },
     cwd(),
   );
-  if (flags.write) fs.writeFileSync(paths(cwd()).digest, buildDigest(replay(cwd()), cwd()));
+  if (flags.write) fs.writeFileSync(paths(cwd()).digest, buildDigest(replay(cwd()), cwd(), agentId));
   warnTruncated(checkpoint);
   if (flags.json) return out(flags, checkpoint);
   if (!process.env.BLACKBOARD_QUIET) {

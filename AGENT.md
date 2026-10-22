@@ -37,5 +37,6 @@ blackboard 不是行动前置条件，不替 Agent 决定下一步。具体体�
 - 零运行时依赖，只需 Node ≥ 18；前端依赖全部是 devDependencies，`public/` 带构建产物，CLI 即装即用。
 - `lib/model.js` 必须保持无 Node-only API：被 CLI、server 和浏览器共用。
 - 命名已完成 breaking cutover：唯一 CLI 是 `blackboard`（`bin/blackboard.js`），环境变量只用 `BLACKBOARD_*`，数据目录只用 `.blackboard/`。不保留 `flow` 入口、`FLOW_*` 读取或 `.flow/` 回退，不新增自动迁移/别名；其他项目按 README 手动重命名目录、重装 Skill/Hook，事件原文不改写。
+- Skill 的唯一源是完整的 `skills/blackboard/` 包：`SKILL.md` 保持聚焦，参考资料按需加载，`agents/openai.yaml` 与 `assets/` 承载展示信息。安装和发布必须包含完整目录，不恢复内嵌副本，也不只复制入口而遗漏资源。
 - 写接口（server 页面编辑）必须维持三道防护：loopback Host 校验（防 DNS 重绑定）、同 Origin + `application/json`、256KB 请求体上限；`--read-only` 与离线导出永远只读。
 - 新建 `.blackboard/` 自带 `.gitignore`（内容 `*`）：黑板可能含敏感原文，默认不进版本库。

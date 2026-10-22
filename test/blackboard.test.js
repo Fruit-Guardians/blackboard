@@ -29,7 +29,7 @@ import {
 } from '../lib/store.js';
 import { currentCursor, apply, emptyGraph, resolveRef } from '../lib/model.js';
 import { buildDigest, tail } from '../lib/digest.js';
-import { installHooks, installSkill, redactSensitive, runHook, uninstallHooks } from '../lib/hooks.js';
+import { installHooks, redactSensitive, runHook, uninstallHooks } from '../lib/hooks.js';
 import { renderLaunchAgent } from '../lib/setup.js';
 import { renderExport } from '../lib/export.js';
 import { startServer } from '../lib/server.js';
@@ -106,6 +106,105 @@ test('digest and tail use the requested Agent focus instead of the primary curso
   }
   assert.equal(currentCursor(replay(dir), 'agent:primary'), primary.id);
   assert.equal(currentCursor(replay(dir), 'agent:review'), review.id);
+});
+
+function digestCursor(digest) {
+  const current = digest.split(/^## 当前节点$/m)[1]?.split(/^## /m)[0] || '';
+  return /^\s*-\s+\[([^\]]+)\]/m.exec(current)?.[1] || null;
+}
+
+function parallelHookFixture(t) {
+  const dir = fixture(t);
+  const env = cliEnv(t, dir);
+  const primary = addNode({ type: 'note', title: 'primary hook focus' }, dir).node;
+  const research = addNode({ type: 'hypothesis', title: 'research hook focus' }, dir).node;
+  moveCursor(primary.id, { agentId: 'agent:primary' }, dir);
+  moveCursor(research.id, { agentId: 'agent:research' }, dir);
+  const run = (args, agentEnv = env, payload) => execFileSync(process.execPath, [CLI, ...args], {
+    cwd: dir, env: agentEnv, encoding: 'utf8',
+    input: payload === undefined ? undefined : JSON.stringify(payload),
+  });
+  const researchEnv = { ...env, BLACKBOARD_AGENT: 'research' };
+  const hook = (event, payload = {}) => run(['hook', event], researchEnv, {
+    session_id: 'host-session-not-an-agent', ...payload,
+  });
+  const context = (agentId) => JSON.parse(run(['context', '--agent', agentId]));
+  return { dir, env, primary, research, run, hook, context };
+}
+
+test('SessionStart restores the inherited Agent focus, not the host session or primary', (t) => {
+  const { dir, env, primary, research, run, hook, context } = parallelHookFixture(t);
+  const before = fs.readFileSync(paths(dir).events, 'utf8');
+  const restored = JSON.parse(hook('SessionStart')).hookSpecificOutput.additionalContext;
+  assert.equal(digestCursor(restored), research.id);
+  assert.equal(digestCursor(fs.readFileSync(paths(dir).digest, 'utf8')), research.id);
+  assert.equal(context('agent:research').currentFocus.id, research.id);
+  assert.equal(context('agent:primary').currentFocus.id, primary.id);
+  const defaultRestore = JSON.parse(run(['hook', 'SessionStart'], env, {
+    session_id: 'research',
+  })).hookSpecificOutput.additionalContext;
+  assert.equal(digestCursor(defaultRestore), primary.id);
+  assert.equal(fs.readFileSync(paths(dir).events, 'utf8'), before);
+});
+
+test('PreCompact saves a recoverable checkpoint and Digest for the inherited Agent', (t) => {
+  const { dir, primary, research, hook, context } = parallelHookFixture(t);
+  hook('PreCompact', { trigger: 'auto' });
+  const graph = replay(dir);
+  const checkpoints = Object.values(graph.checkpoints);
+  assert.equal(checkpoints.length, 1);
+  const checkpoint = checkpoints[0];
+  assert.equal(checkpoint.agentId, 'agent:research');
+  assert.equal(checkpoint.cursorNodeId, research.id);
+  assert.equal(digestCursor(checkpoint.summary), research.id);
+  assert.equal(context('agent:research').checkpoints[0].id, checkpoint.id);
+  assert.deepEqual(context('agent:primary').checkpoints, []);
+  assert.equal(currentCursor(graph, 'agent:primary'), primary.id);
+  assert.equal(currentCursor(graph, 'agent:research'), research.id);
+  assert.equal(digestCursor(fs.readFileSync(paths(dir).digest, 'utf8')), research.id);
+});
+
+test('CLI checkpoint restores the selected Agent summary and writes that Agent Digest', (t) => {
+  const { dir, env, primary, research, run, context } = parallelHookFixture(t);
+  for (const [agentEnv, flags] of [
+    [{ ...env, BLACKBOARD_AGENT: 'research' }, []],
+    [{ ...env, BLACKBOARD_AGENT: 'primary' }, ['--agent', 'agent:research']],
+  ]) {
+    const checkpoint = JSON.parse(run(['checkpoint', '--write', '--json', ...flags], agentEnv));
+    const graph = replay(dir);
+    assert.equal(checkpoint.agentId, 'agent:research');
+    assert.equal(checkpoint.cursorNodeId, research.id);
+    assert.equal(digestCursor(graph.checkpoints[checkpoint.id].summary), research.id);
+    assert.ok(context('agent:research').checkpoints.some((item) => item.id === checkpoint.id));
+    assert.deepEqual(context('agent:primary').checkpoints, []);
+    assert.equal(digestCursor(fs.readFileSync(paths(dir).digest, 'utf8')), research.id);
+    assert.equal(currentCursor(graph, 'agent:primary'), primary.id);
+  }
+});
+
+test('opt-in PostToolUse activity is recoverable only in its inherited Agent context', (t) => {
+  const { dir, primary, research, hook, context } = parallelHookFixture(t);
+  const configFile = path.join(dir, '.blackboard', 'config.json');
+  const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+  fs.writeFileSync(configFile, JSON.stringify({ ...config, autoRecord: true }));
+  hook('PostToolUse', {
+    tool_name: 'Bash',
+    tool_input: { command: 'printf research-evidence' },
+    tool_response: { stdout: 'research-evidence' },
+  });
+  const graph = replay(dir);
+  const activities = Object.values(graph.activities);
+  assert.equal(activities.length, 1);
+  const activity = activities[0];
+  assert.equal(activity.agentId, 'agent:research');
+  assert.deepEqual(activity.linkedNodeIds, [research.id]);
+  const recovered = context('agent:research');
+  assert.equal(recovered.currentFocus.id, research.id);
+  assert.equal(recovered.recentActivity[0].id, activity.id);
+  assert.deepEqual(recovered.recentActivity[0].linkedNodeIds, [research.id]);
+  assert.deepEqual(context('agent:primary').recentActivity, []);
+  assert.equal(currentCursor(graph, 'agent:primary'), primary.id);
+  assert.equal(Object.keys(graph.nodes).length, 2);
 });
 
 test('Agent context is read-only, bounded, and follows only explicit relations', (t) => {
@@ -426,11 +525,25 @@ test('optional blackboard hooks can be removed without touching unrelated hooks'
   assert.doesNotMatch(JSON.stringify(updated), /\.blackboard\/events\.jsonl/);
 });
 
-test('Codex skill installs project-locally without installing Claude integration', (t) => {
-  const dir = fixture(t);
-  installSkill({ cwd: dir, cli: CLI, agent: 'codex' });
-  assert.equal(fs.existsSync(path.join(dir, '.agents', 'skills', 'blackboard', 'SKILL.md')), true);
-  assert.equal(fs.existsSync(path.join(dir, '.claude', 'skills', 'blackboard', 'SKILL.md')), false);
+test('Codex can install and use a board without installing Claude integration or services', async (t) => {
+  const dir = bare(t);
+  const env = cliEnv(t, dir);
+  const run = (...args) => JSON.parse(execFileSync(process.execPath, [CLI, ...args, '--json'], {
+    cwd: dir, env, encoding: 'utf8',
+  }));
+  run('init', '--title', 'Codex board');
+  run('skill', 'install', '--codex');
+  const created = run('node', 'add', 'note', 'Codex focus', '--enter');
+  const context = run('context');
+  assert.equal(context.currentFocus.id, created.node.id);
+  const status = await statusJson(env);
+  assert.equal(status.integration.codex.skill.project, true);
+  assert.deepEqual(status.integration.claude, {
+    skill: { project: false, user: false }, hooks: { project: [], user: [] },
+  });
+  assert.equal(fs.existsSync(path.join(dir, '.claude')), false);
+  assert.equal(fs.existsSync(path.join(env.HOME, '.claude')), false);
+  assert.equal(fs.existsSync(path.join(env.HOME, 'Library', 'LaunchAgents')), false);
 });
 
 test('setup configures a project idempotently without activity capture', (t) => {
@@ -447,7 +560,6 @@ test('setup configures a project idempotently without activity capture', (t) => 
   assert.equal(second.cwd, dir);
   assert.equal(config.autoRecord, false);
   assert.deepEqual(Object.keys(settings.hooks).sort(), ['PreCompact', 'SessionStart']);
-  assert.equal(fs.existsSync(path.join(dir, '.claude', 'skills', 'blackboard', 'SKILL.md')), true);
   assert.equal(fs.statSync(path.join(env.HOME, '.local', 'bin', 'blackboard')).mode & 0o111, 0o111);
 });
 

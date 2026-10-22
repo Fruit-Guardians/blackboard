@@ -140,6 +140,22 @@ blackboard serve --read-only          # 关闭页面写入
 
 ## Agent 接入与恢复
 
+[`skills/blackboard/`](skills/blackboard/) 是随仓库和发布包分发的完整、标准 Skill 包；Claude / Codex 安装器复制整个包，并在 Markdown 中替换 CLI 路径占位符，不维护内嵌副本。安装只覆盖分发源中存在的文件，保留目标目录中的无关用户文件。
+
+```text
+skills/blackboard/
+├── SKILL.md                   核心指令、触发条件与使用边界
+├── references/
+│   ├── setup.md               首次接入、打开与恢复、平台差异
+│   ├── recording.md           记录阈值、关系方向、可信度与检查点
+│   ├── parallel-agents.md     显式身份、项目与交接查询
+│   └── audit.md               可选的审计记录语义
+├── agents/openai.yaml         展示名称、简介、默认提示与图标引用
+└── assets/blackboard-icon.svg 展示图标
+```
+
+采用渐进式加载：先读取 `SKILL.md`，再按当前场景加载其直接链接的参考，不一次性加载全部参考。`agents/openai.yaml` 和图标用于支持它们的客户端展示，不改变黑板的记录规则，也不保证当前会话已加载 Skill。直接从仓库加载时，若 CLI 占位符尚未展开，不要执行占位符或猜测路径；使用 PATH 中的 `blackboard`，或已确认仓库根下的 `node bin/blackboard.js`。
+
 ### Claude Code
 
 `setup` 已安装项目级接入。如果希望以后在其他项目里一句话启用，可以先安装一次全局 Skill：
@@ -168,7 +184,7 @@ blackboard skill install --codex       # 项目级 .agents/skills/blackboard
 # 全局安装可加 --user
 ```
 
-Codex 可通过 Skill 和 CLI 读写黑板；Claude 的恢复 Hook 不适用于 Codex。当前 `setup` 配置的是 Claude 接入，不要用它代替 Codex Skill 安装。
+Codex 可通过 Skill 和 CLI 读写黑板；用户级安装使用 `~/.agents/skills/blackboard`，不再安装到旧的 `~/.codex/skills`。Claude 的恢复 Hook 不适用于 Codex。当前 `setup` 配置的是 Claude 接入，不要用它代替 Codex Skill 安装。
 
 ### 给 Agent 的只读上下文
 
@@ -190,15 +206,18 @@ GET /api/context?agent=agent:primary&focus=hy1&depth=2&budget=4000&since=cp1
 ### 多个 Agent 并行
 
 ```bash
-export BLACKBOARD_AGENT=research
-blackboard node add hypothesis "待验证的猜测" --enter
-blackboard here
+# 每次工具调用都显式指定身份与项目，不依赖上一次调用的 export
+BLACKBOARD_AGENT=research BLACKBOARD_CWD=/path/to/project \
+  blackboard node add hypothesis "待验证的猜测" --enter
+BLACKBOARD_AGENT=research BLACKBOARD_CWD=/path/to/project blackboard here
 
-# 单次命令也可以指定完整 Agent ID
-blackboard context --agent agent:review
+# 恢复或交接时读取指定视角
+BLACKBOARD_CWD=/path/to/project blackboard context --agent agent:research
 ```
 
 默认游标是 `agent:primary`；并行 Agent 应使用不同身份，避免互相覆盖位置。`status`、`digest`、`tail`、`context` 可用 `--agent` 读取指定视角；工作台会在相应卡片上标记其他 Agent 的位置。
+
+Claude 恢复 Hook 仅使用其进程实际继承到的 `BLACKBOARD_AGENT`：会话开始时恢复该身份的 Digest，压缩前保存该身份及其游标的检查点；启用工具活动采集时，活动也关联该身份。不设置时仍为 `agent:primary`，不会从宿主 `session_id` 自动创建身份。不要假设不同工具调用或所有子 Agent 会话都会继承环境；普通子 Agent 应在每次命令中显式指定身份与项目，并主动调用 `context` 恢复或交接。上下文只整理已记录的现场，不自动决定下一步。
 
 <a id="cli"></a>
 
@@ -409,6 +428,7 @@ npm test
 
 ```text
 bin/blackboard.js           唯一 CLI 入口
+skills/blackboard/          完整 Agent Skill 包，核心指令、按需参考与展示资源
 lib/model.js               CLI、服务、浏览器共用的事件模型
 lib/store.js               事件存储、写锁、游标和检查点
 lib/context.js · digest.js  面向 Agent 的只读上下文投影
