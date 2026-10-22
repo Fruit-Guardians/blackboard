@@ -4,6 +4,28 @@ import { t } from './i18n';
 export type DetailLevel = 'overview' | 'compact' | 'detail';
 export const detailLevel = (zoom: number): DetailLevel => zoom < .65 ? 'overview' : zoom < .9 ? 'compact' : 'detail';
 
+/** Below this zoom cards drop to the overview level and stop being readable. */
+export const READABLE_ZOOM = .55;
+
+/**
+ * Fitting the whole board is only worth it while it stays readable. A board that is wider than
+ * that is framed around where the reading starts instead; "fit" in the toolbar still shows it all.
+ */
+export const frameStrategy = (fitZoom: number): 'fit' | 'focus' => fitZoom >= READABLE_ZOOM ? 'fit' : 'focus';
+
+/**
+ * Where to start reading a board that does not fit: the Agent's current node if it is on this view,
+ * otherwise the most connected card (earliest first on a tie). Nothing is inferred beyond that.
+ */
+export function pickFocus(items: { id: string; degree: number; ts?: number }[], currentId: string | null): string | null {
+  if (currentId && items.some((item) => item.id === currentId)) return currentId;
+  let best: { id: string; degree: number; ts?: number } | null = null;
+  for (const item of items) {
+    if (!best || item.degree > best.degree || (item.degree === best.degree && Number(item.ts || 0) < Number(best.ts || 0))) best = item;
+  }
+  return best?.id ?? null;
+}
+
 export const BOARD_GROUPS = [
   { id: 'purpose', title: t('lane.purpose'), subtitle: t('lane.purposeSub'), color: '#647e72' },
   { id: 'reasoning', title: t('lane.reasoning'), subtitle: t('lane.reasoningSub'), color: '#6b7e95' },

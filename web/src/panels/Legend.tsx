@@ -2,7 +2,7 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { IconButton } from '@/components/icon-button';
 import { TypeDot } from '../SecurityNode';
-import { RELATION_GROUPS, typeLabel, type RelationGroup } from '../graph';
+import { RELATION_DASH, RELATION_GROUPS, typeLabel, type RelationGroup } from '../graph';
 import { t } from '../i18n';
 
 type Props = {
@@ -11,14 +11,7 @@ type Props = {
   onClose: () => void;
 };
 
-const STROKE: Record<RelationGroup, { color: string; dash?: string }> = {
-  support: { color: 'var(--edge-support)' },
-  oppose: { color: 'var(--edge-oppose)', dash: '5 4' },
-  derive: { color: 'var(--edge-derive)' },
-  produce: { color: 'var(--edge-produce)' },
-  replace: { color: 'var(--edge-replace)', dash: '2 4' },
-  link: { color: 'var(--edge-link)' },
-};
+const COLOR = (group: RelationGroup) => `var(--edge-${group})`;
 
 /** What the colours on the canvas mean; lists only what the current view actually contains. */
 export function Legend({ types, groups, onClose }: Props) {
@@ -38,7 +31,7 @@ export function Legend({ types, groups, onClose }: Props) {
         <ul className={cn('m-0 mt-2.5 flex list-none flex-wrap gap-x-3 gap-y-1.5 border-t p-0 pt-2.5 text-xs text-subtle')}>
           {relations.map((group) => (
             <li key={group.id} className="flex items-center gap-1.5">
-              <svg width="22" height="6" aria-hidden><line x1="0" y1="3" x2="22" y2="3" stroke={STROKE[group.id].color} strokeWidth="2" strokeDasharray={STROKE[group.id].dash} strokeLinecap="round" /></svg>
+              <svg width="30" height="6" aria-hidden><line x1="0" y1="3" x2="30" y2="3" stroke={COLOR(group.id)} strokeWidth="2" strokeDasharray={RELATION_DASH[group.id]} /></svg>
               {group.label}
             </li>
           ))}

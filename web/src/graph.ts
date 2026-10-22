@@ -153,10 +153,10 @@ export function project(snapshot: GraphSnapshot, mode: ViewMode, query: string, 
       type: 'default',
       label: relationLabel(edge.kind),
       className: `edge edge-${edge.kind} edge-g-${group}`,
-      data: { kind: edge.kind, group, reversed, quiet },
+      data: { kind: edge.kind, group, reversed, quiet, text: relationLabel(edge.kind) },
       animated: false,
       ...(reversed ? { markerStart: marker } : { markerEnd: marker }),
-      style: { strokeWidth: important ? 1.5 : 1.25 },
+      style: { strokeWidth: important ? 1.5 : 1.25, strokeDasharray: RELATION_DASH[group] },
     };
   });
 
@@ -311,6 +311,16 @@ const GROUP_OF: Record<string, RelationGroup> = {
   supersedes: 'replace', duplicates: 'replace',
 };
 export const relationGroup = (kind: string): RelationGroup => GROUP_OF[kind] || 'link';
+
+/** Colour alone is not enough to tell the families apart, so each also has its own stroke pattern. */
+export const RELATION_DASH: Record<RelationGroup, string | undefined> = {
+  support: undefined,
+  oppose: '5 4',
+  derive: '10 3 2 3',
+  produce: '10 4',
+  replace: '2 6',
+  link: '1 3',
+};
 
 /** How connections are drawn; the layout itself is unaffected. */
 export type EdgeStyle = 'curve' | 'step' | 'straight';
