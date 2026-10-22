@@ -242,15 +242,16 @@ blackboard init --title "内部 API 审计"
 # 记录目标，显式进入
 blackboard node add goal "确认管理接口的授权边界" --enter
 
-# 记录观察；不连边、不移动游标
-blackboard node add observation "匿名请求返回 200" --at evidence.txt:12
-
 # 显式关联目标，并把关注点移到猜测
 blackboard node add hypothesis "读接口可能遗漏统一鉴权" \
   --parent g1 --rel related-to --enter
 
-# 声明观察支持猜测，而不是让系统推断关系
-blackboard link o1 hy1 --rel supports
+# 记录观察，并在创建时声明它支持猜测；不移动游标
+blackboard node add observation "匿名请求返回 200" --at evidence.txt:12 \
+  --to hy1 --rel supports
+
+# 事后才发现的关系用 link 声明，而不是让系统推断
+blackboard link o1 g1 --rel related-to
 
 blackboard here
 blackboard checkpoint --summary "已有匿名访问证据，正在比较中间件差异"
@@ -262,7 +263,7 @@ blackboard digest --write
 | 要做的事 | 命令 |
 | --- | --- |
 | 看现状、列出记录 | `blackboard status` / `blackboard ls` / `blackboard show hy1` |
-| 新建、编辑节点 | `blackboard node add <类型> "标题"` / `blackboard edit hy1 --status active` |
+| 新建、编辑节点 | `blackboard node add <类型> "标题" [--to hy1 --rel supports]` / `blackboard edit hy1 --status active` |
 | 声明、移除关系 | `blackboard link o1 hy1 --rel supports` / `blackboard unlink o1 hy1 --rel supports` |
 | 移动、清空游标 | `blackboard cursor hy1 --reason "继续验证"` / `blackboard cursor none` |
 | 保存、恢复现场 | `blackboard checkpoint --summary "…"` / `blackboard digest` / `blackboard context` |
@@ -290,7 +291,8 @@ blackboard edit hy1 --title "修订后的猜测" --detail "补充证据"
 ```
 
 - `--enter` 显式移动游标；`--relate-here` 显式关联当前位置，默认关系为弱语义的 `related-to`。
-- `--parent <id>` 显式指定来源节点；**当前游标不是隐式父节点**。
+- `--to <id>` 让新节点指向已有节点，读作“新节点 `--rel` id”，如新证据 `--to hy1 --rel supports`；`--parent <id>` 方向相反，读作“id `--rel` 新节点”。**当前游标不是隐式父节点**。
+- 一次创建只声明一条关系：`--to` 不能与 `--parent`/`--relate-here` 同用，其余关系用 `link`；目标不存在时整条命令不写入。
 - `--at <file:line>` 记录证据位置；`--detail` / `-d` 添加详情；`--tag` / `-t` 可重复指定标签。
 - ID 按类型递增，如 `g1`、`o1`、`hy1`；活动和检查点如 `act1`、`cp1`。接受 ID 的命令支持 `[hy1]`、大小写不敏感及唯一前缀，存在歧义时列出候选。
 - `start`、`goal`、`intent`、`fact`、`vuln`、`hint` 可用同名简写；`focus` 是 `cursor` 的别名，`compact` 是 `checkpoint` 的别名。这些写法也不会隐式连边或进入节点。
@@ -395,7 +397,7 @@ blackboard promote act1 --kind observation --title "值得保留的观察"
 
 ## 常见问题
 
-**图里都是未连接的卡片？** 检查 Agent 是否已加载当前 Skill，并显式使用 `link`、`--parent` 或 `--relate-here`。安装接入不会自动补建关系。
+**图里都是未连接的卡片？** 检查 Agent 是否已加载当前 Skill，并显式使用 `link`、`--to`、`--parent` 或 `--relate-here`。安装接入不会自动补建关系。
 
 **现场视图里找不到某条记录？** 它不是全量视图。切到“全局”，或用搜索定位；没有游标时，Digest 仍会列出最近活跃节点及其关系。
 

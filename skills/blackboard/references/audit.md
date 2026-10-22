@@ -23,8 +23,7 @@ BLACKBOARD_CWD="/已确认项目" blackboard node add vuln "候选：某入口�
 完成真实静态核对后，记录核对事实并更新候选；示例中的描述也须替换成实际观察，不能把示例当审计结果：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard node add fact "已核对入口到敏感操作的调用链" --status confirmed --detail "实际文件位置、检查路径、成立条件与限制"
-BLACKBOARD_CWD="/已确认项目" blackboard link "<证据ID>" "<候选ID>" --rel supports
+BLACKBOARD_CWD="/已确认项目" blackboard node add fact "已核对入口到敏感操作的调用链" --status confirmed --to "<候选ID>" --rel supports --detail "实际文件位置、检查路径、成立条件与限制"
 BLACKBOARD_CWD="/已确认项目" blackboard edit "<候选ID>" --confidence static-confirmed
 # 仅在候选与目标存在明确关系时，可选执行：
 BLACKBOARD_CWD="/已确认项目" blackboard link "<候选ID>" "<目标ID>" --rel related-to

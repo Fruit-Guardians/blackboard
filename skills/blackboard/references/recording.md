@@ -6,14 +6,18 @@
 
 值得保留的信息包括：用户目标或主要方向变化、可复核观察、关键判断及其支持/反驳/取代、切换主要关注点、暂停/压缩/交接现场。不要写逐命令流水账，也不要求每轮回复都记一笔。原始输出可在必要时摘要到 `--detail`，保留定位与复核条件，避免无关敏感内容。
 
-一个节点只表达一个主要判断；节点类型和关系可自定义，不构成状态机。创建节点默认不连边、不移动游标；`--enter` 才显式进入，`--relate-here` 才与当前位置建立默认弱关系 `related-to`，不能借此暗示已经证明的来源。
+一个节点只表达一个主要判断；节点类型和关系可自定义，不构成状态机。创建节点默认不连边、不移动游标；`--enter` 才显式进入，`--relate-here` 才与当前位置建立默认弱关系 `related-to`，不能借此暗示已经证明的来源。已知新节点与某个已有节点的关系时，可用 `--to "<已有ID>" --rel <关系>` 在创建时一并声明，读作“新节点 关系 已有节点”；省略 `--rel` 只得到弱关系 `related-to`。`--to` 不移动游标，也不与 `--parent`/`--relate-here` 同用——一次创建只声明一条关系，更多关系用 `link`。
 
 ```sh
 BLACKBOARD_CWD="/已确认项目" blackboard node add hypothesis "边界条件可能导致错误" --confidence suspected --detail "已知条件与待核对部分"
 BLACKBOARD_CWD="/已确认项目" blackboard node add observation "已观察到的行为" --detail "输入条件、实际结果、可复核位置"
 ```
 
-记录命令返回的实际 ID；再根据已知关系显式连边。暂时没有已知关联可以不连，不伪造因果来消除孤立节点。
+```sh
+BLACKBOARD_CWD="/已确认项目" blackboard node add observation "已观察到的行为" --to "<论断ID>" --rel supports --detail "输入条件、实际结果、可复核位置"
+```
+
+记录命令返回的实际 ID；之后发现的关系用 `link` 显式连边。暂时没有已知关联可以不连，不伪造因果来消除孤立节点。
 
 ## 关系读作 from relation to
 
@@ -31,7 +35,7 @@ BLACKBOARD_CWD="/已确认项目" blackboard link "<发现ID>" "<证据ID>" --re
 BLACKBOARD_CWD="/已确认项目" blackboard link "<问题ID>" "<目标ID>" --rel related-to
 ```
 
-`supports` 与反向的 `derived-from` 是两种可选表达；不用为了同一事实重复加边。时间相邻、游标移动或节点重要性均不构成逻辑关系。
+新节点在关系左侧时（如新证据支持已有论断、新结论取代旧结论），上述 `link` 可改为创建时的 `--to`。`supports` 与反向的 `derived-from` 是两种可选表达；不用为了同一事实重复加边。时间相邻、游标移动或节点重要性均不构成逻辑关系。
 
 ### 反驳不等于取代
 
