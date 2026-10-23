@@ -1,0 +1,99 @@
+# Read-only history and checkpoint changes
+
+Both projections replay `.blackboard/events.jsonl`; they do not update the event log, state cache, cursor, or current graph. The live server exposes them on its own loopback origin, including in `--read-only` mode. Offline HTML has no history endpoint and must not request a different host.
+
+New read contracts carry versioned schema identifiers: `blackboard.history.v1`, `blackboard.changes.v1`, and `blackboard.receipt-response.v1`. CLI backup/restore/receipt/search also carry v1 schema identifiers; existing legacy JSON contracts are not renamed.
+
+## GET /api/history?node=ID
+
+`node` is a required exact node ID, including a removed node. Unknown IDs return `404 {"error":"node_not_found","nodeId":"ID"}`; a missing parameter returns `400 {"error":"node_required"}`.
+
+```json
+{
+  "readOnly": true,
+  "prescriptive": false,
+  "nodeId": "hy1",
+  "entries": [{
+    "index": 3,
+    "eventId": "event-id-if-recorded",
+    "op": "patch",
+    "at": 1234,
+    "by": "recorded-author-or-null",
+    "reason": null,
+    "changes": {"status": {"before": "open", "after": "refuted"}},
+    "edges": {"added": [], "removed": []}
+  }],
+  "integrity": {"corruptLines": 0, "futureEvents": 0, "unknownOps": 0, "rejected": 0}
+}
+```
+
+Entries include node creation, field changes, removal, incident relation changes, and resets that remove the node or its relations. `index` is a zero-based position in the complete, valid, supported-version event sequence, not a timestamp or raw file line. Absent field values are represented as `null`. Metadata `at`, `by`, and `reason` is copied only from recorded event fields (including node/patch payload metadata), never inferred from another actor. Missing metadata is `null`; `eventId` is `null` when unavailable. Node removal and reset use `$node: {before: NODE, after: null}`; creation uses `$node: {before: null, after: NODE}`. Relation-only changes have empty `changes`. Events that do not change the node or an incident relation are excluded. Multiple incarnations of the same ID across explicit resets remain visible in its history.
+
+## GET /api/changes?since=CHECKPOINT_ID
+
+`since` is a required exact checkpoint ID. Missing parameter returns `400 {"error":"since_required"}`; no matching replayable checkpoint returns `404 {"error":"checkpoint_not_found","since":"ID"}`. The last occurrence of an ID is used, consistent with replay when explicit resets permit ID reuse. A checkpoint before a reset can still be inspected by its ID unless a later checkpoint reuses that ID.
+
+```json
+{
+  "readOnly": true,
+  "prescriptive": false,
+  "since": {"id": "cp1", "at": 1234, "index": 2, "summary": "Recorded handoff"},
+  "nodes": {
+    "added": [],
+    "updated": [{"id": "hy1", "before": {}, "after": {}, "fields": ["status", "updated", "updatedBy"]}],
+    "removed": []
+  },
+  "edges": {"added": [], "removed": []},
+  "events": [{"index": 3, "eventId": null, "op": "patch", "at": 1234, "by": null, "reason": null, "nodes": {"added": [], "updated": [], "removed": []}, "edges": {"added": [], "removed": []}}],
+  "integrity": {"corruptLines": 0, "futureEvents": 0, "unknownOps": 0, "rejected": 0}
+}
+```
+
+The checkpoint is a boundary in event order: the baseline includes that checkpoint event; all subsequent events are evaluated even if their timestamps are equal or earlier. Top-level node/edge lists compare the checkpoint projection with the current projection. A changed edge payload with the same ID appears in both `removed` (old value) and `added` (new value). `events` preserves effective graph changes in order, including transient add/remove cycles that cancel out of the net diff. Resets and implicit incident-edge deletions are included. Cursor/activity/checkpoint changes and unknown ops do not fabricate graph changes. Unknown node types and relation kinds are preserved.
+
+Corrupt JSON lines and future-version events are skipped by the shared event reader and counted in `integrity`; unknown ops and structurally rejected events are counted by replay. A torn trailing line is never treated as a complete event. Results report whole-log integrity, including issues before resets.
+
+No endpoint returns or executes a suggested next action. All JSON responses use `Cache-Control: no-store`; the existing loopback Host guard applies. These additive read interfaces do not change the event format version.
+
+## Explicit mutation idempotency and receipt lookup
+
+The live viewer write routes accept an optional `Idempotency-Key` request header:
+
+- `POST /api/nodes`
+- `PATCH /api/nodes/ID`
+- `DELETE /api/nodes/ID`
+- `POST /api/edges`
+- `DELETE /api/edges?id=EDGE_ID`
+
+A JSON body may instead supply `requestId`. If both are supplied, they must be identical (`400 {"error":"request_id_mismatch"}` otherwise). An explicitly supplied ID must be a nonempty string, at most 200 characters, without surrounding whitespace or control characters. No ID is generated by the server. Omitted IDs preserve the existing non-deduplicated behavior.
+
+The key names one exact core operation and its normalized supported payload, including the server's configured author for attributed operations. Repeating that operation returns the original status and body without adding events, even if the first response was lost or the target has since been deleted. Reusing a key with a different operation or payload returns HTTP 409 and `code: "request_id_conflict"`; the original receipt is unchanged. Unrecognized body fields are not part of a supported mutation and are not fingerprinted. A fresh server author is part of a different write payload; keep it stable for retries. Clients must explicitly retain and reuse a key until its result is known.
+
+A receipt is a projection of the event log, not an independent file. A compound operation interrupted after a complete-line prefix can report `pending`; a retry of the exact original request performs the store's recorded recovery. Receipt reads never finish pending writes. Existing loopback Host, same-Origin JSON writes, 256KB body limit and read-only protections still apply before any mutation. Read-only servers reject retries too; they do not silently recover a write.
+
+### GET /api/receipt?requestId=ID
+
+This read-only route is available on writable and read-only live servers. Its response is:
+
+```json
+{
+  "readOnly": true,
+  "prescriptive": false,
+  "receipt": {
+    "requestId": "client-generated-key",
+    "command": "addNode",
+    "fingerprint": "sha256-of-supported-command-payload",
+    "status": "committed",
+    "result": {},
+    "eventIds": ["event-id"],
+    "committedEventIds": ["event-id"],
+    "at": 1234
+  }
+}
+```
+
+A pending receipt additionally reports `recoverable`. Missing/empty ID returns `400 {"error":"request_id_required"}`. An invalid ID returns 400 with its validation message; an unknown valid ID returns `404 {"error":"receipt_not_found","requestId":"ID"}`. The internal recovery plan is not exposed. All responses use `Cache-Control: no-store`, and a non-loopback Host is rejected by the existing guard before lookup. Offline HTML does not query this route.
+
+## Local Postman CLI contract check
+
+`npm run verify:api` starts a disposable real loopback server, checks history, checkpoint changes, duplicate writes and receipt lookup with 15 assertions across 5 Postman requests. It verifies event hashes around reads and retries, then cleans the synthetic board. Postman CLI must be installed; this optional developer check adds no runtime dependency and uses `--no-report-events` (no workspace publication).

@@ -49,3 +49,10 @@ export function normalizeConfig(input = {}, env = process.env) {
     maxOutputBytes: integer(input.maxOutputBytes, 1_048_576, 1024, 16_777_216, 'maxOutputBytes'),
   });
 }
+
+/** Read live Cordis fields once per operation; plain configuration remains supported. */
+export function snapshotConfig(input = {}) {
+  return normalizeConfig(Object.fromEntries(Object.entries(input).map(([key, value]) => [
+    key, value && typeof value.get === 'function' ? value.get() : value,
+  ])));
+}

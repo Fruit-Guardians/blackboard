@@ -1,0 +1,84 @@
+name: Verify release package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build once, test and pack (Node 24)
+    runs-on: ubuntu-latest
+    outputs:
+      tarball: ${{ steps.pack.outputs.tarball }}
+    steps:
+      - uses: actions/checkout@v4
+      # Vite 8 requires ^20.19 or >=22.12. Node 18 is a runtime target, not a build host.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Collect a synthetic performance baseline (not a latency gate)
+        run: |
+          mkdir -p dist
+          node scripts/benchmark.mjs --quick --output dist/benchmark-quick.json > /dev/null
+      - name: Pack exactly the built files to be tested
+        id: pack
+        run: |
+          npm pack --json --ignore-scripts --pack-destination dist > dist/pack.json
+          node -e "const fs = require('node:fs'); const [pkg] = JSON.parse(fs.readFileSync('dist/pack.json', 'utf8')); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'tarball=' + pkg.filename + '\n');"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blackboard-release-candidate
+          path: dist/
+          retention-days: 14
+
+  runtime:
+    name: Packed runtime / ${{ matrix.os }} / Node ${{ matrix.node }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['18', '22', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: blackboard-release-candidate
+          path: artifact
+      # Deliberately no npm ci here: the runtime must work without frontend devDependencies.
+      - name: Install the same tarball into a clean temporary prefix and exercise its CLI
+        run: node scripts/verify-package.mjs --tarball artifact/${{ needs.build.outputs.tarball }}
+
+  dsh-unit:
+    name: Isolated DSH adapter / Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.19.0', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # Unit fixtures do not load the host SDK or need an installed DSH/model account.
+      - run: npm --prefix plugins/dsh-blackboard test
+      - run: npm --prefix plugins/dsh-blackboard run check
+      # Real Host loader/settings and paid-model E2E remain explicit local release checks.

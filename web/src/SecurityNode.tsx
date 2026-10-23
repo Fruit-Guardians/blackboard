@@ -9,7 +9,7 @@ import type { CanvasNode } from './graph';
 import { typeLabel } from './graph';
 import { BaseNode } from './components/react-flow/base-node';
 import { detailLevel } from './canvas-state';
-import { confidenceLabel, presentNode, severityLabel, statusLabel } from './presentation';
+import { nodeStateSummary, presentNode, severityLabel } from './presentation';
 import { t } from './i18n';
 
 const ICONS = {
@@ -52,10 +52,7 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
   const vertical = direction === 'DOWN';
   const text = presentNode(item);
   const severe = item.severity === 'critical' || item.severity === 'high';
-  const state = [
-    item.severity && item.severity !== 'info' ? severityLabel(item.severity) : '',
-    item.confidence ? confidenceLabel(item.confidence) : item.status ? statusLabel(item.status) : '',
-  ].filter(Boolean).join(' · ');
+  const state = nodeStateSummary(item);
   const overview = level === 'overview';
   // The header that names severity is gone in the overview, so it moves to a badge that survives zooming out.
   const rated = item.severity && item.severity !== 'info' ? severityLabel(item.severity) : '';
@@ -65,7 +62,7 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
       tabIndex={-1}
       style={{ '--c': `var(--node-${item.type in DOT_CLASS ? item.type : 'note'})` } as CSSProperties}
       data-detail-level={level}
-      aria-label={`${typeLabel(item.type)}：${item.title}`}
+      aria-label={`${typeLabel(item.type)}：${item.title}${state ? ` · ${state}` : ''}`}
       className={cn(
         'flex flex-col gap-1.5 py-3 pl-4 pr-3.5 text-left',
         // Each kind carries its own hue: a faint wash, a tinted edge and an accent bar.
@@ -105,7 +102,7 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
             </span>
           ))}
           {state && (
-            <span className={cn('ml-auto truncate', severe && 'rounded-sm bg-danger-soft px-1.5 font-medium text-destructive')}>{state}</span>
+            <span title={state} className={cn('ml-auto truncate', severe && 'rounded-sm bg-danger-soft px-1.5 font-medium text-destructive')}>{state}</span>
           )}
         </header>
       )}

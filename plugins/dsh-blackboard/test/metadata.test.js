@@ -11,7 +11,7 @@ test('DSH display resources are exported without changing the runtime entry or p
   assert.equal(pkg.name, 'dsh-blackboard');
   assert.equal(pkg.exports['.'], './src/index.js');
   assert.equal(pkg.dsh.bundle.patch, './cordis.patch.yml');
-  for (const resource of ['package.json', 'locale/en.json', 'locale/zh.json', 'icon']) {
+  for (const resource of ['package.json', 'locale/en.json', 'locale/zh.json', 'icon', 'client']) {
     assert.ok(require.resolve(`${pkg.name}/${resource}`));
   }
   assert.equal(pkg.exports['./icon'], pkg.icon);

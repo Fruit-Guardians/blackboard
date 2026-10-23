@@ -74,3 +74,24 @@ export type ViewMode = 'context' | 'logic' | 'all';
 export const values = <T,>(input: Record<string, T> | T[] | undefined): T[] =>
   Array.isArray(input) ? input : Object.values(input || {});
 
+
+export type FieldChange = { before: unknown; after: unknown };
+export type HistoryEntry = {
+  index: number;
+  eventId?: string | null;
+  op: string;
+  at: number | null;
+  by: string | null;
+  reason: string | null;
+  changes: Record<string, FieldChange>;
+  edges: { added: BoardEdge[]; removed: BoardEdge[] };
+};
+export type HistoryIntegrity = { corruptLines: number; futureEvents: number; unknownOps: number; rejected: number };
+export type NodeHistory = { nodeId: string; entries: HistoryEntry[]; integrity: HistoryIntegrity };
+export type CheckpointChanges = {
+  since: { id: string; at: number | null; index: number; summary: string };
+  nodes: { added: BoardNode[]; updated: { id: string; before: BoardNode; after: BoardNode; fields: string[] }[]; removed: BoardNode[] };
+  edges: { added: BoardEdge[]; removed: BoardEdge[] };
+  events: { index: number; op: string; at: number | null; by: string | null; reason: string | null; nodes: CheckpointChanges['nodes']; edges: CheckpointChanges['edges'] }[];
+  integrity: HistoryIntegrity;
+};

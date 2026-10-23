@@ -1,6 +1,7 @@
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { BUNDLED_SKILL_RANK } from '@deepseek-ai/dsh-skill';
 import { mount } from './plugin.js';
+export { Config } from './schema.js';
 
 export const name = 'blackboard';
 export const inject = ['tools', 'skills'];

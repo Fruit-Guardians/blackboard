@@ -42,3 +42,9 @@ export const LINKS = [
 
 export const CREATABLE_TYPES = ['fact', 'observation', 'hypothesis', 'question', 'action', 'result', 'finding', 'note', 'goal'] as const;
 export const SETTABLE_STATUSES = ['open', 'active', 'done', 'blocked', 'dead', 'confirmed', 'refuted', 'deferred', 'superseded'] as const;
+
+/** Read projections from this server only; static exports never call these. */
+export const getNodeHistory = (id: string) => send<import('./types').NodeHistory>('GET', `/api/history?node=${encodeURIComponent(id)}`);
+export const getCheckpointChanges = (id: string) => send<import('./types').CheckpointChanges>('GET', `/api/changes?since=${encodeURIComponent(id)}`);
+export const SETTABLE_SEVERITIES = ['critical', 'high', 'medium', 'low', 'info'] as const;
+export const SETTABLE_CONFIDENCES = ['suspected', 'static-confirmed', 'reproduced', 'confirmed'] as const;

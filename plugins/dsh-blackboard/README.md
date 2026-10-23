@@ -16,13 +16,13 @@ DSH → dsh-blackboard → 独立安装的 blackboard CLI → 项目 .blackboard
 
 ## 已实现
 
-- 8 个结构化原生工具；参数校验和工具执行使用宿主提供的 SDK。
+- 9 个结构化原生工具（原有 8 个读写工具 + 只读接入诊断）；参数校验和工具执行使用宿主提供的 SDK。
 - Skill provider 从已安装 blackboard 的完整 Skill 包读取正文、元数据和参考资源，不维护副本。
 - 异步 CLI 桥接；每次调用独立绑定项目、身份、超时、输出上限和取消信号。
 - 写工具读取宿主实时 sandboxPolicy；read-only 阻止写入，workspace-write 核对黑板真实路径位于会话工作区内。
 - 禁用/HMR 时释放注册，并终止、等待未完成的 CLI 子进程。
 
-本版不自动初始化项目、不安装 Claude/Codex Hook、不配置常驻服务、不采集工具活动，也不添加自动压缩 Hook 或内嵌 UI。移除本插件后，黑板数据和独立 CLI 保持可用。
+本版不自动初始化项目、不安装 Claude/Codex Hook、不配置常驻服务、不采集工具活动，也不添加自动压缩 Hook 或内嵌图谱。移除本插件后，黑板数据和独立 CLI 保持可用。
 
 ## 安装与启用
 
@@ -72,6 +72,18 @@ dsh web --patch /absolute/path/to/blackboard-project.patch.yml
 
 bundle 默认 `projects: []`，安装本身不启用任何项目。DSH 替换整行 config 而非深合并；自定义 runtimeCli 等字段时在同一配置中一并保留。`web` 是示例 profile，桌面端应选择实际使用的 profile。
 
+## DSH 内的配置与卡片
+
+打开 **插件 → blackboard · 外置黑板 → 包含的组件 → 配置 blackboard · 外置黑板**。插件携带即用的 browser client，桌面端和 Web 使用同一配置页与工具卡片，不要求用户构建。
+
+- 添加/移除项目，填写工作区绝对路径；黑板根目录留空时使用工作区。保存配置不会创建黑板，仍须在确认的项目中显式执行 `blackboard init --json`。
+- CLI 和 Node 字段留空时恢复默认路径；超时和输出上限可直接调整。修改只提交实际变化字段，通过宿主 settings 服务保存；并发修改会被修订号拒绝，草稿保留，可重新读取后重试。
+- 配置采用 volatile 字段。新调用读取完整快照；已开始的调用保留原项目、CLI、超时与输出上限，不在执行途中切换。配置保存不重新挂载插件。
+- 在项目会话中输入“检查 blackboard 接入状态”，可让 Agent 调用 `blackboard_diagnose`。此工具在项目尚未启用时也可用，分别报告 CLI、项目/黑板、实际只读状态查询及当前宿主写策略，并给出处理提示；不自动修复、不写入或调整权限。
+- 所有 blackboard 工具提供本地化标题、节点/关系摘要、项目与参与者身份、诊断事项、可展开的原始调用/结果和轨迹入口。卡片展示是持久结果上的投影，不是新的黑板事实源；错误或旧记录没有可识别元信息时保留原始结果，不显示成功摘要。
+
+这版只提供配置、显式诊断与展示，不启用自动恢复或自动检查点。安装过旧版源码链接时，重启 DSH 以刷新 Config 和 browser client 清单；发布包安装需更新包。仅提供 Host 的 headless profile 仍可使用全部工具，无需加载浏览器资源。
+
 ## 配置
 
 | 字段 | 默认值 | 含义 |
@@ -90,6 +102,7 @@ bundle 默认 `projects: []`，安装本身不启用任何项目。DSH 替换整
 
 | 工具 | 参数 | 行为 |
 | --- | --- | --- |
+| `blackboard_diagnose` | 无 | 只读检查接入、返回问题与处理提示；不要求项目已经启用 |
 | `blackboard_status` | 无 | 读取数据及服务状态，不启动服务 |
 | `blackboard_context` | budget、focus、since、agentId 可选 | 读取恢复投影，不移动游标 |
 | `blackboard_node_get` | id | 读取节点及关联 |
@@ -99,7 +112,7 @@ bundle 默认 `projects: []`，安装本身不启用任何项目。DSH 替换整
 | `blackboard_cursor` | id；reason 可选 | 明确移动到节点或 none，不提供 next 自动选择 |
 | `blackboard_checkpoint` | summary | 保存显式交接检查点 |
 
-所有成功工具返回规范 JSON envelope：
+原有 8 个读写工具的成功结果保持规范 JSON envelope：
 
 ```json
 {
@@ -109,6 +122,8 @@ bundle 默认 `projects: []`，安装本身不启用任何项目。DSH 替换整
   "diagnostics": ""
 }
 ```
+
+`blackboard_diagnose` 单独返回 `blackboard.diagnostics.v1`：`readOnly: true`、`runtimeCli`、可为空的 `sessionWorkspace`/`boardRoot`/`agentId`、`readyToRead`、`readyToWrite` 和 `checks`（id/status/code/message/remedy）。预期的未接入或只读状态作为诊断数据返回；取消和卸载仍是工具执行错误。可写结论只是调用时的宿主策略检查，真正写入仍会重新授权。
 
 data 是 CLI 的原始结构化结果，diagnostics 保留 stderr 提示（包括字段截断）。context 强制核对 `blackboard.context.v1` 及 policy 中的 readOnly=true、prescriptive=false、nextStepSelection=agent-controlled。
 
@@ -132,6 +147,7 @@ Skill 可见不代表项目已启用，更不代表模型已经加载或调用�
 npm run check
 BLACKBOARD_TEST_CLI=/absolute/path/to/blackboard/current/bin/blackboard.js npm test
 npm run verify:profile
+npm run verify:settings
 ```
 
 SDK 注册验证可使用正常 npm 开发依赖环境，或使用桌面附带 runtime（macOS 示例）：
@@ -146,6 +162,8 @@ scripts/verify-dsh.mjs
 同样的 runtime 环境下，将最后一行替换为 `scripts/verify-metadata.mjs`，可用 DSH 原生元信息读取器检查源码链接与实际 `npm pack` 产物的中英文标题、简介及图标。该检查不激活插件、不发送模型请求，也不修改已有 profile。
 
 该验证使用真实 Cordis、ToolRuntime、SkillRegistry 和本插件入口，检查规范参数/结果、Skill 加载、卸载及重载；临时目录在结束时删除，不触及真实项目。它不发送模型请求，不等同于完整模型会话测试。
+
+`verify:settings` 在独立 DSH_HOME 中通过真实宿主 settings/configEditor 保存配置，检查新调用即时生效、插件实例身份不变、非法值/过期修订号不落盘、重启恢复，以及诊断前后事件内容不变。设置 DSH_PLUGIN_PACKAGE 为 tgz 可检查发布产物；不发送模型请求。
 
 `verify:profile` 另用临时 DSH_HOME 实际安装、启动和移除 bundle；创建真实会话，核对 read-only 拒绝写入、workspace-write 允许写入和 Skill 发现。它使用 PATH 中的 dsh，或 DSH_BIN 指定的可执行文件。设置 DSH_PLUGIN_PACKAGE 为 tgz 的绝对路径即可验证打包产物；测试结束移除整个临时 home。
 

@@ -8,10 +8,10 @@ import { skillProvider } from '../src/skills.js';
 import { mount } from '../src/plugin.js';
 import { temporary, board, execution } from './helpers.js';
 
-test('eight fixed tools expose no arbitrary project, shell, initialization or next-step selector', () => {
+test('nine fixed tools expose no arbitrary project, shell, initialization or next-step selector', () => {
   const specs = toolSpecifications(normalizeConfig(), {});
-  assert.equal(specs.length, 8);
-  assert.equal(new Set(specs.map((s) => s.name)).size, 8);
+  assert.equal(specs.length, 9);
+  assert.equal(new Set(specs.map((s) => s.name)).size, 9);
   for (const s of specs) {
     for (const forbidden of ['cwd', 'boardRoot', 'command', 'shell']) assert.equal(s.parameters[forbidden], undefined);
     assert.ok(s.output.schema);
@@ -61,6 +61,6 @@ test('mounting an unconfigured plugin only registers effects, tools and provider
   const root = await temporary(t), tools = [], providers = [], cleanup = [];
   const ctx = { tools: { register: (spec) => tools.push(spec) }, skills: { registerProvider: (p) => providers.push(p) }, effect: (factory) => cleanup.push(factory()) };
   mount(ctx, {}, { defineTool: (spec) => spec, bundledSkillRank: 600 });
-  assert.equal(tools.length, 8); assert.equal(providers.length, 1); assert.deepEqual(await fs.readdir(root), []);
+  assert.equal(tools.length, 9); assert.equal(providers.length, 1); assert.deepEqual(await fs.readdir(root), []);
   for (const dispose of cleanup) await dispose();
 });

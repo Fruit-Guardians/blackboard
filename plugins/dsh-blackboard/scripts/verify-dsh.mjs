@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
 const req = createRequire(process.env.DSH_RUNTIME_MANIFEST || new URL('../package.json', import.meta.url));
-const resolved = new Map(['@deepseek-ai/cordis', '@deepseek-ai/dsh-system-prompt', '@deepseek-ai/dsh-tools', '@deepseek-ai/dsh-skill']
+const resolved = new Map(['@deepseek-ai/cordis', '@deepseek-ai/dsh-system-prompt', '@deepseek-ai/dsh-tools', '@deepseek-ai/dsh-skill', '@deepseek-ai/schemastery']
   .map((name) => [name, req.resolve(name)]));
 // Test-process-only resolver. Production resolution belongs to DSH's linked-package loader.
 const hooks = registerHooks({ resolve(specifier, context, next) {
@@ -20,6 +20,8 @@ const systemPrompt = await load('@deepseek-ai/dsh-system-prompt');
 const tools = await load('@deepseek-ai/dsh-tools');
 const skills = await load('@deepseek-ai/dsh-skill');
 const plugin = await import('../src/index.js');
+const wireSchema = JSON.parse(JSON.stringify(plugin.Config.toJSON()));
+assert.ok(Object.values(wireSchema.refs).every(node => node.type !== 'transform'), 'browser form schema must be rehydratable without Host callbacks');
 const { normalizeConfig } = await import('../src/config.js');
 const runtimeCli = normalizeConfig({ runtimeCli: process.env.BLACKBOARD_TEST_CLI }).runtimeCli;
 const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'dsh-blackboard-native-'));
@@ -36,7 +38,7 @@ try {
   const config = { runtimeCli, projects: [{ workspace: dir }] };
   let fiber = await ctx.plugin(plugin, config);
   const count = () => ctx.tools.schemas().filter((s) => s.name.startsWith('blackboard_')).length;
-  assert.equal(count(), 8);
+  assert.equal(count(), 9);
   let serial = 0;
   const agent = { id: 'native-test', session: { id: 'native-test', header: { cwd: dir } }, ctx };
   const call = (name, args) => ctx.tools.execute({ callId: `native-${++serial}`, name, arguments: args, agent, signal: new AbortController().signal });
@@ -56,12 +58,12 @@ try {
   assert.equal(count(), 0);
   assert.equal((await ctx.skills.list({ cwd: dir })).some((s) => s.name === 'blackboard'), false);
   fiber = await ctx.plugin(plugin, config);
-  assert.equal(count(), 8);
+  assert.equal(count(), 9);
   const restored = await call('blackboard_context', {});
   assert.ok(!restored.isError, JSON.stringify(restored));
   assert.equal(restored.value.data.currentFocus.id, added.value.data.node.id);
   await fiber.dispose();
-  console.log('DSH_NATIVE: 8 tools; real registry execution/schema validation; Skill load; unload/reload; retained board PASS');
+  console.log('DSH_NATIVE: 9 tools; real registry execution/schema validation; Skill load; unload/reload; retained board PASS');
 } finally {
   await ctx.fiber.dispose();
   hooks.deregister();

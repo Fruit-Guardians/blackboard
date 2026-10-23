@@ -10,14 +10,10 @@ export function useGraphStream() {
   const [snapshot, setSnapshot] = useState<GraphSnapshot | null>(embedded);
   const [connection, setConnection] = useState<Connection>(embedded ? 'live' : 'connecting');
   const [syncedAt, setSyncedAt] = useState<number | null>(null);
-  const applySnapshot = useRef<((data: GraphSnapshot, at: number) => void) | null>(null);
+  const readSnapshot = useRef<(() => Promise<void>) | null>(null);
   const reload = useCallback(async () => {
     if (embedded) return;
-    let response: Response;
-    try { response = await fetch('/api/graph'); }
-    catch { throw new Error(t('api.noResponse')); }
-    if (!response.ok) throw new Error(t('api.failed', { status: response.status }));
-    applySnapshot.current?.(await response.json(), Date.now());
+    await readSnapshot.current?.();
   }, [embedded]);
 
   useEffect(() => {
@@ -26,23 +22,31 @@ export function useGraphStream() {
     // Snapshots from the initial fetch and the SSE stream can arrive in any
     // order; only ever apply the newest one, or a slow initial fetch would
     // roll the board back to an older state.
-    let lastSyncedAt = 0;
-    const apply = (data: GraphSnapshot, at: number) => {
-      if (!alive || at < lastSyncedAt) return;
-      lastSyncedAt = at;
+    let sequence = 0;
+    let appliedSequence = 0;
+    const apply = (data: GraphSnapshot, order: number) => {
+      if (!alive || order < appliedSequence) return;
+      appliedSequence = order;
       setSnapshot(data);
-      setSyncedAt(at);
+      setSyncedAt(Date.now());
       setConnection('live');
     };
-    applySnapshot.current = apply;
-    fetch('/api/graph')
-      .then((response) => response.json())
-      .then((data) => { if (alive) apply(data, Date.now()); })
-      .catch(() => setConnection('offline'));
+    const read = async () => {
+      // Reserve the ordering at request start, not response arrival: an SSE
+      // snapshot received while this request is pending is always newer.
+      const order = ++sequence;
+      let response: Response;
+      try { response = await fetch('/api/graph'); }
+      catch { throw new Error(t('api.noResponse')); }
+      if (!response.ok) throw new Error(t('api.failed', { status: response.status }));
+      apply(await response.json(), order);
+    };
+    readSnapshot.current = read;
+    read().catch(() => { if (alive && appliedSequence === 0) setConnection('offline'); });
     const stream = new EventSource('/events');
     stream.addEventListener('graph', (event) => {
       if (!alive) return;
-      try { apply(JSON.parse((event as MessageEvent).data), Date.now()); }
+      try { apply(JSON.parse((event as MessageEvent).data), ++sequence); }
       catch { setConnection('offline'); }
     });
     stream.onopen = () => setConnection('live');
@@ -50,6 +54,7 @@ export function useGraphStream() {
     return () => {
       alive = false;
       stream.close();
+      if (readSnapshot.current === read) readSnapshot.current = null;
     };
   }, [embedded]);
   return { snapshot, connection, syncedAt, isStatic: Boolean(embedded), reload };

@@ -36,6 +36,34 @@
 </p>
 <p align="center"><sub>演示黑板的现场视图。内容为示例数据，逻辑关系与游标轨迹分别记录。</sub></p>
 
+## 恢复、追溯与长期使用
+
+核心仍以 `events.jsonl` 为唯一事实源；DSH 等宿主只做隔离接入。当前增加了：
+
+- **恢复口径**：未指定置信度不计为确认；已反驳/取代项独立呈现；未知类型可恢复或明确报告省略。JSON 与 Markdown 保留交接摘要、状态、置信度、来源与关系方向。
+- **变化追溯**：查看 checkpoint 后的节点/关系差异，以及节点字段和关联历史。界面历史只读，离线导出不请求本地服务。
+- **记录与检索**：关联两个已有节点；查看来源/标签；独立编辑严重度与置信度；CLI 确定性文本和字段检索。
+- **长期可靠性**：原始事件备份/校验恢复，显式 request ID 去重与提交回执，打包验证、跨平台运行时 CI 和可复现性能基线。
+
+```bash
+blackboard checkpoint --summary "当前证据与待验证点" --request-id handoff-001 --json
+blackboard changes --since cp1 --json
+blackboard history hy1 --json
+blackboard search "session cookie" --tag auth --json
+blackboard node add observation "复现结果" --at src/auth.js:42 --request-id observation-001 --json
+# 响应丢失时复用原命令和同一 ID；先只读查看回执
+blackboard receipt observation-001 --json
+blackboard backup --out /tmp/blackboard-backup-001 --json
+blackboard restore /tmp/blackboard-backup-001 --into /tmp/blackboard-restored-001 --json
+blackboard capabilities --json
+```
+
+request ID 在整份日志内唯一，异 payload 复用会报冲突；自动生成摘要的 checkpoint 使用 request ID 时应显式提供 `--summary`。复合写入的中断前缀可通过原请求显式恢复，不承诺旧读者看不到中间状态或掉电后的 fsync 持久性。备份与只读 HTML 分享导出用途不同，恢复不覆盖已有黑板。
+
+开发验证：`npm test`、`npm run check:types`、`npm run build`、`npm run evaluate:recovery`、`npm run verify:package`、`npm run benchmark:full`。恢复评测是确定性场景验证，不是实际模型接手效果测量；性能结果记录环境与原始采样，不作为跨机器延迟承诺。
+
+详见 [本轮能力与验收](docs/ITERATION.md)、[历史/差异 API](docs/history-api.md)、[备份恢复](docs/backup.md)、[回执语义](docs/receipts.md)、[性能基线](docs/performance.md)、[CI](docs/ci.md)。
+
 ## 什么时候用
 
 | 场景 | 留下什么 |
@@ -151,7 +179,8 @@ skills/blackboard/
 │   ├── setup.md               首次接入、打开与恢复、平台差异
 │   ├── recording.md           记录阈值、关系方向、可信度与检查点
 │   ├── parallel-agents.md     显式身份、项目与交接查询
-│   └── audit.md               可选的审计记录语义
+│   ├── audit.md               可选的审计记录语义
+│   └── threat-model.md        明确调用的可选威胁建模参考
 ├── agents/openai.yaml         展示名称、简介、默认提示与图标引用
 └── assets/blackboard-icon.svg 展示图标
 ```
@@ -192,7 +221,7 @@ Codex 可通过 Skill 和 CLI 读写黑板；用户级安装使用 `~/.agents/sk
 
 [`plugins/dsh-blackboard/`](plugins/dsh-blackboard/) 与主项目同仓库维护，保留独立的包清单、依赖、测试和发布入口。DSH SDK 不进入根包依赖，核心 CLI 和查看器不依赖插件；主包发布文件也不包含插件。
 
-插件提供 8 个原生工具，并复用已安装 blackboard 的完整 Skill 包。默认不启用项目、不初始化黑板或安装其他宿主的 Hook；安装、项目配置及验证命令见[插件说明](plugins/dsh-blackboard/README.md)。
+插件提供 9 个原生工具（含只读接入诊断）、可视配置页与工具卡片，并复用已安装 blackboard 的完整 Skill 包。默认不启用项目、不初始化黑板或安装其他宿主的 Hook；安装、项目配置及验证命令见[插件说明](plugins/dsh-blackboard/README.md)。
 
 ### 其他 Agent（OMP、ZCode 等）
 
@@ -201,6 +230,16 @@ Codex 可通过 Skill 和 CLI 读写黑板；用户级安装使用 `~/.agents/sk
 > 请给当前项目接入 blackboard：定位本机 CLI，把仓库的 `skills/blackboard/` 完整包安装到当前宿主的 Skill 目录，展开 CLI 路径占位符。已有黑板直接恢复，没有则初始化；不要安装其他宿主的 Hook。完成后验证 Skill 加载和项目状态，不创建虚构研究记录。
 
 同一份 Skill 和 CLI 跨宿主复用；安装位置、刷新与加载由宿主处理，blackboard 不维护一套宿主适配表。
+
+### 按需威胁建模（可选）
+
+[威胁建模参考](skills/blackboard/references/threat-model.md)强调一种理解系统的思想：安全依赖哪些信任与假设，这些假设在什么条件下可能失效，又有什么证据支持当前判断。模型保留的是有条件、可复核的解释；图、分类和威胁条目只是表达手段。
+
+它是需要时才调用的辅助视角。参考不规定构建步骤或研究顺序，也不以模型完整性约束 Agent 的行动。默认只返回分析，没有黑板也能使用；明确要求保留时，判断与证据复用现有节点、关系和事件日志。
+
+> 使用 blackboard 的按需威胁建模参考，理解当前模块的安全目标、信任假设与可能的失效条件，保留事实、假设和未知之间的区别；只返回分析。
+
+此参考随完整 Skill 包安装与发布，无需新增命令、专用视图或独立模型存储。
 
 ### 给 Agent 的只读上下文
 

@@ -1,0 +1,71 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+const CLI = fileURLToPath(new URL('../bin/blackboard.js', import.meta.url));
+const sha = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+
+test('CLI handoff end-to-end: explicit writes, retry, changes, retrieval, history, backup and restore', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(),'blackboard-iteration-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const board=path.join(root,'board');fs.mkdirSync(board);
+  const env={...process.env};for(const k of Object.keys(env))if(k.startsWith('BLACKBOARD_'))delete env[k];
+  Object.assign(env,{HOME:path.join(root,'home'),USERPROFILE:path.join(root,'home'),BLACKBOARD_CWD:board,BLACKBOARD_QUIET:'1'});
+  const run=(args,expected=0)=>{const r=spawnSync(process.execPath,[CLI,...args],{cwd:root,env,encoding:'utf8'});assert.equal(r.status,expected,`${args.join(' ')}\n${r.stderr}`);return r;};
+  const json=(...args)=>JSON.parse(run([...args,'--json']).stdout);
+  json('init');
+  const hyp=json('node','add','hypothesis','Candidate auth behavior','--confidence','suspected','--at','src/auth.js:42','--tag','auth','--request-id','hypothesis-1').node;
+  const ev=path.join(board,'.blackboard/events.jsonl');const firstSha=sha(ev);
+  assert.equal(json('node','add','hypothesis','Candidate auth behavior','--confidence','suspected','--at','src/auth.js:42','--tag','auth','--request-id','hypothesis-1').node.id,hyp.id);
+  assert.equal(sha(ev),firstSha);
+  const old=json('node','add','observation','Old supporting evidence').node;
+  json('link',old.id,hyp.id,'--rel','supports');
+  const cp=json('checkpoint','--summary','Agent A handoff','--agent','agent:a','--request-id','handoff-1');
+  json('edit',hyp.id,'--status','refuted','--request-id','refute-1');
+  json('unlink',old.id,hyp.id,'--rel','supports','--request-id','unlink-1');
+  const counter=json('node','add','observation','Counter evidence','--confidence','reproduced','--to',hyp.id,'--rel','contradicts','--request-id','counter-1').node;
+  const beforeRead=sha(ev);
+  const changes=json('changes','--since',cp.id);
+  assert.equal(changes.schema,'blackboard.changes.v1');
+  assert.ok(changes.nodes.updated.some((n)=>n.id===hyp.id && n.fields.includes('status')));
+  assert.ok(changes.edges.removed.some((e)=>e.kind==='supports'));
+  assert.ok(changes.edges.added.some((e)=>e.kind==='contradicts'));
+  const history=json('history',hyp.id);
+  assert.equal(history.schema,'blackboard.history.v1');
+  assert.ok(history.entries.some((e)=>e.changes.status?.after==='refuted'));
+  const found=json('search','auth','--tag','auth');assert.equal(found.schema,'blackboard.search.v1');
+  assert.equal(found.items[0].id,hyp.id);
+  const context=json('context','--agent','agent:a','--since',cp.id,'--budget','16000');
+  assert.equal(context.policy.readOnly,true);assert.equal(context.policy.prescriptive,false);assert.equal(context.policy.nextStepSelection,'agent-controlled');
+  const md=run(['context','--agent','agent:a','--markdown','--budget','16000']).stdout;
+  assert.match(md,/Agent A handoff/);
+  assert.equal(json('receipt','counter-1').status,'committed');
+  assert.equal(sha(ev),beforeRead,'all recovery and retrieval commands are read-only');
+  const backup=path.join(root,'backup');
+  assert.equal(json('backup','--out',backup).eventsSha256,beforeRead);
+  const restored=path.join(root,'restored');
+  json('restore',backup,'--into',restored);
+  assert.equal(sha(path.join(restored,'.blackboard/events.jsonl')),beforeRead);
+  const caps=json('capabilities');assert.equal(caps.features.backupRestore,true);
+  run(['restore',backup,'--into',restored],1);
+  run(['edit',hyp.id,'--status','done','--request-id','refute-1'],1);
+  json('cursor',counter.id,'--request-id','counter-cursor');
+  json('remove',counter.id,'--request-id','delete-counter');
+  const deletedCursorRetry=spawnSync(process.execPath,[CLI,'cursor',counter.id,'--request-id','counter-cursor'],{cwd:root,env:{...env,BLACKBOARD_QUIET:''},encoding:'utf8'});
+  assert.equal(deletedCursorRetry.status,0,deletedCursorRetry.stderr);
+  assert.ok(deletedCursorRetry.stdout.includes(counter.id));
+  assert.ok(json('history',counter.id).entries.some((e)=>e.op==='remove'));
+});
+
+test('new read commands do not initialize missing boards; capabilities works without a board', (t) => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'blackboard-read-empty-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const env={...process.env,BLACKBOARD_CWD:root};
+  for(const args of [['search','x'],['history','n1'],['changes','--since','cp1'],['receipt','r1'],['backup','--out',path.join(root,'backup')]]){
+    const r=spawnSync(process.execPath,[CLI,...args],{cwd:root,env,encoding:'utf8'});assert.equal(r.status,1);assert.equal(fs.existsSync(path.join(root,'.blackboard')),false);
+  }
+  const r=spawnSync(process.execPath,[CLI,'capabilities','--json'],{cwd:root,env,encoding:'utf8'});assert.equal(r.status,0);assert.equal(JSON.parse(r.stdout).schemaVersion,1);assert.deepEqual(fs.readdirSync(root),[]);
+});

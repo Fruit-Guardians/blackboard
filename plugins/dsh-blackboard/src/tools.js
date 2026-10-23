@@ -1,5 +1,7 @@
 import { BlackboardError } from './config.js';
 import { selectScope } from './scope.js';
+import { diagnose, diagnosticOutput } from './diagnostics.js';
+import { presentationMeta, presenters } from './presentation.js';
 
 const str = (description, required = false) => ({ type: 'string', description, ...(required ? { required: true } : {}) });
 const outputSchema = {
@@ -97,17 +99,36 @@ const operations = [
 
 /** Runtime-neutral specs are wrapped by the host's own defineTool, never a vendored SDK. */
 export function toolSpecifications(config, bridge, authorizeWrite) {
-  return operations.map(({ command, validate, ...spec }) => ({
+  const snapshot = () => typeof config === 'function' ? config() : config;
+  const result = operations.map(({ command, validate, ...spec }) => ({
     ...spec,
-    output: { schema: outputSchema, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
+    ...presenters(spec.name),
+    output: {
+      schema: outputSchema,
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }],
+      presentationMeta: (args, value) => presentationMeta(spec.name, args, value),
+    },
     async execute(args, exec) {
+      const current = snapshot();
       const argv = command(args);
-      const scope = await selectScope(config, exec);
+      const scope = await selectScope(current, exec);
       const writes = !['blackboard_status', 'blackboard_context', 'blackboard_node_get'].includes(spec.name);
       const result = await bridge.run(scope, argv, exec.signal,
-        writes && authorizeWrite ? () => authorizeWrite(scope, exec) : undefined);
+        writes && authorizeWrite ? () => authorizeWrite(scope, exec) : undefined, current);
       validate?.(result.data);
       return result;
     },
   }));
+  result.push({
+    name: 'blackboard_diagnose',
+    description: 'Read-only blackboard setup diagnosis for this Session: CLI, configured project, board and current host write policy. Works before project enablement. Returns issues and remedies; never initializes, writes, changes policy or selects a next step.',
+    parameters: {}, ...presenters('blackboard_diagnose'),
+    output: {
+      schema: diagnosticOutput,
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }],
+      presentationMeta: (args, value) => presentationMeta('blackboard_diagnose', args, value),
+    },
+    execute: (_args, exec) => diagnose(snapshot(), bridge, exec, authorizeWrite),
+  });
+  return result;
 }

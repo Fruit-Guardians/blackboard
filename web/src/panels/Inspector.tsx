@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Collapsible } from 'radix-ui';
 import { Check, ArrowDownLeft, ArrowUpRight, ChevronRight, Link2, Unlink, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -7,11 +8,13 @@ import { NodeTypeIcon, TypeDot } from '../SecurityNode';
 import { formatTime, relationLabel, typeLabel } from '../graph';
 import { confidenceLabel, presentNode, severityLabel, statusLabel } from '../presentation';
 import { removeEdge } from '../api';
-import { AddSection, EditSection } from './EditPanel';
+import { AddSection, ConnectSection, EditSection } from './EditPanel';
 import type { BoardEdge, BoardNode } from '../types';
 import { t } from '../i18n';
+import { sourceLocation } from '../research-state';
+import { NodeHistorySection, type HistoryAvailability } from './HistoryPanel';
 
-type Props = {
+type Props = HistoryAvailability & {
   node: BoardNode;
   edges: BoardEdge[];
   byId: Map<string, BoardNode>;
@@ -24,7 +27,7 @@ type Props = {
   onReload: () => Promise<void>;
 };
 
-export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, linkCopied, writable, onReload }: Props) {
+export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, linkCopied, writable, onReload, isStatic, connected, revision }: Props) {
   const relations = edges.filter((edge) => edge.from === node.id || edge.to === node.id);
   const text = presentNode(node);
   const severe = node.severity === 'critical' || node.severity === 'high';
@@ -43,9 +46,9 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        <h2 className="m-0 text-[17px] font-semibold leading-snug tracking-[-0.01em]">{text.headline}</h2>
-        {text.summary && <p className="mt-2 mb-0 text-[13px] leading-[22px] text-subtle">{text.summary}</p>}
-        {text.detail && <p className="mt-2 mb-0 text-[13px] leading-[22px] text-subtle">{text.detail}</p>}
+        <h2 className="m-0 text-[17px] font-semibold leading-snug tracking-[-0.01em] [overflow-wrap:anywhere]">{text.headline}</h2>
+        {text.summary && <p className="mt-2 mb-0 text-[13px] leading-[22px] text-subtle [overflow-wrap:anywhere]">{text.summary}</p>}
+        {text.detail && <p className="mt-2 mb-0 text-[13px] leading-[22px] text-subtle [overflow-wrap:anywhere]">{text.detail}</p>}
 
         <dl className="mt-5 mb-0 divide-y rounded-lg border text-[13px]">
           <Prop label={t('inspector.status')} value={statusLabel(node.status)} />
@@ -55,6 +58,8 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
           <Prop label={t('inspector.created')} value={formatTime(Number(node.ts || 0))} />
           <Prop label={t('inspector.updated')} value={formatTime(Number(node.updated || node.ts || 0))} />
         </dl>
+
+        <SourceSection key={`source-${node.id}`} node={node} />
 
         <section className="mt-6">
           <h3 className="m-0 mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
@@ -96,6 +101,9 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
           )}
         </section>
 
+        {writable && <ConnectSection key={`connect-${node.id}`} node={node} byId={byId} onReload={onReload} />}
+        <NodeHistorySection key={`history-${node.id}`} nodeId={node.id} isStatic={isStatic} connected={connected} revision={revision} />
+
         {writable && <AddSection key={`add-${node.id}`} node={node} />}
         {writable && <EditSection key={`edit-${node.id}`} node={node} onReload={onReload} />}
 
@@ -114,9 +122,30 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
 
 function Prop({ label, value, tone }: { label: string; value: string; tone?: 'danger' }) {
   return (
-    <div className="flex items-center justify-between px-3 py-2">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className={cn('m-0 tabular-nums', tone === 'danger' && 'font-medium text-destructive')}>{value}</dd>
+    <div className="flex items-center justify-between gap-3 px-3 py-2">
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd className={cn('m-0 min-w-0 text-right tabular-nums [overflow-wrap:anywhere]', tone === 'danger' && 'font-medium text-destructive')}>{value}</dd>
     </div>
   );
+}
+
+
+function SourceSection({ node }: { node: BoardNode }) {
+  const location = sourceLocation(node);
+  const tags = Array.isArray(node.tags) ? node.tags.filter((tag): tag is string => typeof tag === 'string') : [];
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => { if (!copied) return; const timer = setTimeout(() => setCopied(false), 2000); return () => clearTimeout(timer); }, [copied]);
+  if (!location && !tags.length && !node.session && !node.updatedBy) return null;
+  return <section className="mt-5 flex flex-col gap-2" aria-label={t('source.heading')}>
+    <h3 className="m-0 text-xs font-medium text-muted-foreground">{t('source.heading')}</h3>
+    {location && <div className="flex items-start gap-2 rounded-md border bg-secondary/30 p-2">
+      <code className="min-w-0 flex-1 whitespace-pre-wrap break-all text-[11px]" aria-label={t('source.location')}>{location}</code>
+      <IconButton label={copied ? t('common.copied') : t('source.copy')} onClick={async () => { try { await navigator.clipboard.writeText(location); setCopied(true); setError(''); } catch { setError(t('app.clipboardFailed')); } }}>{copied ? <Check /> : <Link2 />}</IconButton>
+    </div>}
+    {tags.length > 0 && <div aria-label={t('source.tags')} className="flex flex-wrap gap-1">{tags.map((tag, i) => <span key={`${tag}-${i}`} className="max-w-full rounded border px-1.5 py-0.5 text-[11px] text-subtle [overflow-wrap:anywhere]">{tag}</span>)}</div>}
+    {typeof node.session === 'string' && node.session && <p className="m-0 break-all text-[11px] text-muted-foreground">{t('source.session')} · {node.session}</p>}
+    {typeof node.updatedBy === 'string' && node.updatedBy && <p className="m-0 break-all text-[11px] text-muted-foreground">{t('source.updatedBy')} · {node.updatedBy}</p>}
+    {error && <p role="alert" className="m-0 text-xs text-destructive">{error}</p>}
+  </section>;
 }

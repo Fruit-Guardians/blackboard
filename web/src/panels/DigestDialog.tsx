@@ -7,10 +7,12 @@ import { cn } from '@/lib/utils';
 import { TypeDot } from '../SecurityNode';
 import { inlineRuns, leadingId, parseCheckpoint, parseDigest, parseNodeLine, parseRelationLine, parseTrail, type DigestItem, type DigestSection } from '../digest-parse';
 import { presentNode, typeLabel } from '../presentation';
-import type { BoardNode } from '../types';
+import type { BoardNode, GraphSnapshot } from '../types';
+import { CheckpointChangesSection, type HistoryAvailability } from './HistoryPanel';
 import { digestTerm, locale, t, tOptional } from '../i18n';
 
-type Props = {
+type Props = HistoryAvailability & {
+  checkpoints: GraphSnapshot['checkpoints'];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   digest: string;
@@ -29,7 +31,7 @@ const SECTION_ICON: Record<string, typeof Crosshair> = {
   最近轨迹: Footprints, 开放节点: CircleDot, 最近检查点: Flag, 最近逻辑节点: History,
 };
 
-export function DigestDialog({ open, onOpenChange, digest, agentId, copied, onCopy, returnFocus, byId, onFocus }: Props) {
+export function DigestDialog({ open, onOpenChange, digest, agentId, copied, onCopy, returnFocus, byId, onFocus, checkpoints, isStatic, connected, revision }: Props) {
   const [view, setView] = useState<'formatted' | 'raw'>('formatted');
   const parsed = useMemo(() => parseDigest(digest), [digest]);
   const jump = (id: string) => { onOpenChange(false); onFocus(id); };
@@ -72,6 +74,8 @@ export function DigestDialog({ open, onOpenChange, digest, agentId, copied, onCo
               </dl>
             )}
             {parsed.intro.map((line, i) => <p key={i} className="mt-3 mb-0 text-[13px] text-subtle"><Inline text={line} byId={byId} onFocus={jump} /></p>)}
+
+            <CheckpointChangesSection checkpoints={checkpoints} byId={byId} onFocus={jump} isStatic={isStatic} connected={connected} revision={revision} />
 
             {filled.map((section) => <Section key={section.title} section={section} byId={byId} onFocus={jump} />)}
 

@@ -21,7 +21,13 @@
     "build": "vite build",
     "dev": "vite --host 127.0.0.1",
     "serve": "node bin/blackboard.js serve",
-    "export": "node bin/blackboard.js export"
+    "export": "node bin/blackboard.js export",
+    "check:types": "tsc --noEmit",
+    "evaluate:recovery": "node scripts/evaluate-recovery.mjs",
+    "benchmark": "node scripts/benchmark.mjs",
+    "benchmark:full": "node scripts/benchmark.mjs --full",
+    "verify:package": "node scripts/verify-package.mjs",
+    "verify:api": "node scripts/verify-api.mjs"
   },
   "license": "MIT",
   "devDependencies": {

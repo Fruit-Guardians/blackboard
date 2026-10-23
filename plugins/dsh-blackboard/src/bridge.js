@@ -10,8 +10,10 @@ export class CliBridge {
 
   constructor(config) { this.config = config; }
 
-  async runtime() {
-    const cli = this.config.runtimeCli;
+  snapshot() { return typeof this.config === 'function' ? this.config() : this.config; }
+
+  async runtime(config = this.snapshot()) {
+    const cli = config.runtimeCli;
     try {
       const root = path.dirname(path.dirname(cli));
       const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
@@ -26,32 +28,32 @@ export class CliBridge {
     }
   }
 
-  async run(scope, argv, signal, beforeSpawn) {
+  async run(scope, argv, signal, beforeSpawn, config = this.snapshot()) {
     this.#lifecycle.signal.throwIfAborted();
     signal?.throwIfAborted();
-    const { cli } = await this.runtime();
+    const { cli } = await this.runtime(config);
     await beforeSpawn?.();
     this.#lifecycle.signal.throwIfAborted();
     signal?.throwIfAborted();
-    const operation = this.#execute(scope, [cli, ...argv], signal);
+    const operation = this.#execute(scope, [cli, ...argv], signal, config);
     this.#operations.add(operation);
     try { return await operation; }
     finally { this.#operations.delete(operation); }
   }
 
-  #execute(scope, argv, signal) {
+  #execute(scope, argv, signal, config) {
     return new Promise((resolve, reject) => {
       // Copy instead of changing process.env: each concurrent Session owns its identity and board.
       const env = {
         ...process.env,
         BLACKBOARD_CWD: scope.boardRoot,
         BLACKBOARD_AGENT: scope.agentId,
-        BLACKBOARD_LOCK_TIMEOUT_MS: String(Math.min(3000, this.config.timeoutMs)),
+        BLACKBOARD_LOCK_TIMEOUT_MS: String(Math.min(3000, config.timeoutMs)),
         NO_COLOR: '1',
       };
       // Desktop's executable is Electron, not a stand-alone node binary.
       if (process.versions.electron) env.ELECTRON_RUN_AS_NODE = '1';
-      const child = spawn(this.config.nodeExecutable, argv, {
+      const child = spawn(config.nodeExecutable, argv, {
         cwd: scope.boardRoot, env, shell: false, stdio: ['ignore', 'pipe', 'pipe'],
       });
       const stdout = [], stderr = [];
@@ -67,10 +69,10 @@ export class CliBridge {
       const dispose = () => stop('DISPOSED', 'Plugin unloaded.');
       signal?.addEventListener('abort', abort, { once: true });
       this.#lifecycle.signal.addEventListener('abort', dispose, { once: true });
-      const deadline = setTimeout(() => stop('TIMEOUT', 'CLI deadline exceeded.'), this.config.timeoutMs);
+      const deadline = setTimeout(() => stop('TIMEOUT', 'CLI deadline exceeded.'), config.timeoutMs);
       const collect = (chunks) => (chunk) => {
         bytes += chunk.length;
-        if (bytes > this.config.maxOutputBytes) stop('OUTPUT_LIMIT', 'CLI output limit exceeded.');
+        if (bytes > config.maxOutputBytes) stop('OUTPUT_LIMIT', 'CLI output limit exceeded.');
         else chunks.push(chunk);
       };
       child.stdout.on('data', collect(stdout));

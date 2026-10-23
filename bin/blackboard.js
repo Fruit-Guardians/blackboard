@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import {
   NODE_TYPES,
+  EVENT_VERSION,
   TYPE_LABEL,
   EDGE_LABEL,
   INTENT_STATUS,
@@ -41,6 +42,8 @@ import {
 } from '../lib/store.js';
 import { buildDigest, neighborsOf, tail } from '../lib/digest.js';
 import { buildAgentContext, renderAgentContext } from '../lib/context.js';
+import { searchGraph } from '../lib/search.js';
+import { isOpenThread } from '../lib/semantics.js';
 import { DEFAULT_PORT, resolvePort, rememberViewerPort, probeViewer } from '../lib/service.js';
 import { stableCliPath, cliOrigin } from '../lib/release.js';
 
@@ -136,6 +139,13 @@ ${b('恢复与查看')}
   blackboard lint [--json]                   只读检查上下文质量，不修改也不拦截
   blackboard ls [--type hypothesis] [--open] [-n 30]
   blackboard show <id>
+  blackboard search "关键词" [--type … --tag … --rel … --related-to <id> --json]
+  blackboard history <id> [--json]           节点与关联变更历史（含已删除节点）
+  blackboard changes --since <checkpoint> [--json]   交接后差异与事件过程
+  blackboard backup --out <新备份目录> [--json]      原始事件＋校验清单
+  blackboard restore <备份目录> --into <项目目录> [--json]  恢复到未建黑板的目录
+  blackboard receipt <request-id> [--json]   只读查询提交回执
+  blackboard capabilities [--json]          接入层能力协商
   blackboard tree [-d 4]
   blackboard tail
   blackboard serve [--port ${DEFAULT_PORT}] [--open] [--read-only]   前台查看器；--read-only 关闭页面编辑
@@ -156,6 +166,7 @@ ${b('版本发布')}
   blackboard release ls [--json]             列出已安装版本
   启动器、用户级 Skill/Hook 和常驻服务只指向 current；install/use 后会从新版本刷新它们。
 
+node/edit/link/unlink/remove/cursor/checkpoint/reset 等写命令可加 --request-id <稳定ID>；同一操作重试复用同ID，receipt 可查询提交状态。
 所有命令支持 --help / -h；init/setup/status/skill/hooks/launcher/service 支持 --json，供脚本读取。
 端口优先级: --port > BLACKBOARD_PORT > 项目 viewerPort > ${DEFAULT_PORT}；地址统一为 127.0.0.1。
 环境变量: BLACKBOARD_CWD 指定项目根；BLACKBOARD_QUIET=1 静默；BLACKBOARD_AGENT=name 让并行的 Agent 各用各的游标（默认 agent:primary）。
@@ -180,26 +191,28 @@ const BOOLEAN_FLAGS = new Set([
   'user', 'project', 'yes', 'with-activity', 'here', 'codex', 'no-hooks',
   'no-skill', 'no-serve', 'read-only', 'markdown', 'force',
 ]);
-const NODE_FLAGS = 'detail tag status sev confidence at parent to enter relate-here rel kind reason agent json';
+const NODE_FLAGS = 'detail tag status sev confidence at parent to enter relate-here rel kind reason agent request-id json';
 const COMMAND_FLAGS = {
   init: 'title here json',
   setup: 'target title port open no-hooks no-skill no-serve json',
   status: 'port agent json',
   node: NODE_FLAGS, start: NODE_FLAGS, goal: NODE_FLAGS, intent: NODE_FLAGS,
   fact: NODE_FLAGS, vuln: NODE_FLAGS, hint: NODE_FLAGS,
-  checkpoint: 'summary title trigger agent write json', compact: 'summary title trigger agent write json',
-  cursor: 'agent reason json', focus: 'agent reason json', here: 'agent json',
+  checkpoint: 'summary title trigger agent write request-id json', compact: 'summary title trigger agent write request-id json',
+  cursor: 'agent reason request-id json', focus: 'agent reason request-id json', here: 'agent json',
   activity: 'limit json',
   promote: 'kind type title detail to enter relate-here rel reason json',
-  done: 'json', block: 'json', revive: 'json',
-  edit: 'title detail status sev confidence tag json',
-  link: 'rel kind label json', unlink: 'rel kind agent json',
-  remove: 'reason agent json', rm: 'reason agent json',
+  done: 'request-id json', block: 'request-id json', revive: 'request-id json',
+  edit: 'title detail status sev confidence tag request-id json',
+  link: 'rel kind label request-id json', unlink: 'rel kind agent request-id json',
+  remove: 'reason agent request-id json', rm: 'reason agent request-id json',
   ls: 'type open open-only limit json', list: 'type open open-only limit json',
   show: 'json', tree: 'depth', digest: 'agent write quiet json',
   context: 'focus depth budget since limit agent markdown json',
   lint: 'json', tail: 'agent json', serve: 'port open read-only',
-  export: 'out json', reset: 'yes',
+  export: 'out json', reset: 'yes request-id json',
+  search: 'type tag status rel related-to limit json', history: 'json', changes: 'since json',
+  backup: 'out json', restore: 'into json', receipt: 'json', capabilities: 'json',
   hooks: 'write user project with-activity json',
   skill: 'codex user project json', launcher: 'user project json',
   service: 'json', release: 'force json', hook: '', help: '', version: '', '-v': '', '--version': '',
@@ -405,8 +418,7 @@ function cmdList(args, flags) {
   if (type) nodes = nodes.filter((n) => n.type === type || TYPE_LABEL[n.type] === type);
   if (flags.open || flags['open-only']) {
     nodes = nodes.filter((n) =>
-      ['intent', 'hypothesis', 'question'].includes(n.type) &&
-      ['open', 'active', 'blocked'].includes(n.status || 'open'));
+      isOpenThread(n));
   }
   const limit = Number(flags.limit || flags.n || 30);
   nodes = nodes.slice(-limit);
@@ -531,6 +543,96 @@ function cmdContext(args, flags) {
   });
   if (flags.markdown || flags.md) console.log(renderAgentContext(packet));
   else console.log(JSON.stringify(packet, null, 2));
+}
+
+function cmdSearch(args, flags) {
+  needInitRead();
+  const graph = replay(cwd());
+  const relatedTo = flags['related-to'] ? refOrFail(graph.nodes, flags['related-to']) : undefined;
+  const result = searchGraph(graph, {
+    query: args.join(' '), type: flags.type, tags: flags.tag, status: flags.status,
+    relation: flags.rel, relatedTo, limit: flags.limit || 30,
+  });
+  if (flags.json) return out(flags, result);
+  console.log(`${result.total} 条匹配${result.truncated ? `（显示 ${result.items.length} 条）` : ''}`);
+  for (const item of result.items) {
+    console.log(nodeLine(item.node));
+    if (item.matches.length) console.log(C.dim(`  命中: ${item.matches.map((x) => x.field).join(', ')}`));
+  }
+}
+
+async function cmdHistory(args, flags) {
+  needInitRead();
+  if (args.length !== 1) fail('用法: blackboard history <node-id> [--json]');
+  const { buildNodeHistory } = await import('../lib/history.js');
+  const source = readEvents(cwd());
+  const result = buildNodeHistory(source.events, args[0], source);
+  if (flags.json) return out(flags, result);
+  console.log(`${result.nodeId} · ${result.entries.length} 条历史（只读）`);
+  for (const entry of result.entries) {
+    console.log(JSON.stringify(entry));
+  }
+}
+
+async function cmdChanges(args, flags) {
+  needInitRead();
+  const since = flags.since || args[0];
+  if (!since || args.length > 1 || (args.length && flags.since)) fail('用法: blackboard changes --since <checkpoint-id> [--json]');
+  const { buildCheckpointChanges } = await import('../lib/history.js');
+  const source = readEvents(cwd());
+  const result = buildCheckpointChanges(source.events, since, source);
+  if (flags.json) return out(flags, result);
+  console.log(`交接点 ${result.since.id} 之后（只读）`);
+  console.log(`节点 +${result.nodes.added.length} ~${result.nodes.updated.length} -${result.nodes.removed.length}；关系 +${result.edges.added.length} -${result.edges.removed.length}`);
+  for (const node of result.nodes.added) console.log(`+ ${nodeLine(node)}`);
+  for (const item of result.nodes.updated) console.log(`~ ${item.id}: ${item.fields.join(', ')}`);
+  for (const node of result.nodes.removed) console.log(`- ${nodeLine(node)}`);
+  for (const edge of result.edges.added) console.log(`+ ${edge.from} ${edge.kind} ${edge.to}`);
+  for (const edge of result.edges.removed) console.log(`- ${edge.from} ${edge.kind} ${edge.to}`);
+}
+
+async function cmdBackup(args, flags) {
+  needInitRead();
+  if (!flags.out || args.length) fail('用法: blackboard backup --out <新备份目录> [--json]');
+  const { backupBoard } = await import('../lib/backup.js');
+  const result = backupBoard(cwd(), path.resolve(cwd(), flags.out));
+  if (flags.json) return out(flags, { schema: 'blackboard.backup-receipt.v1', ...result });
+  console.log(`已备份 ${result.path} · SHA256 ${result.eventsSha256}`);
+}
+
+async function cmdRestore(args, flags) {
+  if (args.length !== 1 || !flags.into) fail('用法: blackboard restore <备份目录> --into <项目目录> [--json]');
+  const { restoreBoard } = await import('../lib/backup.js');
+  const result = restoreBoard(path.resolve(process.cwd(), args[0]), path.resolve(process.cwd(), flags.into));
+  if (flags.json) return out(flags, { schema: 'blackboard.restore-receipt.v1', ...result });
+  console.log(`已恢复 ${result.boardPath} · SHA256 ${result.eventsSha256}`);
+}
+
+async function cmdReceipt(args, flags) {
+  needInitRead();
+  if (args.length !== 1) fail('用法: blackboard receipt <request-id> [--json]');
+  const { getReceipt } = await import('../lib/store.js');
+  const receipt = getReceipt(args[0], cwd());
+  if (!receipt) fail('request_not_found');
+  if (flags.json) return out(flags, { schema: 'blackboard.receipt.v1', ...receipt });
+  console.log(`${receipt.requestId} · ${receipt.command} · ${receipt.status}`);
+  if (receipt.status === 'pending') console.log('显式重试原命令并复用同 request-id，以恢复已记录的操作；查询不会补写。');
+}
+
+function cmdCapabilities(args, flags) {
+  if (args.length) fail('用法: blackboard capabilities [--json]');
+  const result = {
+    schemaVersion: 1, version: VERSION, eventVersion: EVENT_VERSION,
+    runtime: { minimumNode: 18, runtimeDependencies: 0 },
+    commands: Object.keys(COMMAND_FLAGS).filter((key) => !key.startsWith('-')),
+    features: { context: true, incrementalContext: true, search: true, nodeHistory: true,
+      checkpointChanges: true, backupRestore: true, requestReceipts: true },
+    contextContract: { readOnly: true, prescriptive: false, nextStepSelection: 'agent-controlled' },
+    limits: LIMITS,
+  };
+  if (flags.json) return out(flags, result);
+  console.log(`blackboard ${VERSION} · capabilities schema ${result.schemaVersion}`);
+  console.log(Object.keys(result.features).join(', '));
 }
 
 async function cmdLint(args, flags) {
@@ -687,6 +789,13 @@ async function main() {
       return cmdList(args, flags);
     case 'show':
       return cmdShow(args, flags);
+    case 'search': return cmdSearch(args, flags);
+    case 'history': return cmdHistory(args, flags);
+    case 'changes': return cmdChanges(args, flags);
+    case 'backup': return cmdBackup(args, flags);
+    case 'restore': return cmdRestore(args, flags);
+    case 'receipt': return cmdReceipt(args, flags);
+    case 'capabilities': return cmdCapabilities(args, flags);
     case 'tree':
       return cmdTree(args, flags);
     case 'digest':
@@ -750,6 +859,7 @@ function addSimple(type, args, flags) {
       relation: flags.rel || flags.kind || null,
       reason: flags.reason || '',
       agentId: flags.agent || defaultAgentId(),
+      requestId: flags['request-id'],
     },
     cwd(),
   );
@@ -768,12 +878,14 @@ function addSimple(type, args, flags) {
 function cmdCheckpoint(args, flags) {
   needInit();
   const agentId = flags.agent || defaultAgentId();
+  if (flags['request-id'] && !flags.summary && !flags.title && !args.join(' ').trim()) fail('--request-id 的 checkpoint 请显式提供 --summary，确保重试内容稳定');
   const summary = flags.summary || flags.title || args.join(' ').trim() || buildDigest(replay(cwd()), cwd(), agentId);
   const checkpoint = addCheckpoint(
     {
       summary,
       trigger: flags.trigger || (process.argv[2] === 'compact' ? 'manual-compact' : 'manual'),
       agentId,
+      requestId: flags['request-id'],
     },
     cwd(),
   );
@@ -798,6 +910,7 @@ function cmdCursor(args, flags) {
   }
   if (id === 'none' || id === 'clear') id = null;
   if (id === 'next') {
+    if (flags['request-id']) fail('--request-id 的 cursor 请使用明确节点 ID 或 none');
     const open = Object.values(g.nodes)
       .filter((n) => ['intent', 'hypothesis', 'question'].includes(n.type) &&
         ['open', 'active'].includes(n.status || 'open'))
@@ -805,10 +918,13 @@ function cmdCursor(args, flags) {
     if (!open.length) fail('没有可直接进入的开放节点');
     id = open[open.length - 1].id;
   }
-  const cursor = moveCursor(id, { reason: flags.reason || '', agentId }, cwd());
+  const cursor = moveCursor(id, { reason: flags.reason || '', agentId, requestId: flags['request-id'] }, cwd());
   if (flags.json) return out(flags, { cursor });
   if (!process.env.BLACKBOARD_QUIET) {
-    if (cursor.to) console.log(`${C.grn('游标 →')} ${nodeLine(replay(cwd()).nodes[cursor.to])}`);
+    if (cursor.to) {
+      const target = replay(cwd()).nodes[cursor.to];
+      console.log(`${C.grn('游标 →')} ${target ? nodeLine(target) : `${cursor.to}（原请求的目标已移除）`}`);
+    }
     else console.log(C.grn('游标已清空'));
   }
 }
@@ -897,7 +1013,7 @@ function cmdState(cmd, args, flags) {
   const id = args[0];
   if (!id) fail(`用法: blackboard ${cmd} <id>`);
   const map = { done: 'done', block: 'blocked', revive: 'open' };
-  const n = patchNode(id, { status: map[cmd] }, cwd());
+  const n = patchNode(id, { status: map[cmd] }, cwd(), { requestId: flags['request-id'] });
   if (flags.json) return out(flags, n);
   if (!process.env.BLACKBOARD_QUIET) console.log(`${C.grn('✓')} ${nodeLine(n)}`);
 }
@@ -914,7 +1030,7 @@ function cmdEdit(args, flags) {
   if (flags.confidence) set.confidence = flags.confidence;
   if (flags.tag) set.tags = [].concat(flags.tag);
   if (!Object.keys(set).length) fail('没有要修改的字段');
-  const n = patchNode(id, set, cwd());
+  const n = patchNode(id, set, cwd(), { requestId: flags['request-id'] });
   warnTruncated(n);
   if (flags.json) return out(flags, n);
   if (!process.env.BLACKBOARD_QUIET) console.log(`${C.grn('✓')} ${nodeLine(n)}`);
@@ -925,7 +1041,7 @@ function cmdLink(args, flags) {
   const [from, to] = args;
   if (!from || !to) fail('用法: blackboard link <from> <to> [--rel supports]');
   const kind = flags.rel || flags.kind || 'related-to';
-  const edge = addEdge({ from, to, kind, label: flags.label || '' }, cwd());
+  const edge = addEdge({ from, to, kind, label: flags.label || '', requestId: flags['request-id'] }, cwd());
   warnTruncated(edge);
   if (flags.json) return out(flags, edge);
   if (!process.env.BLACKBOARD_QUIET) {
@@ -938,7 +1054,7 @@ function cmdUnlink(args, flags) {
   const [from, to] = args;
   if (!from || !to) fail('用法: blackboard unlink <from> <to> [--rel supports]');
   let edge;
-  try { edge = removeEdge({ from, to, kind: flags.rel || flags.kind || null }, { by: flags.agent || defaultAgentId() }, cwd()); }
+  try { edge = removeEdge({ from, to, kind: flags.rel || flags.kind || null }, { by: flags.agent || defaultAgentId(), requestId: flags['request-id'] }, cwd()); }
   catch (e) { return fail(e.message); }
   if (flags.json) return out(flags, edge);
   if (!process.env.BLACKBOARD_QUIET) {
@@ -950,7 +1066,7 @@ function cmdRemove(args, flags) {
   needInit();
   if (!args[0]) fail('用法: blackboard remove <id> [--reason "…"]（节点及其关系从图上移除，事件日志仍保留历史）');
   let result;
-  try { result = removeNode(args[0], { by: flags.agent || defaultAgentId(), reason: flags.reason || '' }, cwd()); }
+  try { result = removeNode(args[0], { by: flags.agent || defaultAgentId(), reason: flags.reason || '', requestId: flags['request-id'] }, cwd()); }
   catch (e) { return fail(e.message); }
   if (flags.json) return out(flags, result);
   if (!process.env.BLACKBOARD_QUIET) {
@@ -963,7 +1079,8 @@ function cmdReset(args, flags) {
     fail('这会清空整张图。确认请加 --yes');
   }
   ensure(cwd());
-  reset(cwd());
+  const result = reset(cwd(), { requestId: flags['request-id'] });
+  if (flags.json) return out(flags, result);
   console.log(C.grn('已重置'));
 }
 

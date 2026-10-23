@@ -28,7 +28,7 @@ export function apply(ctx, config) {
   ctx.effect(() => ctx.appReady.onReady(() => {
     (async () => {
       const schemas = ctx.tools.schemas().filter(s => s.name.startsWith('blackboard_'));
-      assert.equal(schemas.length, 8);
+      assert.equal(schemas.length, 9);
       const agent = await ctx.agentLoop.create('loader-probe', {}, { cwd: config.project });
       const result = await ctx.tools.execute({ callId: 'loader-probe', name: 'blackboard_context', arguments: {}, agent, signal: new AbortController().signal });
       assert.ok(!result.isError, JSON.stringify(result));
@@ -44,7 +44,7 @@ export function apply(ctx, config) {
       assert.equal(added.value.data.node.title, writeArgs.title);
       const skills = await ctx.skills.list({ cwd: config.project });
       assert.ok(skills.some(s => s.name === 'blackboard'));
-      console.log('DSH_LOADER_PROBE: 8 native tools; live Session read/write; read-only enforcement; Skill discovery PASS');
+      console.log('DSH_LOADER_PROBE: 9 native tools; live Session read/write; read-only enforcement; Skill discovery PASS');
       ctx.appExit(0);
     })().catch(error => { console.error(error); ctx.appExit(1); });
   }));

@@ -9,31 +9,59 @@
     "url": "git+https://github.com/Fruit-Guardians/blackboard.git",
     "directory": "plugins/dsh-blackboard"
   },
-  "bugs": { "url": "https://github.com/Fruit-Guardians/blackboard/issues" },
+  "bugs": {
+    "url": "https://github.com/Fruit-Guardians/blackboard/issues"
+  },
   "type": "module",
   "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js",
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json",
-    "./icon": "./assets/blackboard-icon.svg"
+    "./icon": "./assets/blackboard-icon.svg",
+    "./client": "./client/index.js"
   },
-  "files": ["src/", "assets/", "locale/", "cordis.patch.yml", "examples/", "README.md", "LICENSE"],
+  "files": [
+    "src/",
+    "client/",
+    "assets/",
+    "locale/",
+    "cordis.patch.yml",
+    "examples/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "node --test test/*.test.js",
     "check": "node scripts/check.mjs",
     "verify:dsh": "node scripts/verify-dsh.mjs",
     "verify:metadata": "node scripts/verify-metadata.mjs",
     "verify:profile": "node scripts/verify-profile.mjs",
-    "verify:e2e": "node scripts/verify-e2e.mjs"
+    "verify:e2e": "node scripts/verify-e2e.mjs",
+    "verify:settings": "node scripts/verify-settings.mjs"
   },
-  "engines": { "node": "^22.19.0 || >=24.0.0", "dsh": "0.2.1-rc.2" },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": "0.2.1-rc.2"
+  },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.5",
     "@deepseek-ai/dsh-tools": "0.2.1-rc.2",
-    "@deepseek-ai/dsh-skill": "0.2.1-rc.2"
+    "@deepseek-ai/dsh-skill": "0.2.1-rc.2",
+    "@deepseek-ai/schemastery": "~3.18.5"
   },
-  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
   "license": "MIT",
-  "keywords": ["dsh-plugin", "blackboard", "agent-memory"]
+  "keywords": [
+    "dsh-plugin",
+    "blackboard",
+    "agent-memory"
+  ]
 }
