@@ -159,7 +159,7 @@ test('promote, remove, unlink and reset record who made them', (t) => {
   assert.equal(lastEvent(dir, 'remove').by, 'agent:cut');
   ok(t, ['remove', 'g1', '--agent', 'gone'], { env });
   assert.equal(lastEvent(dir, 'remove').by, 'agent:gone');
-  ok(t, ['reset', '--yes', '--agent', 'wipe'], { env });
+  ok(t, ['reset', '--yes', '--agent', 'wipe', '--json'], { env });
   assert.equal(lastEvent(dir, 'reset').by, 'agent:wipe');
 });
 
@@ -167,8 +167,8 @@ test('history attributes relation events to their author', (t) => {
   const dir = board(t);
   const env = { BLACKBOARD_CWD: dir };
   ok(t, ['goal', 'G'], { env });
-  ok(t, ['fact', 'F'], { env });
-  ok(t, ['link', 'o1', 'g1', '--rel', 'supports', '--agent', 'qs'], { env });
+  const fact = ok(t, ['fact', 'F', '--json'], { env }).node.id;
+  ok(t, ['link', fact, 'g1', '--rel', 'supports', '--agent', 'qs'], { env });
   const history = ok(t, ['history', 'g1', '--json'], { env });
   const edgeEntry = history.entries.find((e) => e.op === 'edge');
   assert.ok(edgeEntry, JSON.stringify(history.entries));
