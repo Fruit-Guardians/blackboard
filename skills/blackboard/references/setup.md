@@ -7,17 +7,17 @@
 需要接手任务、恢复长期上下文或压缩后继续时：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard context --budget 4000
-BLACKBOARD_CWD="/已确认项目" blackboard digest
-BLACKBOARD_CWD="/已确认项目" blackboard here
+blackboard context --budget 4000 --cwd "/已确认项目"
+blackboard digest --cwd "/已确认项目"
+blackboard here --cwd "/已确认项目"
 ```
 
-`context` 默认输出 JSON；可加 `--markdown`。`digest` 是人类可读摘要，`here` 是当前身份的游标及一跳邻域；按需选用，不必全部执行。它们是只读投影，不规定下一步。并行任务需在每条命令中明确身份。
+`context` 默认输出 JSON；可加 `--markdown`。`digest` 是人类可读摘要，`here` 是当前身份的游标及一跳邻域；按需选用，不必全部执行。它们是只读投影，不规定下一步。并行任务需在每条命令中用 `--agent` 明确身份。
 
 ## 仅打开：先看实际服务状态
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard status
+blackboard status --cwd "/已确认项目"
 ```
 
 若提示项目尚无黑板，说明现状；只有用户同意初始化后才进入相应宿主的接入分支，不为“打开”静默重配环境或创建虚构记录。
@@ -25,7 +25,7 @@ BLACKBOARD_CWD="/已确认项目" blackboard status
 若返回的查看器确实在线且服务于目标项目，直接访问该 URL；不要为打开页面而重装 Skill/Hook 或运行 setup。若离线，按用户的启动意图运行前台服务：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard serve --open
+blackboard serve --open --cwd "/已确认项目"
 ```
 
 前台服务要保持进程存活，不承诺命令退出后继续运行。若端口服务于其他项目，不要把该页面当成本项目；可选用已确认空闲的端口，以 `serve --port <端口> --open` 启动并用同一 `--port` 查询 status。只需要查看时可加 `--read-only`。本地 URL 并非远程访问服务。
@@ -36,7 +36,7 @@ BLACKBOARD_CWD="/已确认项目" blackboard serve --open
 
 ```sh
 blackboard setup --target "/已确认项目" --title "项目或任务标题" --open
-BLACKBOARD_CWD="/已确认项目" blackboard status
+blackboard status --cwd "/已确认项目"
 ```
 
 `setup` 是 **Claude 专用的一体化配置命令**，可重复执行但不是无副作用的查询。它会：
@@ -50,16 +50,16 @@ BLACKBOARD_CWD="/已确认项目" blackboard status
 
 ### 平台差异
 
-macOS setup 默认配置并启动 launchd 持久服务，并核对它服务的项目。非 macOS 不自动配置持久服务，返回 `mode: manual` 和实际手动服务命令；执行返回命令后再确认状态。不要把 setup 的成功提示当成非 macOS 服务已在线。shell 环境不同则使用相应环境变量语法；本文前缀示例是 POSIX shell。
+macOS setup 默认配置并启动 launchd 持久服务，并核对它服务的项目。非 macOS 不自动配置持久服务，返回 `mode: manual` 和实际手动服务命令；执行返回命令后再确认状态。不要把 setup 的成功提示当成非 macOS 服务已在线。
 
 ## 首次 Codex 接入
 
 Codex 不默认执行 Claude 专用 setup，不安装 Claude Hook。用户同意初始化与安装后：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard init --title "项目或任务标题"
-BLACKBOARD_CWD="/已确认项目" blackboard skill install --codex
-BLACKBOARD_CWD="/已确认项目" blackboard status
+blackboard init --title "项目或任务标题" --cwd "/已确认项目"
+blackboard skill install --codex --cwd "/已确认项目"
+blackboard status --cwd "/已确认项目"
 ```
 
 已有黑板不必重新 init。项目级安装到 `.agents/skills/blackboard/`；用户明确要求全局安装时加 `--user`，安装到 `~/.agents/skills/blackboard/`。
@@ -77,9 +77,9 @@ BLACKBOARD_CWD="/已确认项目" blackboard status
 ## macOS 共享工作区服务生命周期
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard service status --json
-BLACKBOARD_CWD="/已确认项目" blackboard service stop
-BLACKBOARD_CWD="/已确认项目" blackboard service uninstall
+blackboard service status --json --cwd "/已确认项目"
+blackboard service stop --cwd "/已确认项目"
+blackboard service uninstall --cwd "/已确认项目"
 ```
 
 服务是用户级固定共享工作区，并非每项目独立。`service status` 无需初始化黑板，报告 plist、实际归属与是否当前项目；`loaded` 与 `running` 分开，`waiting` 表示已加载但尚未运行，不能当作页面在线。`setup` 切换时报告 `previousCwd` → `cwd`（JSON 同时给出 `switched`），不把其他项目的服务误当当前项目。

@@ -29,7 +29,9 @@ blackboard 只提供数据，不是工作流引擎：不批准、阻断、排序
 
 ## 命令位置与项目归属
 
-下列例子中的 `/已确认项目` 必须替换成已确认的绝对项目路径。每次命令显式带 `BLACKBOARD_CWD`，避免工具调用工作目录不同而写错项目。
+下列例子中的 `/已确认项目` 必须替换成已确认的绝对项目路径，`<目标ID>` 等尖括号占位符必须替换成命令输出中的实际 ID。每条命令都用 `--cwd` 指定项目，避免工具调用的工作目录不同而写错项目。写命令再加 `--no-init`：黑板只在用户同意后由 `init` 或 `setup` 创建；路径写错时命令报错退出，而不是在错误位置新建一块空板。
+
+多个参与者共用一块黑板时，每条命令还要加 `--agent <稳定名称>`，节点、关系和修改会以该身份记为作者；单人使用可省略，默认为 `agent:primary`。详见 [并行 Agent](references/parallel-agents.md)。环境变量 `BLACKBOARD_CWD`、`BLACKBOARD_AGENT` 仍然有效，参数优先。CLI 若报 `未知选项 --cwd`，说明它早于本 Skill：改用这两个环境变量作命令前缀，并在写入前用 `status` 确认黑板已存在。
 
 优先用 PATH 中的 `blackboard`。不可用时，安装后的 Skill 可用 `node "__BLACKBOARD_CLI__"` 替换命令名，**仅限路径已展开为真实文件**。如果路径仍是双下划线包围的 CLI 占位符，说明直接加载了仓库源 Skill；不要执行占位符、不要猜安装路径。可在已确认的 blackboard 仓库根使用 `node bin/blackboard.js`，否则先定位实际 CLI。
 
@@ -38,36 +40,47 @@ blackboard 只提供数据，不是工作流引擎：不批准、阻断、排序
 恢复长期现场（默认返回结构化 JSON）：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard context --budget 4000
+blackboard context --budget 4000 --cwd "/已确认项目"
 ```
 
 仅查看服务与接入状态：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard status
+blackboard status --cwd "/已确认项目"
 ```
 
-关键猜测值得保留时，新建并显式进入：
+关键猜测值得保留时，新建并显式进入；已知它服务于哪个目标时，用 `--to` 一并连上：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard node add hypothesis "待验证的判断" --confidence suspected --enter
+blackboard node add hypothesis "待验证的判断" --confidence suspected --to "<目标ID>" --enter --cwd "/已确认项目" --no-init
+```
+
+等待外部依赖（源码未到、等用户答复、等长时间运行的结果）时，把卡住的节点标为 `blocked`，等到后用 `revive` 恢复为 `open`；在等什么写进检查点摘要。这只是记录，不阻止任何操作，但接手者能据此分清“刚开始”和“卡住了”：
+
+```sh
+blackboard block "<节点ID>" --cwd "/已确认项目" --no-init
+blackboard revive "<节点ID>" --cwd "/已确认项目" --no-init
 ```
 
 交接、暂停或压缩前保存现场：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard checkpoint --summary "已确认内容；当前关注点；仍开放的问题"
+blackboard checkpoint --summary "已确认内容；当前关注点；仍开放的问题" --cwd "/已确认项目" --no-init
 ```
 
-空黑板且用户同时给出实质任务时，可用 `node add goal "用户目标" --enter` 建目标锚点；仅配环境时不凭空创建任务或结论。
+空黑板且用户同时给出实质任务时，可建目标锚点；仅配环境时不凭空创建任务或结论。研究或审计的对象是某份具体代码时，在目标里写明它的版本：标题带包名@版本或短提交号，detail 写源码的实际位置。不同版本的行号不可比，换了副本要能看出来。示例中的库名、版本和路径须换成实际值：
+
+```sh
+blackboard goal "审计 某库@1.2.3 的解析边界" --detail "源码：实际路径或仓库与提交号" --enter --cwd "/已确认项目" --no-init
+```
 
 ## 写什么，不写什么
 
 - 记录可供未来会话复核的目标变化、关键观察、判断支持/反驳/取代、主要关注点与交接现场。
 - 不把每次命令、读取、成功提示或原始输出写成逻辑节点。工具活动默认不采集；显式启用后仍是独立活动层，不自动成为事实。
-- 一个节点表达一个主要判断，标题可扫描，证据和条件放 `--detail`。
+- 一个节点表达一个主要判断。标题只写这个判断本身，控制在约 80 字内；证据、文件位置、条件和过程放 `--detail`。标题不复述其他节点的结论（如“hy1 被反驳”）：节点之间的关系用边表达，状态用 `--status`。
 - 未验证的 finding/vuln 候选用 `suspected`；已有静态核对证据可直接用 `static-confirmed`，真实复现后才用 `reproduced`，不要求依次升级。严重度、状态和可信度相互独立。
-- 关系读作 “from relation to”：证据 `supports` 或 `contradicts` 论断。创建时已知新节点与已有节点的关系，可用 `--to <已有ID> --rel <关系>` 一并声明（新节点在左，不移动游标）；不确定关系时不连，而不是套用默认值。有足够证据推翻时才将旧论断设为 `refuted`。新结论确实取代旧结论时才用 `supersedes` 和 `superseded`；反驳不等于取代。
+- 关系读作 “from relation to”：证据 `supports` 或 `contradicts` 论断。创建时已知新节点与已有节点的关系，可用 `--to <已有ID> --rel <关系>` 一并声明（新节点在左，不移动游标）。知道一个假设、问题或发现属于哪个目标时，就在创建时 `--to <目标ID>` 连上（省略 `--rel` 即弱关系 `related-to`），交接后结论仍能沿关系回到目标。不确定关系时不连，而不是套用默认值或为消除孤立节点补边。有足够证据推翻时才将旧论断设为 `refuted`。新结论确实取代旧结论时才用 `supersedes` 和 `superseded`；反驳不等于取代。
 
 ## 按需读取参考
 
@@ -85,7 +98,7 @@ BLACKBOARD_CWD="/已确认项目" blackboard checkpoint --summary "已确认内�
 
 逻辑节点/边、游标/轨迹、工具活动相互独立：创建节点默认不连边、不移动游标；当前节点不是隐式父节点，时间先后和游标轨迹不构成逻辑关系。只保存明确知道的关系，不为连图而编造因果。
 
-并行参与者必须明确身份；不要假设一次 `export` 会跨工具调用保留。使用前按需读取并行参考。Hook 只是可选恢复辅助，不保证子 Agent 自动恢复，也不决定行动。
+并行参与者必须在每条命令用 `--agent` 明确身份；不要假设一次 `export` 会跨工具调用保留。使用前按需读取并行参考。Hook 只是可选恢复辅助，不保证子 Agent 自动恢复，也不决定行动。
 
 ## 输出预期
 

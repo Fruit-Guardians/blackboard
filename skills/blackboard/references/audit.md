@@ -4,6 +4,7 @@
 
 ## 节点的含义
 
+- 审计目标写明被审代码的版本：标题带包名@版本或短提交号，detail 写源码的实际位置（安装副本路径，或仓库与提交号）。审计时用的若不是原定那份副本，在目标或第一条观察里如实说明。不同版本之间行号引用不可比，同一个函数可能差出几十行。
 - 开放问题只表达一个可独立结束的验证事项；剩余方向相互独立时分别建问题，并关联已知目标或上游判断。
 - hypothesis 保存待核对解释；fact/observation/result 保存实际检查到的内容与可复核条件，不能用拟执行的实验冒充已观测结果。
 - finding/vuln 可先记录未验证候选，可信度用 `suspected`；已有静态核对证据可直接标 `static-confirmed`，真实复现后才标 `reproduced`，不要求依次升级。漏洞严重度与可信度分开，源码推导不是端到端复现。
@@ -14,19 +15,19 @@
 
 `/已确认项目` 必须替换成真实绝对项目路径；`<候选ID>`、`<证据ID>` 等必须替换为命令输出中的实际 ID 或唯一前缀。CLI 定位遵循主入口，并行时每条命令另加身份。不原样执行未替换占位符。
 
-先记录实际候选，而非捏造复现结果：
+先记录实际候选，而非捏造复现结果。已知候选属于哪个审计目标时，创建时就用 `--to` 连上：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard node add vuln "候选：某入口可能缺少授权检查" --sev high --confidence suspected --detail "已知入口与待核对条件"
+blackboard node add vuln "候选：某入口可能缺少授权检查" --sev high --confidence suspected --to "<目标ID>" --detail "已知入口与待核对条件" --cwd "/已确认项目" --no-init
 ```
 
 完成真实静态核对后，记录核对事实并更新候选；示例中的描述也须替换成实际观察，不能把示例当审计结果：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard node add fact "已核对入口到敏感操作的调用链" --status confirmed --to "<候选ID>" --rel supports --detail "实际文件位置、检查路径、成立条件与限制"
-BLACKBOARD_CWD="/已确认项目" blackboard edit "<候选ID>" --confidence static-confirmed
-# 仅在候选与目标存在明确关系时，可选执行：
-BLACKBOARD_CWD="/已确认项目" blackboard link "<候选ID>" "<目标ID>" --rel related-to
+blackboard node add fact "已核对入口到敏感操作的调用链" --status confirmed --to "<候选ID>" --rel supports --detail "实际文件位置、检查路径、成立条件与限制" --cwd "/已确认项目" --no-init
+blackboard edit "<候选ID>" --confidence static-confirmed --cwd "/已确认项目" --no-init
+# 创建时没连目标、之后才明确两者关系时，可选执行：
+blackboard link "<候选ID>" "<目标ID>" --rel related-to --cwd "/已确认项目" --no-init
 ```
 
 事实 `supports` 结论，或结论 `derived-from` 事实，选择能准确表达已知证据的方向。若发现与目标存在明确关系，可以显式记录；没有已知关系时保持独立，不为图的完整性补边。暂缺证据可照常记录候选，`lint` 的 `unsupported-conclusions` 仅提示补证，不拒绝写入。
@@ -40,7 +41,7 @@ BLACKBOARD_CWD="/已确认项目" blackboard link "<候选ID>" "<目标ID>" --re
 暂停、交接或完成一轮审计时可写检查点：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard checkpoint --summary "已确认内容及证据ID；当前验证节点；开放方向；尚未执行的复现"
+blackboard checkpoint --summary "已确认内容及证据ID；当前验证节点；开放方向；尚未执行的复现" --cwd "/已确认项目" --no-init
 ```
 
 摘要区分静态核对与真实复现，标明限制和未知。context/digest 只重建现场，不自动指派下一项研究，也不承诺审计完整性。

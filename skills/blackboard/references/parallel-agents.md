@@ -6,24 +6,16 @@
 
 将 `/已确认项目` 替换为确认过的项目绝对路径；`research` 是示例中的稳定角色名，实际参与者应选各自稳定、不同的名称。同一参与者后续恢复沿用原身份，不要每次随机造名字。
 
-推荐在**每条命令**前加环境变量：
+在**每条命令**上用 `--cwd` 指定项目、`--agent` 指定身份；写命令另加 `--no-init`，项目路径写错会报错，而不是在错误位置新建一块空板：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" BLACKBOARD_AGENT=research blackboard context --budget 4000
-BLACKBOARD_CWD="/已确认项目" BLACKBOARD_AGENT=research blackboard node add question "本参与者正在验证的问题" --enter
-BLACKBOARD_CWD="/已确认项目" BLACKBOARD_AGENT=research blackboard here
-BLACKBOARD_CWD="/已确认项目" BLACKBOARD_AGENT=research blackboard checkpoint --summary "已确认内容；当前问题；仍开放的方向"
+blackboard context --budget 4000 --cwd "/已确认项目" --agent research
+blackboard node add question "本参与者正在验证的问题" --to "<目标ID>" --enter --cwd "/已确认项目" --agent research --no-init
+blackboard here --cwd "/已确认项目" --agent research
+blackboard checkpoint --summary "已确认内容；当前问题；仍开放的方向" --cwd "/已确认项目" --agent research --no-init
 ```
 
-`BLACKBOARD_AGENT=research` 被归一化为 `agent:research`；不提供环境身份时默认为 `agent:primary`，不会根据宿主 session ID 自动生成身份。不要假设某次工具调用里的 `export` 在下次调用、另一个 shell 或子 Agent 中仍然存在。
-
-也可在每条命令用参数代替环境变量：`--cwd` 指定项目，`--agent` 指定身份。黑板应已存在时加 `--no-init`，项目路径写错会报错，而不是在错误位置新建一块空板：
-
-```sh
-blackboard context --cwd "/已确认项目" --agent research --budget 4000
-blackboard node add question "本参与者正在验证的问题" --cwd "/已确认项目" --agent research --no-init --enter
-blackboard checkpoint --cwd "/已确认项目" --agent research --no-init --summary "当前研究现场"
-```
+`--agent research` 被归一化为 `agent:research`；不提供身份时默认为 `agent:primary`，不会根据宿主 session ID 自动生成身份。环境变量 `BLACKBOARD_CWD`、`BLACKBOARD_AGENT` 是等价写法，但不要假设某次工具调用里的 `export` 在下次调用、另一个 shell 或子 Agent 中仍然存在；参数写在命令里，不会丢。
 
 避免在同一命令混用冲突的环境身份与 `--agent`；显式参数优先，但 Hook 不会继承某次 CLI 命令里的参数。游标、检查点和活动应沿用同一身份。节点、关系和修改会以该身份记为作者（`author` / `updatedBy`），这只是归属，不是权限：`link`、`edit` 修改的是共享语义图，不提供参与者之间的写入隔离。
 
@@ -40,9 +32,9 @@ Claude 恢复 Hook 使用运行它的宿主进程实际继承的 `BLACKBOARD_AGE
 同一身份恢复时，先取自己的 context；若接手另一参与者的现场，显式读取对方身份，不需要覆盖对方游标：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard context --agent agent:research --budget 4000
-BLACKBOARD_CWD="/已确认项目" blackboard digest --agent agent:research
-BLACKBOARD_CWD="/已确认项目" blackboard here --agent agent:research
+blackboard context --agent agent:research --budget 4000 --cwd "/已确认项目"
+blackboard digest --agent agent:research --cwd "/已确认项目"
+blackboard here --agent agent:research --cwd "/已确认项目"
 ```
 
 按需选择查询，不强制逐条执行。读完后由接手者独立决定是否继续原问题；实际切换关注点时，使用接手者自己的身份移动游标。
@@ -50,9 +42,9 @@ BLACKBOARD_CWD="/已确认项目" blackboard here --agent agent:research
 下面 `<节点ID>` 与 `<检查点ID>` 必须替换成实际输出中的 ID 或唯一前缀，不原样执行：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" BLACKBOARD_AGENT=review blackboard show "<节点ID>"
-BLACKBOARD_CWD="/已确认项目" BLACKBOARD_AGENT=review blackboard context --focus "<节点ID>" --since "<检查点ID>" --budget 4000
-BLACKBOARD_CWD="/已确认项目" BLACKBOARD_AGENT=review blackboard cursor "<节点ID>" --reason "接手该问题的验证"
+blackboard show "<节点ID>" --cwd "/已确认项目"
+blackboard context --focus "<节点ID>" --since "<检查点ID>" --budget 4000 --cwd "/已确认项目" --agent review
+blackboard cursor "<节点ID>" --reason "接手该问题的验证" --cwd "/已确认项目" --agent review --no-init
 ```
 
 交接摘要写清确认内容、实际游标、证据位置和未完成的验证；不要把别人的候选结论直接升格为事实。项目身份、参与者身份和结论可信度是独立维度。
