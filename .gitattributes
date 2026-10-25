@@ -1,0 +1,7 @@
+# Check out text with LF on every platform. The packed-runtime check compares
+# the installed Skill byte for byte with the source tree, so a CRLF checkout
+# on Windows would never match the LF tarball built on Linux.
+* text=auto eol=lf
+
+*.png binary
+*.zip binary
