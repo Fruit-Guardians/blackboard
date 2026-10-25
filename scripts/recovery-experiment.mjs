@@ -15,6 +15,8 @@ import { buildAgentContext } from '../lib/context.js';
 const SCHEMA = 'blackboard.recovery-experiment.v1';
 const ARMS = ['A', 'B', 'C'];
 const SPECULATIVE_TYPES = new Set(['hypothesis', 'question']);
+// A refuted or confirmed hypothesis is a recorded outcome, not a guess.
+const SETTLED_STATUSES = new Set(['refuted', 'confirmed']);
 
 const USAGE = `Usage:
   recovery-experiment.mjs prepare --board <root> --at <checkpoint|event:N> [--since <checkpoint>]
@@ -152,6 +154,7 @@ export function prepare({ board, at, since = null, budget = 4000, agent = 'agent
     nodesAtCut: Object.fromEntries(Object.values(atCut.nodes).map((node) => [node.id, {
       type: node.type, status: node.status || null, confidence: node.confidence || null,
     }])),
+    checkpointsAtCut: events.filter((ev) => ev.op === 'checkpoint').map((ev) => ev.checkpoint.id),
     arms: {
       A: { file: 'A-summary.md', source: summaryFile ? 'summary-file' : 'checkpoint-summary', chars: summary.length, estimatedTokens: estimateTokens(summary) },
       B: { file: 'B-nodes.json', ...armSize(materials.B) },
@@ -163,7 +166,9 @@ export function prepare({ board, at, since = null, budget = 4000, agent = 'agent
   return manifest;
 }
 
+// Checkpoints are authored records, so citing one is never speculative.
 function isSpeculative(node) {
+  if (!node || SETTLED_STATUSES.has(node.status)) return false;
   return node.confidence === 'suspected' || SPECULATIVE_TYPES.has(node.type);
 }
 
@@ -171,6 +176,8 @@ export function check({ manifest, questions, answers }) {
   if (manifest?.schema !== SCHEMA) fail(`manifest schema must be ${SCHEMA}`);
   const byId = new Map(questions.map((q) => [q.id, q]));
   const nodes = manifest.nodesAtCut || {};
+  const checkpoints = new Set(manifest.checkpointsAtCut || []);
+  const atCut = (id) => Boolean(nodes[id]) || checkpoints.has(id);
   const seen = new Set();
   const arms = Object.fromEntries(ARMS.map((arm) => [arm, {
     answered: 0, graded: 0, correct: 0,
@@ -191,12 +198,12 @@ export function check({ manifest, questions, answers }) {
 
     const tally = arms[answer.arm];
     const cites = [...new Set(answer.cites || [])];
-    const valid = cites.filter((id) => nodes[id]);
+    const valid = cites.filter(atCut);
     tally.answered++;
     if (typeof answer.correct === 'boolean') { tally.graded++; if (answer.correct) tally.correct++; }
     tally.cites += cites.length;
     tally.citesValid += valid.length;
-    tally.citesUnknownAtCut.push(...cites.filter((id) => !nodes[id]).map((id) => `${answer.question}:${id}`));
+    tally.citesUnknownAtCut.push(...cites.filter((id) => !atCut(id)).map((id) => `${answer.question}:${id}`));
 
     if (question.expected === 'unknown') {
       tally.unknownExpected++;

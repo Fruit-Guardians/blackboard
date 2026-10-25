@@ -100,11 +100,11 @@ node scripts/recovery-experiment.mjs check --manifest <输出目录>/manifest.js
 | 指标 | 含义 | 核对方式 |
 | --- | --- | --- |
 | 答对 | 人工判定正确的题数 | `correct` 字段 |
-| 引用有效 | 引用的节点在 T 时存在 | 对照清单 |
+| 引用有效 | 引用的节点或检查点在 T 时存在 | 对照清单 |
 | 命中证据 | 引用至少包含一个标准证据节点 | 对照 `evidence` |
 | 恰当回答未知 | 标准答案为未知时回答 `unknown` | 对照 `expected` |
 | 漏答 | 有答案却回答 `unknown` | 对照 `expected` |
-| 猜测说成事实 | 以 `fact` 回答，但引用的节点都是猜测性的（`suspected`，或 hypothesis / question 类型） | 对照清单 |
+| 猜测说成事实 | 以 `fact` 回答，但引用的节点都是猜测性的（`suspected`，或 hypothesis / question 类型；已 `refuted` / `confirmed` 的不算，检查点也不算） | 对照清单 |
 | 恢复成本 | 材料大小、恢复者补读次数和耗时 | 清单与运行记录 |
 | 记录成本 | 截至 T 的节点、关系、修改、检查点事件数和文字量 | 清单 |
 

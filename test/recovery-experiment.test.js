@@ -140,6 +140,55 @@ test('check tallies citations, unknowns and guesses mechanically per arm', () =>
   assert.throws(() => check({ manifest, questions, answers: [{ question: 'q1', arm: 'C', cites: [] }] }), /stance/);
 });
 
+test('checkpoints recorded before the cut are valid, non-speculative citations', () => {
+  const { root } = board();
+  const takeover = prepare({ board: root, at: 'cp1', out: path.join(root, 'takeover') });
+  const resume = prepare({ board: root, at: 'cp2', since: 'cp1', out: path.join(root, 'resume') });
+  assert.deepEqual(takeover.checkpointsAtCut, ['cp1']);
+  assert.deepEqual(resume.checkpointsAtCut, ['cp1', 'cp2']);
+
+  const questions = [{ id: 'q1', text: 'Where were we?', evidence: ['cp1'] }];
+  const answers = [
+    { question: 'q1', arm: 'B', answer: 'cp1 says F1 supports H1', cites: ['cp1'], stance: 'fact' },
+    { question: 'q1', arm: 'C', answer: 'cp2 says F2 contradicts H1', cites: ['cp2'], stance: 'fact' },
+  ];
+  const atCp1 = check({ manifest: takeover, questions, answers });
+  assert.equal(atCp1.arms.B.citesValid, 1);
+  assert.deepEqual(atCp1.arms.B.citesUnknownAtCut, []);
+  assert.equal(atCp1.arms.B.evidenceHit, 1);
+  assert.equal(atCp1.arms.B.guessAsFact, 0);
+  assert.equal(atCp1.arms.B.factWithoutCitation, 0);
+  // cp2 was written after the cp1 cut, so citing it there is still flagged.
+  assert.deepEqual(atCp1.arms.C.citesUnknownAtCut, ['q1:cp2']);
+  assert.equal(check({ manifest: resume, questions, answers }).arms.C.citesValid, 1);
+});
+
+test('only unsettled hypotheses and questions count as speculative', () => {
+  const manifest = {
+    schema: 'blackboard.recovery-experiment.v1',
+    nodesAtCut: {
+      open: { type: 'hypothesis', status: 'open', confidence: 'suspected' },
+      refuted: { type: 'hypothesis', status: 'refuted', confidence: null },
+      refutedSuspected: { type: 'hypothesis', status: 'refuted', confidence: 'suspected' },
+      confirmed: { type: 'hypothesis', status: 'confirmed', confidence: null },
+      question: { type: 'question', status: 'open', confidence: null },
+      suspectedFinding: { type: 'finding', status: 'open', confidence: 'suspected' },
+    },
+    checkpointsAtCut: [],
+  };
+  const ids = Object.keys(manifest.nodesAtCut);
+  const questions = ids.map((id) => ({ id, text: id }));
+  const answers = ids.map((id) => ({ question: id, arm: 'B', answer: id, cites: [id], stance: 'fact' }));
+  const flagged = (cites) => check({
+    manifest, questions: [{ id: 'q', text: 'q' }], answers: [{ question: 'q', arm: 'B', answer: 'x', cites, stance: 'fact' }],
+  }).arms.B.guessAsFact;
+
+  assert.equal(check({ manifest, questions, answers }).arms.B.guessAsFact, 3);
+  for (const id of ['open', 'question', 'suspectedFinding']) assert.equal(flagged([id]), 1, id);
+  for (const id of ['refuted', 'refutedSuspected', 'confirmed']) assert.equal(flagged([id]), 0, id);
+  assert.equal(flagged(['open', 'refuted']), 0, 'a settled citation backs the fact');
+});
+
 test('the command line prints a per-arm table and fails with usage on bad input', () => {
   const { root } = board();
   const out = path.join(root, 'out');
