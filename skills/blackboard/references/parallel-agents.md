@@ -17,15 +17,15 @@ BLACKBOARD_CWD="/已确认项目" BLACKBOARD_AGENT=research blackboard checkpoin
 
 `BLACKBOARD_AGENT=research` 被归一化为 `agent:research`；不提供环境身份时默认为 `agent:primary`，不会根据宿主 session ID 自动生成身份。不要假设某次工具调用里的 `export` 在下次调用、另一个 shell 或子 Agent 中仍然存在。
 
-也可在每条命令用完整 `--agent`，但项目路径仍要明确：
+也可在每条命令用参数代替环境变量：`--cwd` 指定项目，`--agent` 指定身份。黑板应已存在时加 `--no-init`，项目路径写错会报错，而不是在错误位置新建一块空板：
 
 ```sh
-BLACKBOARD_CWD="/已确认项目" blackboard context --agent agent:research --budget 4000
-BLACKBOARD_CWD="/已确认项目" blackboard here --agent agent:research
-BLACKBOARD_CWD="/已确认项目" blackboard checkpoint --agent agent:research --summary "当前研究现场"
+blackboard context --cwd "/已确认项目" --agent research --budget 4000
+blackboard node add question "本参与者正在验证的问题" --cwd "/已确认项目" --agent research --no-init --enter
+blackboard checkpoint --cwd "/已确认项目" --agent research --no-init --summary "当前研究现场"
 ```
 
-避免在同一命令混用冲突的环境身份与 `--agent`；显式参数优先，但 Hook 不会继承某次 CLI 命令里的参数。游标、检查点和活动应沿用同一身份；`link`、`edit` 修改的是共享语义图，不提供参与者之间的权限或写入隔离。
+避免在同一命令混用冲突的环境身份与 `--agent`；显式参数优先，但 Hook 不会继承某次 CLI 命令里的参数。游标、检查点和活动应沿用同一身份。节点、关系和修改会以该身份记为作者（`author` / `updatedBy`），这只是归属，不是权限：`link`、`edit` 修改的是共享语义图，不提供参与者之间的写入隔离。
 
 ## Hook 继承边界
 

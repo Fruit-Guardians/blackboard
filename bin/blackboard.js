@@ -167,9 +167,11 @@ ${b('版本发布')}
   启动器、用户级 Skill/Hook 和常驻服务只指向 current；install/use 后会从新版本刷新它们。
 
 node/edit/link/unlink/remove/cursor/checkpoint/reset 等写命令可加 --request-id <稳定ID>；同一操作重试复用同ID，receipt 可查询提交状态。
+写命令都接受 --agent <名称>（记为节点、关系和修改的作者，并决定移动哪个游标）、--cwd <项目根>、--no-init（项目根没有黑板时报错，不自动新建）。
+读命令同样接受 --cwd；优先级 --cwd > BLACKBOARD_CWD > 当前目录向上最近的黑板。
 所有命令支持 --help / -h；init/setup/status/skill/hooks/launcher/service 支持 --json，供脚本读取。
 端口优先级: --port > BLACKBOARD_PORT > 项目 viewerPort > ${DEFAULT_PORT}；地址统一为 127.0.0.1。
-环境变量: BLACKBOARD_CWD 指定项目根；BLACKBOARD_QUIET=1 静默；BLACKBOARD_AGENT=name 让并行的 Agent 各用各的游标（默认 agent:primary）。
+环境变量: BLACKBOARD_CWD 指定项目根；BLACKBOARD_QUIET=1 静默；BLACKBOARD_AGENT=name 让并行的 Agent 各用各的身份和游标（默认 agent:primary；--agent 优先）。
 `);
 }
 /** Resolve a typed id, failing with the candidate list instead of a stack trace. */
@@ -189,33 +191,35 @@ function fail(msg) {
 const BOOLEAN_FLAGS = new Set([
   'json', 'open', 'write', 'all', 'open-only', 'quiet', 'enter', 'relate-here',
   'user', 'project', 'yes', 'with-activity', 'here', 'codex', 'no-hooks',
-  'no-skill', 'no-serve', 'read-only', 'markdown', 'force',
+  'no-skill', 'no-serve', 'read-only', 'markdown', 'force', 'no-init',
 ]);
-const NODE_FLAGS = 'detail tag status sev confidence at parent to enter relate-here rel kind reason agent request-id json';
+// Every write takes the same three: who is writing, which board, and whether a missing board may be created.
+const WRITE_FLAGS = 'agent cwd no-init request-id';
+const NODE_FLAGS = `detail tag status sev confidence at parent to enter relate-here rel kind reason ${WRITE_FLAGS} json`;
 const COMMAND_FLAGS = {
-  init: 'title here json',
+  init: 'title here cwd json',
   setup: 'target title port open no-hooks no-skill no-serve json',
-  status: 'port agent json',
+  status: 'port agent cwd json',
   node: NODE_FLAGS, start: NODE_FLAGS, goal: NODE_FLAGS, intent: NODE_FLAGS,
   fact: NODE_FLAGS, vuln: NODE_FLAGS, hint: NODE_FLAGS,
-  checkpoint: 'summary title trigger agent write request-id json', compact: 'summary title trigger agent write request-id json',
-  cursor: 'agent reason request-id json', focus: 'agent reason request-id json', here: 'agent json',
-  activity: 'limit json',
-  promote: 'kind type title detail to enter relate-here rel reason json',
-  done: 'request-id json', block: 'request-id json', revive: 'request-id json',
-  edit: 'title detail status sev confidence tag request-id json',
-  link: 'rel kind label request-id json', unlink: 'rel kind agent request-id json',
-  remove: 'reason agent request-id json', rm: 'reason agent request-id json',
-  ls: 'type open open-only limit json', list: 'type open open-only limit json',
-  show: 'json', tree: 'depth', digest: 'agent write quiet json',
-  context: 'focus depth budget since limit agent markdown json',
-  lint: 'json', tail: 'agent json', serve: 'port open read-only',
-  export: 'out json', reset: 'yes request-id json',
-  search: 'type tag status rel related-to limit json', history: 'json', changes: 'since json',
-  backup: 'out json', restore: 'into json', receipt: 'json', capabilities: 'json',
-  hooks: 'write user project with-activity json',
-  skill: 'codex user project json', launcher: 'user project json',
-  service: 'json', release: 'force json', hook: '', help: '', version: '', '-v': '', '--version': '',
+  checkpoint: `summary title trigger write ${WRITE_FLAGS} json`, compact: `summary title trigger write ${WRITE_FLAGS} json`,
+  cursor: `reason ${WRITE_FLAGS} json`, focus: `reason ${WRITE_FLAGS} json`, here: 'agent cwd json',
+  activity: 'limit cwd json',
+  promote: `kind type title detail to enter relate-here rel reason ${WRITE_FLAGS} json`,
+  done: `${WRITE_FLAGS} json`, block: `${WRITE_FLAGS} json`, revive: `${WRITE_FLAGS} json`,
+  edit: `title detail status sev confidence tag ${WRITE_FLAGS} json`,
+  link: `rel kind label ${WRITE_FLAGS} json`, unlink: `rel kind ${WRITE_FLAGS} json`,
+  remove: `reason ${WRITE_FLAGS} json`, rm: `reason ${WRITE_FLAGS} json`,
+  ls: 'type open open-only limit cwd json', list: 'type open open-only limit cwd json',
+  show: 'cwd json', tree: 'depth cwd', digest: 'agent write quiet cwd json',
+  context: 'focus depth budget since limit agent markdown cwd json',
+  lint: 'cwd json', tail: 'agent cwd json', serve: 'port open read-only cwd',
+  export: 'out cwd json', reset: `yes ${WRITE_FLAGS} json`,
+  search: 'type tag status rel related-to limit cwd json', history: 'cwd json', changes: 'since cwd json',
+  backup: 'out cwd json', restore: 'into cwd json', receipt: 'cwd json', capabilities: 'json',
+  hooks: 'write user project with-activity cwd json',
+  skill: 'codex user project cwd json', launcher: 'user project json',
+  service: 'cwd json', release: 'force json', hook: '', help: '', version: '', '-v': '', '--version': '',
 };
 
 function parseArgs(argv, cmd = '') {
@@ -281,7 +285,11 @@ function parseArgs(argv, cmd = '') {
   return { args, flags };
 }
 
+// Set once from the command line: --cwd names the board, --no-init forbids creating one.
+const invocation = { root: null, noInit: false };
+
 function cwd() {
+  if (invocation.root) return invocation.root;
   const projectCwd = process.env.BLACKBOARD_CWD;
   if (projectCwd) return path.resolve(projectCwd);
   // Like git: a command run from a subdirectory belongs to the nearest board above it.
@@ -297,7 +305,20 @@ function warnTruncated(result) {
   console.error(`${C.yel('提示')} ${parts.join('、')}超出上限，已被截断；长内容请拆成多个节点或写入文件。`);
 }
 
+/** Who this write is from: --agent, else BLACKBOARD_AGENT, else agent:primary; both spellings normalize alike. */
+function agentOf(flags) {
+  return flags.agent ? defaultAgentId({ BLACKBOARD_AGENT: flags.agent }) : defaultAgentId();
+}
+
+/** Under --no-init a missing board is an error; nothing, not even the directory, is created. */
+function refuseMissingBoard() {
+  if (invocation.noInit && !isInitialized(cwd())) {
+    fail(`${cwd()} 没有 .blackboard/，--no-init 不会新建黑板。检查 --cwd / BLACKBOARD_CWD，或先运行 blackboard init。`);
+  }
+}
+
 function needInit() {
+  refuseMissingBoard();
   if (!isInitialized(cwd())) {
     console.error(`${C.yel('提示')} 当前目录还没有 .blackboard/，已自动初始化。`);
     ensure(cwd());
@@ -361,7 +382,7 @@ async function cmdStatus(args, flags) {
   const g = replay(p.cwd);
   const s = stats(g);
   const state = readState(p.cwd);
-  const agentId = flags.agent || defaultAgentId();
+  const agentId = agentOf(flags);
   const cursorId = currentCursor(g, agentId);
   const cursor = cursorId ? g.nodes[cursorId] : null;
   const { integrationStatus } = await import('../lib/hooks.js');
@@ -514,7 +535,7 @@ function cmdTree(args, flags) {
 function cmdDigest(args, flags) {
   const p = needInitRead();
   const g = replay(cwd());
-  const md = buildDigest(g, cwd(), flags.agent || defaultAgentId());
+  const md = buildDigest(g, cwd(), agentOf(flags));
   if (flags.write) {
     fs.writeFileSync(p.digest, md);
     if (!flags.quiet) console.error(C.dim(`已写入 ${p.digest}`));
@@ -533,7 +554,7 @@ function cmdContext(args, flags) {
     try { since = resolveRef(g.checkpoints, since, 'checkpoint'); } catch {}
   }
   const packet = buildAgentContext(g, {
-    agentId: flags.agent || defaultAgentId(),
+    agentId: agentOf(flags),
     focus,
     depth: flags.depth === undefined ? 2 : Number(flags.depth),
     budgetTokens: flags.budget === undefined ? 4000 : Number(flags.budget),
@@ -626,7 +647,8 @@ function cmdCapabilities(args, flags) {
     runtime: { minimumNode: 18, runtimeDependencies: 0 },
     commands: Object.keys(COMMAND_FLAGS).filter((key) => !key.startsWith('-')),
     features: { context: true, incrementalContext: true, search: true, nodeHistory: true,
-      checkpointChanges: true, backupRestore: true, requestReceipts: true },
+      checkpointChanges: true, backupRestore: true, requestReceipts: true,
+      writeAttribution: true, cwdFlag: true, noInit: true },
     contextContract: { readOnly: true, prescriptive: false, nextStepSelection: 'agent-controlled' },
     limits: LIMITS,
   };
@@ -657,12 +679,12 @@ async function cmdLint(args, flags) {
 function cmdTail(args, flags) {
   needInitRead();
   const g = replay(cwd());
-  const text = tail(g, flags.agent || defaultAgentId());
+  const text = tail(g, agentOf(flags));
   console.log(flags.json ? JSON.stringify({ tail: text }) : text);
 }
 
 function cmdInit(args, flags) {
-  const explicit = process.env.BLACKBOARD_CWD;
+  const explicit = invocation.root || process.env.BLACKBOARD_CWD;
   const target = explicit ? path.resolve(explicit) : process.cwd();
   const parent = findRoot(target);
   if (parent && path.resolve(parent) !== path.resolve(target) && !flags.here) {
@@ -726,6 +748,8 @@ async function main() {
   if (options.includes('--help') || options.includes('-h')) return usage();
   const cmd = argv[0];
   const { args, flags } = parseArgs(argv.slice(1), cmd);
+  if (flags.cwd) invocation.root = path.resolve(String(flags.cwd));
+  invocation.noInit = !!flags['no-init'];
 
   switch (cmd) {
     case undefined:
@@ -858,7 +882,8 @@ function addSimple(type, args, flags) {
       relateHere: !!flags['relate-here'],
       relation: flags.rel || flags.kind || null,
       reason: flags.reason || '',
-      agentId: flags.agent || defaultAgentId(),
+      agentId: agentOf(flags),
+      author: agentOf(flags),
       requestId: flags['request-id'],
     },
     cwd(),
@@ -877,7 +902,7 @@ function addSimple(type, args, flags) {
 
 function cmdCheckpoint(args, flags) {
   needInit();
-  const agentId = flags.agent || defaultAgentId();
+  const agentId = agentOf(flags);
   if (flags['request-id'] && !flags.summary && !flags.title && !args.join(' ').trim()) fail('--request-id 的 checkpoint 请显式提供 --summary，确保重试内容稳定');
   const summary = flags.summary || flags.title || args.join(' ').trim() || buildDigest(replay(cwd()), cwd(), agentId);
   const checkpoint = addCheckpoint(
@@ -901,7 +926,7 @@ function cmdCursor(args, flags) {
   needInit();
   const g = replay(cwd());
   let id = args[0];
-  const agentId = flags.agent || defaultAgentId();
+  const agentId = agentOf(flags);
   if (!id) {
     const current = currentCursor(g, agentId);
     if (flags.json) return out(flags, { cursor: current, agentId });
@@ -932,7 +957,7 @@ function cmdCursor(args, flags) {
 function cmdHere(args, flags) {
   needInitRead();
   const g = replay(cwd());
-  const agentId = flags.agent || defaultAgentId();
+  const agentId = agentOf(flags);
   const id = currentCursor(g, agentId);
   const node = id ? g.nodes[id] : null;
   const neighbors = neighborsOf(g, id);
@@ -1002,6 +1027,9 @@ function cmdPromote(args, flags) {
     target: flags.to || null,
     relation: flags.rel || null,
     reason: flags.reason || '',
+    agentId: agentOf(flags),
+    author: agentOf(flags),
+    requestId: flags['request-id'],
   }, cwd());
   warnTruncated(result);
   if (flags.json) return out(flags, result);
@@ -1013,7 +1041,7 @@ function cmdState(cmd, args, flags) {
   const id = args[0];
   if (!id) fail(`用法: blackboard ${cmd} <id>`);
   const map = { done: 'done', block: 'blocked', revive: 'open' };
-  const n = patchNode(id, { status: map[cmd] }, cwd(), { requestId: flags['request-id'] });
+  const n = patchNode(id, { status: map[cmd] }, cwd(), { by: agentOf(flags), requestId: flags['request-id'] });
   if (flags.json) return out(flags, n);
   if (!process.env.BLACKBOARD_QUIET) console.log(`${C.grn('✓')} ${nodeLine(n)}`);
 }
@@ -1030,7 +1058,7 @@ function cmdEdit(args, flags) {
   if (flags.confidence) set.confidence = flags.confidence;
   if (flags.tag) set.tags = [].concat(flags.tag);
   if (!Object.keys(set).length) fail('没有要修改的字段');
-  const n = patchNode(id, set, cwd(), { requestId: flags['request-id'] });
+  const n = patchNode(id, set, cwd(), { by: agentOf(flags), requestId: flags['request-id'] });
   warnTruncated(n);
   if (flags.json) return out(flags, n);
   if (!process.env.BLACKBOARD_QUIET) console.log(`${C.grn('✓')} ${nodeLine(n)}`);
@@ -1041,7 +1069,7 @@ function cmdLink(args, flags) {
   const [from, to] = args;
   if (!from || !to) fail('用法: blackboard link <from> <to> [--rel supports]');
   const kind = flags.rel || flags.kind || 'related-to';
-  const edge = addEdge({ from, to, kind, label: flags.label || '', requestId: flags['request-id'] }, cwd());
+  const edge = addEdge({ from, to, kind, label: flags.label || '', author: agentOf(flags), requestId: flags['request-id'] }, cwd());
   warnTruncated(edge);
   if (flags.json) return out(flags, edge);
   if (!process.env.BLACKBOARD_QUIET) {
@@ -1054,7 +1082,7 @@ function cmdUnlink(args, flags) {
   const [from, to] = args;
   if (!from || !to) fail('用法: blackboard unlink <from> <to> [--rel supports]');
   let edge;
-  try { edge = removeEdge({ from, to, kind: flags.rel || flags.kind || null }, { by: flags.agent || defaultAgentId(), requestId: flags['request-id'] }, cwd()); }
+  try { edge = removeEdge({ from, to, kind: flags.rel || flags.kind || null }, { by: agentOf(flags), requestId: flags['request-id'] }, cwd()); }
   catch (e) { return fail(e.message); }
   if (flags.json) return out(flags, edge);
   if (!process.env.BLACKBOARD_QUIET) {
@@ -1066,7 +1094,7 @@ function cmdRemove(args, flags) {
   needInit();
   if (!args[0]) fail('用法: blackboard remove <id> [--reason "…"]（节点及其关系从图上移除，事件日志仍保留历史）');
   let result;
-  try { result = removeNode(args[0], { by: flags.agent || defaultAgentId(), reason: flags.reason || '', requestId: flags['request-id'] }, cwd()); }
+  try { result = removeNode(args[0], { by: agentOf(flags), reason: flags.reason || '', requestId: flags['request-id'] }, cwd()); }
   catch (e) { return fail(e.message); }
   if (flags.json) return out(flags, result);
   if (!process.env.BLACKBOARD_QUIET) {
@@ -1078,8 +1106,9 @@ function cmdReset(args, flags) {
   if (isInitialized(cwd()) && !flags.yes) {
     fail('这会清空整张图。确认请加 --yes');
   }
+  refuseMissingBoard();
   ensure(cwd());
-  const result = reset(cwd(), { requestId: flags['request-id'] });
+  const result = reset(cwd(), { by: agentOf(flags), requestId: flags['request-id'] });
   if (flags.json) return out(flags, result);
   console.log(C.grn('已重置'));
 }

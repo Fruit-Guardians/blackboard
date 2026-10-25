@@ -1141,6 +1141,7 @@ test('viewer writes: a person adds, edits, links and removes cards, each stamped
   assert.equal(node.author, 'human');
   const child = (await (await call('POST', '/api/nodes', { body: { type: 'fact', title: '返回 200', parent: node.id, relation: 'supports' } })).json());
   assert.equal(child.edge.kind, 'supports');
+  assert.equal(child.edge.author, 'human');
   const patched = await call('PATCH', `/api/nodes/${node.id}`, { body: { status: 'active', title: '先验证授权边界', id: 'x' } });
   assert.equal(patched.status, 200);
   assert.equal((await patched.json()).updatedBy, 'human');
@@ -1149,6 +1150,7 @@ test('viewer writes: a person adds, edits, links and removes cards, each stamped
   assert.equal(bad.status, 400);
   assert.equal((await call('POST', '/api/edges', { body: { from: child.node.id, to: node.id, kind: 'bogus' } })).status, 400);
   const edge = await (await call('POST', '/api/edges', { body: { from: node.id, to: child.node.id, kind: 'related-to' } })).json();
+  assert.equal(edge.author, 'human');
   assert.equal((await call('DELETE', `/api/edges?id=${encodeURIComponent(edge.id)}`, {})).status, 200);
   assert.equal((await call('DELETE', `/api/nodes/${child.node.id}`, {})).status, 200);
   const g = replay(dir);

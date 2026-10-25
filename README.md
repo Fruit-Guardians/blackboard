@@ -262,15 +262,17 @@ GET /api/context?agent=agent:primary&focus=hy1&depth=2&budget=4000&since=cp1
 
 ```bash
 # 每次工具调用都显式指定身份与项目，不依赖上一次调用的 export
-BLACKBOARD_AGENT=research BLACKBOARD_CWD=/path/to/project \
-  blackboard node add hypothesis "待验证的猜测" --enter
+blackboard node add hypothesis "待验证的猜测" --cwd /path/to/project --agent research --no-init --enter
+blackboard here --cwd /path/to/project --agent research
+
+# 环境变量写法等价；--cwd / --agent 优先
 BLACKBOARD_AGENT=research BLACKBOARD_CWD=/path/to/project blackboard here
 
 # 恢复或交接时读取指定视角
-BLACKBOARD_CWD=/path/to/project blackboard context --agent agent:research
+blackboard context --cwd /path/to/project --agent research
 ```
 
-默认游标是 `agent:primary`；并行 Agent 应使用不同身份，避免互相覆盖位置。`status`、`digest`、`tail`、`context` 可用 `--agent` 读取指定视角。工作台的 **Agent 视角** 下拉会同步切换当前焦点、现场投影、游标跟随和摘要，节点分享链接保留身份；没有游标时不借用其他 Agent 的位置。切换只改变阅读视角，不写事件、不移动游标；离线导出也支持已有身份的独立摘要。
+默认身份是 `agent:primary`；并行 Agent 应使用不同身份，避免互相覆盖位置。`--agent research` 与 `BLACKBOARD_AGENT=research` 一样归一化为 `agent:research`。写命令把身份记为节点和关系的 `author`、修改的 `updatedBy`、删除与重置的 `by`，用于事后回答"这条结论是谁写的"；这是归属，不是权限。`--no-init` 让写命令在项目根没有黑板时报错退出，不新建任何目录，避免路径写错时静默写进一块新的空板。`status`、`digest`、`tail`、`context` 可用 `--agent` 读取指定视角。工作台的 **Agent 视角** 下拉会同步切换当前焦点、现场投影、游标跟随和摘要，节点分享链接保留身份；没有游标时不借用其他 Agent 的位置。切换只改变阅读视角，不写事件、不移动游标；离线导出也支持已有身份的独立摘要。
 
 Claude 恢复 Hook 仅使用其进程实际继承到的 `BLACKBOARD_AGENT`：会话开始时恢复该身份的 Digest，压缩前保存该身份及其游标的检查点；启用工具活动采集时，活动也关联该身份。不设置时仍为 `agent:primary`，不会从宿主 `session_id` 自动创建身份。不要假设不同工具调用或所有子 Agent 会话都会继承环境；普通子 Agent 应在每次命令中显式指定身份与项目，并主动调用 `context` 恢复或交接。上下文只整理已记录的现场，不自动决定下一步。
 
