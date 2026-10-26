@@ -23,6 +23,7 @@
     "serve": "node bin/blackboard.js serve",
     "export": "node bin/blackboard.js export",
     "check:types": "tsc --noEmit",
+    "check:publish": "node scripts/check-publication.mjs",
     "evaluate:recovery": "node scripts/evaluate-recovery.mjs",
     "benchmark": "node scripts/benchmark.mjs",
     "benchmark:full": "node scripts/benchmark.mjs --full",

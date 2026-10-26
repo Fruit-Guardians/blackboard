@@ -26,6 +26,8 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+      - name: Check publication hygiene (source only; no model or real-task data)
+        run: npm run check:publish
       - run: npm ci
       - run: npm test
       - run: npm run build
@@ -41,7 +43,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: blackboard-release-candidate
-          path: dist/
+          path: |
+            dist/${{ steps.pack.outputs.tarball }}
+            dist/pack.json
+            dist/benchmark-quick.json
           retention-days: 14
 
   runtime:

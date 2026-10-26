@@ -2,7 +2,7 @@
 
 调研日期：2026-10-22。本文中的 DSH 指 DeepSeek Harness。
 
-落地更新：适配器采用**同仓库、独立子包**，位于 `/Users/zhangboxiang/Progarm/bx33661/flow/plugins/dsh-blackboard/`。隔离依赖与运行边界，不拆分 Git 仓库。实现和当前验收入口见[插件说明](../plugins/dsh-blackboard/README.md)；下文的测试基线保留为调研时记录。
+落地更新：适配器采用**同仓库、独立子包**，位于 `plugins/dsh-blackboard/`。隔离依赖与运行边界，不拆分 Git 仓库。实现和当前验收入口见[插件说明](../plugins/dsh-blackboard/README.md)；下文的测试基线保留为调研时记录。
 
 ## 结论
 
@@ -27,7 +27,7 @@
 
 ## 现有代码能复用什么
 
-以下路径均相对于仓库 `/Users/zhangboxiang/Progarm/bx33661/flow`。
+以下路径均相对于本仓库根目录。
 
 | 现有模块 | 在插件中的用途 | 注意点 |
 | --- | --- | --- |
@@ -68,7 +68,7 @@ DSH 默认的文件 Skill provider 支持项目 `.dsh/skills`、`.agents/skills`
 实际采用本仓库中的独立插件子包，不增加根包 workspace 或 DSH 依赖：
 
 ```text
-/Users/zhangboxiang/Progarm/bx33661/flow/plugins/dsh-blackboard/
+plugins/dsh-blackboard/
 ├── package.json
 ├── cordis.patch.yml
 ├── src/
@@ -114,7 +114,7 @@ DSH 安装的是声明了 `dsh.bundle.patch` 的 npm bundle；单有 `main` 或 
 开发安装命令示意，仅在子包已实现、构建后执行。本次未运行：
 
 ```sh
-dsh plugin --profile web add /Users/zhangboxiang/Progarm/bx33661/flow/plugins/dsh-blackboard
+dsh plugin --profile web add ./plugins/dsh-blackboard
 dsh --profile web --dump-config
 
 # 移除适配包；保留项目 .blackboard/ 数据

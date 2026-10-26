@@ -11,5 +11,42 @@ blackboard.html
 .codex/
 
 # Local editor and agent settings
-.claude/settings.local.json
+.claude/
+.agents/
+.zcode/
+.dsh/
 *.log
+
+# Real investigations and local verification bundles are never source fixtures.
+/trial/
+/recon/
+/report/
+/reports/
+/evidence/
+/backups/
+/artifacts/
+
+# Generated package, CI and coverage output
+/dist/
+/artifact/
+/coverage/
+*.tgz
+
+# Local credentials (only explicitly synthetic templates may be shared)
+.env
+.env.*
+!.env.example
+!.env.template
+.npmrc
+.netrc
+.pypirc
+credentials.json
+*.pem
+*.key
+*.ppk
+*.p12
+*.pfx
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub

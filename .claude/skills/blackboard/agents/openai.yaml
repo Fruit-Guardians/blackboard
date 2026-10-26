@@ -1,6 +1,0 @@
-interface:
-  display_name: "blackboard · 外置黑板"
-  short_description: "记录关键判断、证据关系与关注位置，让跨会话研究和交接能够恢复现场。"
-  icon_small: "./assets/blackboard-icon.svg"
-  brand_color: "#147453"
-  default_prompt: "使用 $blackboard 恢复当前项目的研究现场，并在关键判断、证据变化和交接时记录；不要替我选择下一步。"
