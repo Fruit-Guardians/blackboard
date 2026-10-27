@@ -110,6 +110,7 @@ ${b('逻辑节点')}
             --to <id>                  新节点指向已有节点，读作 “新节点 <rel> id”
             --parent <id>              显式来源节点，读作 “id <rel> 新节点”（兼容）
             --rel <relation>           上述关系的类型，默认 related-to
+            --label <text>             上述关系的说明，同 link --label
             --at <file:line>           文件位置
             --detail/-d                详情
             --tag/-t                   可重复标签
@@ -196,7 +197,7 @@ const BOOLEAN_FLAGS = new Set([
 ]);
 // Every write takes the same three: who is writing, which board, and whether a missing board may be created.
 const WRITE_FLAGS = 'agent cwd no-init request-id';
-const NODE_FLAGS = `detail tag status sev confidence at parent to enter relate-here rel kind reason ${WRITE_FLAGS} no-truncate json`;
+const NODE_FLAGS = `detail tag status sev confidence at parent to enter relate-here rel kind label reason ${WRITE_FLAGS} no-truncate json`;
 const COMMAND_FLAGS = {
   init: 'title here cwd json',
   setup: 'target title port open no-hooks no-skill no-serve json',
@@ -206,7 +207,7 @@ const COMMAND_FLAGS = {
   checkpoint: `summary title trigger write ${WRITE_FLAGS} no-truncate json`, compact: `summary title trigger write ${WRITE_FLAGS} no-truncate json`,
   cursor: `reason ${WRITE_FLAGS} json`, focus: `reason ${WRITE_FLAGS} json`, here: 'agent cwd json',
   activity: 'limit cwd json',
-  promote: `kind type title detail to enter relate-here rel reason ${WRITE_FLAGS} no-truncate json`,
+  promote: `kind type title detail to enter relate-here rel label reason ${WRITE_FLAGS} no-truncate json`,
   done: `${WRITE_FLAGS} json`, block: `${WRITE_FLAGS} json`, revive: `${WRITE_FLAGS} json`,
   edit: `title detail status sev confidence tag ${WRITE_FLAGS} no-truncate json`,
   link: `rel kind label ${WRITE_FLAGS} no-truncate json`, unlink: `rel kind ${WRITE_FLAGS} json`,
@@ -713,7 +714,7 @@ function cmdCapabilities(args, flags) {
     features: { context: true, incrementalContext: true, search: true, nodeHistory: true,
       checkpointChanges: true, backupRestore: true, requestReceipts: true,
       writeAttribution: true, cwdFlag: true, noInit: true,
-      rejectTruncation: true, inputTruncationMetadata: true },
+      rejectTruncation: true, inputTruncationMetadata: true, nodeEdgeLabel: true },
     contextContract: { readOnly: true, prescriptive: false, nextStepSelection: 'agent-controlled' },
     limits: LIMITS,
     outputs: OUTPUTS,
@@ -949,6 +950,8 @@ function addSimple(type, args, flags) {
       enter: !!flags.enter,
       relateHere: !!flags['relate-here'],
       relation: flags.rel || flags.kind || null,
+      // Only when given: an absent label keeps the request fingerprint of earlier versions.
+      ...(flags.label ? { label: flags.label } : {}),
       reason: flags.reason || '',
       agentId: agentOf(flags),
       author: agentOf(flags),
@@ -961,9 +964,9 @@ function addSimple(type, args, flags) {
   if (flags.json) return out(flags, result, OUTPUTS.node);
   if (!process.env.BLACKBOARD_QUIET) {
     const { edge } = result;
-    const via = !edge ? '' : edge.from === result.node.id
+    const via = !edge ? '' : (edge.from === result.node.id
       ? ` → ${EDGE_LABEL[edge.kind] || edge.kind} ${edge.to}`
-      : ` ${EDGE_LABEL[edge.kind] || edge.kind} ${edge.from}`;
+      : ` ${EDGE_LABEL[edge.kind] || edge.kind} ${edge.from}`) + (edge.label ? `（${edge.label}）` : '');
     const entered = result.cursor ? ' · 已进入' : '';
     console.log(`${C.grn('+')} ${nodeLine(result.node)}${C.dim(via + entered)}`);
   }
@@ -1096,6 +1099,7 @@ function cmdPromote(args, flags) {
     relateHere: !!flags['relate-here'],
     target: flags.to || null,
     relation: flags.rel || null,
+    ...(flags.label ? { label: flags.label } : {}),
     reason: flags.reason || '',
     agentId: agentOf(flags),
     author: agentOf(flags),
@@ -1144,7 +1148,7 @@ function cmdLink(args, flags) {
   warnTruncated(edge);
   if (flags.json) return out(flags, edge, OUTPUTS.link);
   if (!process.env.BLACKBOARD_QUIET) {
-    console.log(`${C.grn('+')} ${edge.from} ${C.dim(EDGE_LABEL[edge.kind] || edge.kind)} ${edge.to}`);
+    console.log(`${C.grn('+')} ${edge.from} ${C.dim(EDGE_LABEL[edge.kind] || edge.kind)} ${edge.to}${edge.label ? C.dim(`（${edge.label}）`) : ''}`);
   }
 }
 

@@ -1175,7 +1175,10 @@ test('viewer writes: a person adds, edits, links and removes cards, each stamped
   assert.equal(replay(dir).nodes[node.id].id, node.id);
   const bad = await call('PATCH', `/api/nodes/${node.id}`, { body: { status: 'nonsense' } });
   assert.equal(bad.status, 400);
-  assert.equal((await call('POST', '/api/edges', { body: { from: child.node.id, to: node.id, kind: 'bogus' } })).status, 400);
+  // Relation names are conventions: an unknown one is saved as written, as on the CLI.
+  const custom = await call('POST', '/api/edges', { body: { from: child.node.id, to: node.id, kind: 'bogus' } });
+  assert.equal(custom.status, 201);
+  assert.equal((await custom.json()).kind, 'bogus');
   const edge = await (await call('POST', '/api/edges', { body: { from: node.id, to: child.node.id, kind: 'related-to' } })).json();
   assert.equal(edge.author, 'human');
   assert.equal((await call('DELETE', `/api/edges?id=${encodeURIComponent(edge.id)}`, {})).status, 200);

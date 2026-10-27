@@ -39,7 +39,7 @@
 | --- | --- | --- | --- | --- |
 | `init` | — | `outputs/init.json` | `blackboard.init.v1` | 对象 `{schema, cwd, board, title, session}` |
 | `status` | — | `outputs/status.json` | `blackboard.status.v1` | 对象 `{schema, stats, cursor, cursors, title, session, cwd, agentId, viewer, integration, latestNode}` |
-| `node` | `start` `goal` `intent` `fact` `vuln` `hint` | `outputs/node.json` | `blackboard.node-add.v1` | 对象 `{schema, node, edge, cursor}`；`edge`、`cursor` 未发生时为 `null` |
+| `node` | `start` `goal` `intent` `fact` `vuln` `hint` | `outputs/node.json` | `blackboard.node-add.v1` | 对象 `{schema, node, edge, cursor}`；`edge`、`cursor` 未发生时为 `null`；给了 `--label` 时 `edge` 带 `label`（`features.nodeEdgeLabel`） |
 | `checkpoint` | `compact` | `outputs/checkpoint.json` | `blackboard.checkpoint.v1` | 检查点记录 `{schema, id, agentId, at, sessionId, cursorNodeId, summary, trigger}` |
 | `cursor` | `focus` | `outputs/cursor.json` | `blackboard.cursor.v1` | 对象 `{schema, cursor}`；不带参数时另有 `agentId` |
 | `here` | — | `outputs/here.json` | `blackboard.here.v1` | 对象 `{schema, agentId, cursor, node, neighbors, trail}` |
