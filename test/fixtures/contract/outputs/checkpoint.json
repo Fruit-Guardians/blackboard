@@ -1,0 +1,81 @@
+{
+  "command": "checkpoint",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "checkpoint",
+        "--summary",
+        "Third pass.",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "id": "cp3",
+        "agentId": "agent:primary",
+        "at": "<now>",
+        "sessionId": "<session-id>",
+        "cursorNodeId": "v1",
+        "summary": "Third pass.",
+        "trigger": "manual"
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "checkpoint",
+          "checkpoint": {
+            "id": "cp3",
+            "agentId": "agent:primary",
+            "at": "<now>",
+            "sessionId": "<session-id>",
+            "cursorNodeId": "v1",
+            "summary": "Third pass.",
+            "trigger": "manual"
+          }
+        }
+      ]
+    },
+    {
+      "board": "research",
+      "args": [
+        "compact",
+        "--summary",
+        "Before compaction.",
+        "--trigger",
+        "pre-compact",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "id": "cp3",
+        "agentId": "agent:primary",
+        "at": "<now>",
+        "sessionId": "<session-id>",
+        "cursorNodeId": "v1",
+        "summary": "Before compaction.",
+        "trigger": "pre-compact"
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "checkpoint",
+          "checkpoint": {
+            "id": "cp3",
+            "agentId": "agent:primary",
+            "at": "<now>",
+            "sessionId": "<session-id>",
+            "cursorNodeId": "v1",
+            "summary": "Before compaction.",
+            "trigger": "pre-compact"
+          }
+        }
+      ]
+    }
+  ]
+}

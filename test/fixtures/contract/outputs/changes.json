@@ -1,0 +1,748 @@
+{
+  "command": "changes",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "changes",
+        "--since",
+        "cp1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.changes.v1",
+        "readOnly": true,
+        "prescriptive": false,
+        "since": {
+          "id": "cp1",
+          "at": 1767226140000,
+          "index": 14,
+          "summary": "Mapped the form and cookie; fixation suspected."
+        },
+        "nodes": {
+          "added": [
+            {
+              "id": "f3",
+              "type": "fact",
+              "title": "Server returns the same id after login",
+              "ts": 1767226740000,
+              "session": "session_FIXTURE",
+              "tags": [
+                "promoted",
+                "bash"
+              ],
+              "author": "agent:primary",
+              "activityId": "act1"
+            }
+          ],
+          "updated": [
+            {
+              "id": "g1",
+              "before": {
+                "id": "g1",
+                "type": "goal",
+                "title": "Map the login flow",
+                "ts": 1767225660000,
+                "session": "session_FIXTURE",
+                "detail": "Find every step between the form and the session cookie.",
+                "tags": [
+                  "auth",
+                  "web"
+                ],
+                "author": "agent:primary"
+              },
+              "after": {
+                "id": "g1",
+                "type": "goal",
+                "title": "Map the login flow",
+                "ts": 1767225660000,
+                "session": "session_FIXTURE",
+                "detail": "Find every step between the form and the session cookie.",
+                "tags": [
+                  "auth",
+                  "web"
+                ],
+                "author": "agent:primary",
+                "status": "active",
+                "updated": 1767227040000,
+                "updatedBy": "agent:primary"
+              },
+              "fields": [
+                "status",
+                "updated",
+                "updatedBy"
+              ]
+            },
+            {
+              "id": "i1",
+              "before": {
+                "id": "i1",
+                "type": "intent",
+                "title": "Read the login handler first",
+                "ts": 1767225720000,
+                "session": "session_FIXTURE",
+                "author": "agent:primary",
+                "status": "open"
+              },
+              "after": {
+                "id": "i1",
+                "type": "intent",
+                "title": "Read the login handler first",
+                "ts": 1767225720000,
+                "session": "session_FIXTURE",
+                "author": "agent:primary",
+                "status": "done",
+                "updated": 1767226440000,
+                "updatedBy": "agent:primary"
+              },
+              "fields": [
+                "status",
+                "updated",
+                "updatedBy"
+              ]
+            },
+            {
+              "id": "v1",
+              "before": {
+                "id": "v1",
+                "type": "vuln",
+                "title": "Session fixation on login",
+                "ts": 1767225960000,
+                "session": "session_FIXTURE",
+                "detail": "The session id survives authentication.",
+                "author": "agent:primary",
+                "severity": "high",
+                "confidence": "suspected"
+              },
+              "after": {
+                "id": "v1",
+                "type": "vuln",
+                "title": "Session fixation on login",
+                "ts": 1767225960000,
+                "session": "session_FIXTURE",
+                "detail": "The session id survives authentication; reproduced twice.",
+                "author": "agent:primary",
+                "severity": "high",
+                "confidence": "static-confirmed",
+                "updated": 1767226200000,
+                "updatedBy": "agent:primary"
+              },
+              "fields": [
+                "confidence",
+                "detail",
+                "updated",
+                "updatedBy"
+              ]
+            },
+            {
+              "id": "q1",
+              "before": {
+                "id": "q1",
+                "type": "question",
+                "title": "Does SSO share the same handler?",
+                "ts": 1767226080000,
+                "session": "session_FIXTURE",
+                "tags": [
+                  "sso"
+                ],
+                "author": "agent:primary",
+                "status": "open"
+              },
+              "after": {
+                "id": "q1",
+                "type": "question",
+                "title": "Does SSO share the same handler?",
+                "ts": 1767226080000,
+                "session": "session_FIXTURE",
+                "tags": [
+                  "sso"
+                ],
+                "author": "agent:primary",
+                "status": "open",
+                "updated": 1767226560000,
+                "updatedBy": "agent:primary"
+              },
+              "fields": [
+                "updated",
+                "updatedBy"
+              ]
+            }
+          ],
+          "removed": []
+        },
+        "edges": {
+          "added": [
+            {
+              "id": "f3->v1:supports",
+              "from": "f3",
+              "to": "v1",
+              "kind": "supports",
+              "ts": 1767226740000,
+              "author": "agent:primary"
+            },
+            {
+              "id": "f1->f2:supersedes",
+              "from": "f1",
+              "to": "f2",
+              "kind": "supersedes",
+              "ts": 1767226980000,
+              "author": "agent:primary"
+            }
+          ],
+          "removed": []
+        },
+        "events": [
+          {
+            "index": 15,
+            "eventId": "event_FIXTURE_016",
+            "op": "patch",
+            "at": 1767226200000,
+            "by": "agent:primary",
+            "reason": null,
+            "nodes": {
+              "added": [],
+              "updated": [
+                {
+                  "id": "v1",
+                  "before": {
+                    "id": "v1",
+                    "type": "vuln",
+                    "title": "Session fixation on login",
+                    "ts": 1767225960000,
+                    "session": "session_FIXTURE",
+                    "detail": "The session id survives authentication.",
+                    "author": "agent:primary",
+                    "severity": "high",
+                    "confidence": "suspected"
+                  },
+                  "after": {
+                    "id": "v1",
+                    "type": "vuln",
+                    "title": "Session fixation on login",
+                    "ts": 1767225960000,
+                    "session": "session_FIXTURE",
+                    "detail": "The session id survives authentication; reproduced twice.",
+                    "author": "agent:primary",
+                    "severity": "high",
+                    "confidence": "static-confirmed",
+                    "updated": 1767226200000,
+                    "updatedBy": "agent:primary"
+                  },
+                  "fields": [
+                    "confidence",
+                    "detail",
+                    "updated",
+                    "updatedBy"
+                  ]
+                }
+              ],
+              "removed": []
+            },
+            "edges": {
+              "added": [],
+              "removed": []
+            }
+          },
+          {
+            "index": 16,
+            "eventId": "event_FIXTURE_017",
+            "op": "edge",
+            "at": 1767226260000,
+            "by": "agent:primary",
+            "reason": null,
+            "nodes": {
+              "added": [],
+              "updated": [],
+              "removed": []
+            },
+            "edges": {
+              "added": [
+                {
+                  "id": "f1->f2:contradicts",
+                  "from": "f1",
+                  "to": "f2",
+                  "kind": "contradicts",
+                  "ts": 1767226260000,
+                  "author": "agent:primary",
+                  "label": "different endpoints"
+                }
+              ],
+              "removed": []
+            }
+          },
+          {
+            "index": 17,
+            "eventId": "event_FIXTURE_018",
+            "op": "edge",
+            "at": 1767226320000,
+            "by": "agent:primary",
+            "reason": null,
+            "nodes": {
+              "added": [],
+              "updated": [],
+              "removed": []
+            },
+            "edges": {
+              "added": [
+                {
+                  "id": "h1->g1:related-to",
+                  "from": "h1",
+                  "to": "g1",
+                  "kind": "related-to",
+                  "ts": 1767226320000,
+                  "author": "agent:primary"
+                }
+              ],
+              "removed": []
+            }
+          },
+          {
+            "index": 18,
+            "eventId": "event_FIXTURE_019",
+            "op": "remove",
+            "at": 1767226380000,
+            "by": "agent:primary",
+            "reason": null,
+            "nodes": {
+              "added": [],
+              "updated": [],
+              "removed": []
+            },
+            "edges": {
+              "added": [],
+              "removed": [
+                {
+                  "id": "h1->g1:related-to",
+                  "from": "h1",
+                  "to": "g1",
+                  "kind": "related-to",
+                  "ts": 1767226320000,
+                  "author": "agent:primary"
+                }
+              ]
+            }
+          },
+          {
+            "index": 19,
+            "eventId": "event_FIXTURE_020",
+            "op": "patch",
+            "at": 1767226440000,
+            "by": "agent:primary",
+            "reason": null,
+            "nodes": {
+              "added": [],
+              "updated": [
+                {
+                  "id": "i1",
+                  "before": {
+                    "id": "i1",
+                    "type": "intent",
+                    "title": "Read the login handler first",
+                    "ts": 1767225720000,
+                    "session": "session_FIXTURE",
+                    "author": "agent:primary",
+                    "status": "open"
+                  },
+                  "after": {
+                    "id": "i1",
+                    "type": "intent",
+                    "title": "Read the login handler first",
+                    "ts": 1767225720000,
+                    "session": "session_FIXTURE",
+                    "author": "agent:primary",
+                    "status": "done",
+                    "updated": 1767226440000,
+                    "updatedBy": "agent:primary"
+                  },
+                  "fields": [
+                    "status",
+                    "updated",
+                    "updatedBy"
+                  ]
+                }
+              ],
+              "removed": []
+            },
+            "edges": {
+              "added": [],
+              "removed": []
+            }
+          },
+          {
+            "index": 20,
+            "eventId": "event_FIXTURE_021",
+            "op": "patch",
+            "at": 1767226500000,
+            "by": "agent:reviewer",
+            "reason": null,
+            "nodes": {
+              "added": [],
+              "updated": [
+                {
+                  "id": "q1",
+                  "before": {
+                    "id": "q1",
+                    "type": "question",
+                    "title": "Does SSO share the same handler?",
+                    "ts": 1767226080000,
+                    "session": "session_FIXTURE",
+                    "tags": [
+                      "sso"
+                    ],
+                    "author": "agent:primary",
+                    "status": "open"
+                  },
+                  "after": {
+                    "id": "q1",
+                    "type": "question",
+                    "title": "Does SSO share the same handler?",
+                    "ts": 1767226080000,
+                    "session": "session_FIXTURE",
+                    "tags": [
+                      "sso"
+                    ],
+                    "author": "agent:primary",
+                    "status": "blocked",
+                    "updated": 1767226500000,
+                    "updatedBy": "agent:reviewer"
+                  },
+                  "fields": [
+                    "status",
+                    "updated",
+                    "updatedBy"
+                  ]
+                }
+              ],
+              "removed": []
+            },
+            "edges": {
+              "added": [],
+              "removed": []
+            }
+          },
+          {
+            "index": 21,
+            "eventId": "event_FIXTURE_022",
+            "op": "patch",
+            "at": 1767226560000,
+            "by": "agent:primary",
+            "reason": null,
+            "nodes": {
+              "added": [],
+              "updated": [
+                {
+                  "id": "q1",
+                  "before": {
+                    "id": "q1",
+                    "type": "question",
+                    "title": "Does SSO share the same handler?",
+                    "ts": 1767226080000,
+                    "session": "session_FIXTURE",
+                    "tags": [
+                      "sso"
+                    ],
+                    "author": "agent:primary",
+                    "status": "blocked",
+                    "updated": 1767226500000,
+                    "updatedBy": "agent:reviewer"
+                  },
+                  "after": {
+                    "id": "q1",
+                    "type": "question",
+                    "title": "Does SSO share the same handler?",
+                    "ts": 1767226080000,
+                    "session": "session_FIXTURE",
+                    "tags": [
+                      "sso"
+                    ],
+                    "author": "agent:primary",
+                    "status": "open",
+                    "updated": 1767226560000,
+                    "updatedBy": "agent:primary"
+                  },
+                  "fields": [
+                    "status",
+                    "updated",
+                    "updatedBy"
+                  ]
+                }
+              ],
+              "removed": []
+            },
+            "edges": {
+              "added": [],
+              "removed": []
+            }
+          },
+          {
+            "index": 24,
+            "eventId": "event_FIXTURE_025",
+            "op": "node",
+            "at": 1767226740000,
+            "by": "agent:primary",
+            "reason": null,
+            "nodes": {
+              "added": [
+                {
+                  "id": "f3",
+                  "type": "fact",
+                  "title": "Server returns the same id after login",
+                  "ts": 1767226740000,
+                  "session": "session_FIXTURE",
+                  "tags": [
+                    "promoted",
+                    "bash"
+                  ],
+                  "author": "agent:primary",
+                  "activityId": "act1"
+                }
+              ],
+              "updated": [],
+              "removed": []
+            },
+            "edges": {
+              "added": [],
+              "removed": []
+            }
+          },
+          {
+            "index": 25,
+            "eventId": "event_FIXTURE_026",
+            "op": "edge",
+            "at": 1767226740000,
+            "by": "agent:primary",
+            "reason": null,
+            "nodes": {
+              "added": [],
+              "updated": [],
+              "removed": []
+            },
+            "edges": {
+              "added": [
+                {
+                  "id": "f3->v1:supports",
+                  "from": "f3",
+                  "to": "v1",
+                  "kind": "supports",
+                  "ts": 1767226740000,
+                  "author": "agent:primary"
+                }
+              ],
+              "removed": []
+            }
+          },
+          {
+            "index": 26,
+            "eventId": "event_FIXTURE_027",
+            "op": "node",
+            "at": 1767226800000,
+            "by": "agent:primary",
+            "reason": null,
+            "nodes": {
+              "added": [
+                {
+                  "id": "f4",
+                  "type": "fact",
+                  "title": "Stale note",
+                  "ts": 1767226800000,
+                  "session": "session_FIXTURE",
+                  "detail": "Recorded by mistake.",
+                  "author": "agent:primary"
+                }
+              ],
+              "updated": [],
+              "removed": []
+            },
+            "edges": {
+              "added": [],
+              "removed": []
+            }
+          },
+          {
+            "index": 27,
+            "eventId": "event_FIXTURE_028",
+            "op": "remove",
+            "at": 1767226860000,
+            "by": "agent:primary",
+            "reason": "duplicate",
+            "nodes": {
+              "added": [],
+              "updated": [],
+              "removed": [
+                {
+                  "id": "f4",
+                  "type": "fact",
+                  "title": "Stale note",
+                  "ts": 1767226800000,
+                  "session": "session_FIXTURE",
+                  "detail": "Recorded by mistake.",
+                  "author": "agent:primary"
+                }
+              ]
+            },
+            "edges": {
+              "added": [],
+              "removed": []
+            }
+          },
+          {
+            "index": 28,
+            "eventId": "event_FIXTURE_029",
+            "op": "remove",
+            "at": 1767226920000,
+            "by": "agent:primary",
+            "reason": null,
+            "nodes": {
+              "added": [],
+              "updated": [],
+              "removed": []
+            },
+            "edges": {
+              "added": [],
+              "removed": [
+                {
+                  "id": "f1->f2:contradicts",
+                  "from": "f1",
+                  "to": "f2",
+                  "kind": "contradicts",
+                  "ts": 1767226260000,
+                  "author": "agent:primary",
+                  "label": "different endpoints"
+                }
+              ]
+            }
+          },
+          {
+            "index": 29,
+            "eventId": "event_FIXTURE_030",
+            "op": "edge",
+            "at": 1767226980000,
+            "by": "agent:primary",
+            "reason": null,
+            "nodes": {
+              "added": [],
+              "updated": [],
+              "removed": []
+            },
+            "edges": {
+              "added": [
+                {
+                  "id": "f1->f2:supersedes",
+                  "from": "f1",
+                  "to": "f2",
+                  "kind": "supersedes",
+                  "ts": 1767226980000,
+                  "author": "agent:primary"
+                }
+              ],
+              "removed": []
+            }
+          },
+          {
+            "index": 30,
+            "eventId": "event_FIXTURE_031",
+            "op": "patch",
+            "at": 1767227040000,
+            "by": "agent:primary",
+            "reason": null,
+            "nodes": {
+              "added": [],
+              "updated": [
+                {
+                  "id": "g1",
+                  "before": {
+                    "id": "g1",
+                    "type": "goal",
+                    "title": "Map the login flow",
+                    "ts": 1767225660000,
+                    "session": "session_FIXTURE",
+                    "detail": "Find every step between the form and the session cookie.",
+                    "tags": [
+                      "auth",
+                      "web"
+                    ],
+                    "author": "agent:primary"
+                  },
+                  "after": {
+                    "id": "g1",
+                    "type": "goal",
+                    "title": "Map the login flow",
+                    "ts": 1767225660000,
+                    "session": "session_FIXTURE",
+                    "detail": "Find every step between the form and the session cookie.",
+                    "tags": [
+                      "auth",
+                      "web"
+                    ],
+                    "author": "agent:primary",
+                    "status": "active",
+                    "updated": 1767227040000,
+                    "updatedBy": "agent:primary"
+                  },
+                  "fields": [
+                    "status",
+                    "updated",
+                    "updatedBy"
+                  ]
+                }
+              ],
+              "removed": []
+            },
+            "edges": {
+              "added": [],
+              "removed": []
+            }
+          }
+        ],
+        "integrity": {
+          "corruptLines": 0,
+          "futureEvents": 0,
+          "unknownOps": 0,
+          "rejected": 0
+        }
+      }
+    },
+    {
+      "board": "research",
+      "args": [
+        "changes",
+        "--since",
+        "cp2",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.changes.v1",
+        "readOnly": true,
+        "prescriptive": false,
+        "since": {
+          "id": "cp2",
+          "at": 1767227100000,
+          "index": 32,
+          "summary": "Fixation confirmed by promoted activity."
+        },
+        "nodes": {
+          "added": [],
+          "updated": [],
+          "removed": []
+        },
+        "edges": {
+          "added": [],
+          "removed": []
+        },
+        "events": [],
+        "integrity": {
+          "corruptLines": 0,
+          "futureEvents": 0,
+          "unknownOps": 0,
+          "rejected": 0
+        }
+      }
+    }
+  ]
+}

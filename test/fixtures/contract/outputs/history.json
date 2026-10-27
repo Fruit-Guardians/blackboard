@@ -1,0 +1,303 @@
+{
+  "command": "history",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "history",
+        "v1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.history.v1",
+        "readOnly": true,
+        "prescriptive": false,
+        "nodeId": "v1",
+        "entries": [
+          {
+            "index": 9,
+            "eventId": "event_FIXTURE_010",
+            "op": "node",
+            "at": 1767225960000,
+            "by": "agent:primary",
+            "reason": null,
+            "changes": {
+              "$node": {
+                "before": null,
+                "after": {
+                  "id": "v1",
+                  "type": "vuln",
+                  "title": "Session fixation on login",
+                  "ts": 1767225960000,
+                  "session": "session_FIXTURE",
+                  "detail": "The session id survives authentication.",
+                  "author": "agent:primary",
+                  "severity": "high",
+                  "confidence": "suspected"
+                }
+              }
+            },
+            "edges": {
+              "added": [],
+              "removed": []
+            }
+          },
+          {
+            "index": 10,
+            "eventId": "event_FIXTURE_011",
+            "op": "edge",
+            "at": 1767225960000,
+            "by": "agent:primary",
+            "reason": null,
+            "changes": {},
+            "edges": {
+              "added": [
+                {
+                  "id": "v1->f2:depends-on",
+                  "from": "v1",
+                  "to": "f2",
+                  "kind": "depends-on",
+                  "ts": 1767225960000,
+                  "author": "agent:primary"
+                }
+              ],
+              "removed": []
+            }
+          },
+          {
+            "index": 12,
+            "eventId": "event_FIXTURE_013",
+            "op": "edge",
+            "at": 1767226020000,
+            "by": "agent:primary",
+            "reason": null,
+            "changes": {},
+            "edges": {
+              "added": [
+                {
+                  "id": "h1->v1:related-to",
+                  "from": "h1",
+                  "to": "v1",
+                  "kind": "related-to",
+                  "ts": 1767226020000,
+                  "author": "agent:primary"
+                }
+              ],
+              "removed": []
+            }
+          },
+          {
+            "index": 15,
+            "eventId": "event_FIXTURE_016",
+            "op": "patch",
+            "at": 1767226200000,
+            "by": "agent:primary",
+            "reason": null,
+            "changes": {
+              "confidence": {
+                "before": "suspected",
+                "after": "static-confirmed"
+              },
+              "detail": {
+                "before": "The session id survives authentication.",
+                "after": "The session id survives authentication; reproduced twice."
+              },
+              "updated": {
+                "before": null,
+                "after": 1767226200000
+              },
+              "updatedBy": {
+                "before": null,
+                "after": "agent:primary"
+              }
+            },
+            "edges": {
+              "added": [],
+              "removed": []
+            }
+          },
+          {
+            "index": 25,
+            "eventId": "event_FIXTURE_026",
+            "op": "edge",
+            "at": 1767226740000,
+            "by": "agent:primary",
+            "reason": null,
+            "changes": {},
+            "edges": {
+              "added": [
+                {
+                  "id": "f3->v1:supports",
+                  "from": "f3",
+                  "to": "v1",
+                  "kind": "supports",
+                  "ts": 1767226740000,
+                  "author": "agent:primary"
+                }
+              ],
+              "removed": []
+            }
+          }
+        ],
+        "integrity": {
+          "corruptLines": 0,
+          "futureEvents": 0,
+          "unknownOps": 0,
+          "rejected": 0
+        }
+      }
+    },
+    {
+      "board": "research",
+      "args": [
+        "history",
+        "f4",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.history.v1",
+        "readOnly": true,
+        "prescriptive": false,
+        "nodeId": "f4",
+        "entries": [
+          {
+            "index": 26,
+            "eventId": "event_FIXTURE_027",
+            "op": "node",
+            "at": 1767226800000,
+            "by": "agent:primary",
+            "reason": null,
+            "changes": {
+              "$node": {
+                "before": null,
+                "after": {
+                  "id": "f4",
+                  "type": "fact",
+                  "title": "Stale note",
+                  "ts": 1767226800000,
+                  "session": "session_FIXTURE",
+                  "detail": "Recorded by mistake.",
+                  "author": "agent:primary"
+                }
+              }
+            },
+            "edges": {
+              "added": [],
+              "removed": []
+            }
+          },
+          {
+            "index": 27,
+            "eventId": "event_FIXTURE_028",
+            "op": "remove",
+            "at": 1767226860000,
+            "by": "agent:primary",
+            "reason": "duplicate",
+            "changes": {
+              "$node": {
+                "before": {
+                  "id": "f4",
+                  "type": "fact",
+                  "title": "Stale note",
+                  "ts": 1767226800000,
+                  "session": "session_FIXTURE",
+                  "detail": "Recorded by mistake.",
+                  "author": "agent:primary"
+                },
+                "after": null
+              }
+            },
+            "edges": {
+              "added": [],
+              "removed": []
+            }
+          }
+        ],
+        "integrity": {
+          "corruptLines": 0,
+          "futureEvents": 0,
+          "unknownOps": 0,
+          "rejected": 0
+        }
+      }
+    },
+    {
+      "board": "integrity",
+      "args": [
+        "history",
+        "n1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.history.v1",
+        "readOnly": true,
+        "prescriptive": false,
+        "nodeId": "n1",
+        "entries": [
+          {
+            "index": 1,
+            "eventId": "event_FIXTURE_001",
+            "op": "node",
+            "at": 1767225660000,
+            "by": "agent:primary",
+            "reason": null,
+            "changes": {
+              "$node": {
+                "before": null,
+                "after": {
+                  "id": "n1",
+                  "type": "note",
+                  "title": "Kept note",
+                  "ts": 1767225660000,
+                  "session": "session_FIXTURE",
+                  "author": "agent:primary"
+                }
+              }
+            },
+            "edges": {
+              "added": [],
+              "removed": []
+            }
+          },
+          {
+            "index": 4,
+            "eventId": "event_FIXTURE_005",
+            "op": "edge",
+            "at": 1767225840000,
+            "by": "agent:primary",
+            "reason": null,
+            "changes": {},
+            "edges": {
+              "added": [
+                {
+                  "id": "x1->n1:inspired-by",
+                  "from": "x1",
+                  "to": "n1",
+                  "kind": "inspired-by",
+                  "ts": 1767225840000,
+                  "author": "agent:primary"
+                }
+              ],
+              "removed": []
+            }
+          }
+        ],
+        "integrity": {
+          "corruptLines": 1,
+          "futureEvents": 1,
+          "unknownOps": 1,
+          "rejected": 0
+        }
+      }
+    }
+  ]
+}

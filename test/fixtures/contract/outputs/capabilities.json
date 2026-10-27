@@ -1,0 +1,111 @@
+{
+  "command": "capabilities",
+  "cases": [
+    {
+      "board": null,
+      "args": [
+        "capabilities",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schemaVersion": 1,
+        "version": "<package-version>",
+        "eventVersion": 1,
+        "runtime": {
+          "minimumNode": 18,
+          "runtimeDependencies": 0
+        },
+        "commands": [
+          "init",
+          "setup",
+          "status",
+          "node",
+          "start",
+          "goal",
+          "intent",
+          "fact",
+          "vuln",
+          "hint",
+          "checkpoint",
+          "compact",
+          "cursor",
+          "focus",
+          "here",
+          "activity",
+          "promote",
+          "done",
+          "block",
+          "revive",
+          "edit",
+          "link",
+          "unlink",
+          "remove",
+          "rm",
+          "ls",
+          "list",
+          "show",
+          "tree",
+          "digest",
+          "context",
+          "lint",
+          "tail",
+          "serve",
+          "export",
+          "reset",
+          "search",
+          "history",
+          "changes",
+          "backup",
+          "restore",
+          "receipt",
+          "capabilities",
+          "hooks",
+          "skill",
+          "launcher",
+          "service",
+          "release",
+          "hook",
+          "help",
+          "version"
+        ],
+        "features": {
+          "context": true,
+          "incrementalContext": true,
+          "search": true,
+          "nodeHistory": true,
+          "checkpointChanges": true,
+          "backupRestore": true,
+          "requestReceipts": true,
+          "writeAttribution": true,
+          "cwdFlag": true,
+          "noInit": true,
+          "rejectTruncation": true,
+          "inputTruncationMetadata": true
+        },
+        "contextContract": {
+          "readOnly": true,
+          "prescriptive": false,
+          "nextStepSelection": "agent-controlled"
+        },
+        "limits": {
+          "title": 500,
+          "detail": 20000,
+          "label": 500,
+          "summary": 12000
+        }
+      }
+    },
+    {
+      "board": null,
+      "args": [
+        "capabilities",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 1,
+      "output": null
+    }
+  ]
+}

@@ -1,0 +1,1041 @@
+{
+  "command": "context",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "context",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.context.v1",
+        "policy": {
+          "readOnly": true,
+          "prescriptive": false,
+          "nextStepSelection": "agent-controlled"
+        },
+        "board": {
+          "title": "Contract fixture: research",
+          "stats": {
+            "total": 8,
+            "edges": 7,
+            "activities": 1,
+            "checkpoints": 2,
+            "cursors": 1,
+            "byType": {
+              "goal": 1,
+              "intent": 1,
+              "fact": 3,
+              "vuln": 1,
+              "hint": 1,
+              "question": 1
+            },
+            "intents": {
+              "open": 0,
+              "active": 0,
+              "done": 1,
+              "blocked": 0,
+              "dead": 0
+            },
+            "vulns": {
+              "critical": 0,
+              "high": 1,
+              "medium": 0,
+              "low": 0,
+              "info": 0
+            },
+            "confidence": {
+              "suspected": 0,
+              "static-confirmed": 1,
+              "reproduced": 0,
+              "confirmed": 0,
+              "unspecified": 0
+            },
+            "frontier": 1,
+            "confirmed": 0,
+            "candidates": 1
+          }
+        },
+        "request": {
+          "agentId": "agent:primary",
+          "focus": "v1",
+          "requestedFocus": null,
+          "cursorReason": "verify the fixation",
+          "cursorAt": 1767226620000,
+          "depth": 2,
+          "budgetTokens": 4000,
+          "since": null,
+          "sinceAt": null,
+          "sinceSource": null
+        },
+        "currentFocus": {
+          "id": "v1",
+          "type": "vuln",
+          "title": "Session fixation on login",
+          "severity": "high",
+          "confidence": "static-confirmed",
+          "detail": "The session id survives authentication; reproduced twice.",
+          "author": "agent:primary",
+          "updatedBy": "agent:primary",
+          "at": 1767226200000
+        },
+        "objectives": [
+          {
+            "id": "g1",
+            "type": "goal",
+            "title": "Map the login flow",
+            "status": "active",
+            "tags": [
+              "auth",
+              "web"
+            ],
+            "detail": "Find every step between the form and the session cookie.",
+            "author": "agent:primary",
+            "updatedBy": "agent:primary",
+            "at": 1767227040000
+          }
+        ],
+        "neighborhood": [
+          {
+            "depth": 1,
+            "direction": "out",
+            "relation": "depends-on",
+            "node": {
+              "id": "f2",
+              "type": "fact",
+              "title": "Session cookie lacks SameSite",
+              "confidence": "static-confirmed",
+              "author": "agent:primary",
+              "at": 1767225900000
+            }
+          },
+          {
+            "depth": 1,
+            "direction": "in",
+            "relation": "related-to",
+            "node": {
+              "id": "h1",
+              "type": "hint",
+              "title": "Check whether logout rotates the id",
+              "author": "agent:primary",
+              "at": 1767226020000
+            }
+          },
+          {
+            "depth": 1,
+            "direction": "in",
+            "relation": "supports",
+            "node": {
+              "id": "f3",
+              "type": "fact",
+              "title": "Server returns the same id after login",
+              "tags": [
+                "promoted",
+                "bash"
+              ],
+              "author": "agent:primary",
+              "at": 1767226740000
+            }
+          },
+          {
+            "depth": 2,
+            "direction": "out",
+            "relation": "related-to",
+            "node": {
+              "id": "g1",
+              "type": "goal",
+              "title": "Map the login flow",
+              "status": "active",
+              "tags": [
+                "auth",
+                "web"
+              ],
+              "detail": "Find every step between the form and the session cookie.",
+              "author": "agent:primary",
+              "updatedBy": "agent:primary",
+              "at": 1767227040000
+            }
+          },
+          {
+            "depth": 2,
+            "direction": "in",
+            "relation": "supersedes",
+            "node": {
+              "id": "f1",
+              "type": "fact",
+              "title": "Login posts to /api/session",
+              "confidence": "confirmed",
+              "detail": "Observed in the form markup.",
+              "author": "agent:primary",
+              "at": 1767225840000
+            }
+          }
+        ],
+        "openThreads": [
+          {
+            "id": "q1",
+            "type": "question",
+            "title": "Does SSO share the same handler?",
+            "status": "open",
+            "tags": [
+              "sso"
+            ],
+            "author": "agent:primary",
+            "updatedBy": "agent:primary",
+            "at": 1767226560000
+          }
+        ],
+        "findings": [
+          {
+            "id": "v1",
+            "type": "vuln",
+            "title": "Session fixation on login",
+            "severity": "high",
+            "confidence": "static-confirmed",
+            "detail": "The session id survives authentication; reproduced twice.",
+            "author": "agent:primary",
+            "updatedBy": "agent:primary",
+            "at": 1767226200000
+          }
+        ],
+        "confirmedFacts": [
+          {
+            "id": "f2",
+            "type": "fact",
+            "title": "Session cookie lacks SameSite",
+            "confidence": "static-confirmed",
+            "author": "agent:primary",
+            "at": 1767225900000
+          },
+          {
+            "id": "f1",
+            "type": "fact",
+            "title": "Login posts to /api/session",
+            "confidence": "confirmed",
+            "detail": "Observed in the form markup.",
+            "author": "agent:primary",
+            "at": 1767225840000
+          }
+        ],
+        "retiredNodes": [],
+        "notes": [
+          {
+            "id": "h1",
+            "type": "hint",
+            "title": "Check whether logout rotates the id",
+            "author": "agent:primary",
+            "at": 1767226020000
+          }
+        ],
+        "otherNodes": [
+          {
+            "id": "f3",
+            "type": "fact",
+            "title": "Server returns the same id after login",
+            "tags": [
+              "promoted",
+              "bash"
+            ],
+            "author": "agent:primary",
+            "at": 1767226740000
+          },
+          {
+            "id": "i1",
+            "type": "intent",
+            "title": "Read the login handler first",
+            "status": "done",
+            "author": "agent:primary",
+            "updatedBy": "agent:primary",
+            "at": 1767226440000
+          }
+        ],
+        "recentChanges": [],
+        "changes": [],
+        "checkpoints": [
+          {
+            "id": "cp1",
+            "at": 1767226140000,
+            "agentId": "agent:primary",
+            "cursorNodeId": "g1",
+            "summary": "Mapped the form and cookie; fixation suspected."
+          }
+        ],
+        "recentActivity": [
+          {
+            "id": "act1",
+            "tool": "Bash",
+            "status": "success",
+            "summary": "curl -i /api/session",
+            "at": 1767226680000,
+            "linkedNodeIds": [
+              "v1"
+            ]
+          }
+        ],
+        "relations": [
+          {
+            "id": "f1->f2:supersedes",
+            "from": "f1",
+            "to": "f2",
+            "kind": "supersedes",
+            "label": null
+          },
+          {
+            "id": "f3->v1:supports",
+            "from": "f3",
+            "to": "v1",
+            "kind": "supports",
+            "label": null
+          },
+          {
+            "id": "h1->v1:related-to",
+            "from": "h1",
+            "to": "v1",
+            "kind": "related-to",
+            "label": null
+          },
+          {
+            "id": "v1->f2:depends-on",
+            "from": "v1",
+            "to": "f2",
+            "kind": "depends-on",
+            "label": null
+          },
+          {
+            "id": "f2->g1:related-to",
+            "from": "f2",
+            "to": "g1",
+            "kind": "related-to",
+            "label": null
+          },
+          {
+            "id": "f1->g1:supports",
+            "from": "f1",
+            "to": "g1",
+            "kind": "supports",
+            "label": null
+          },
+          {
+            "id": "i1->g1:supports",
+            "from": "i1",
+            "to": "g1",
+            "kind": "supports",
+            "label": null
+          }
+        ],
+        "omitted": {},
+        "truncated": false,
+        "estimatedTokens": 1160
+      }
+    },
+    {
+      "board": "research",
+      "args": [
+        "context",
+        "--since",
+        "cp1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.context.v1",
+        "policy": {
+          "readOnly": true,
+          "prescriptive": false,
+          "nextStepSelection": "agent-controlled"
+        },
+        "board": {
+          "title": "Contract fixture: research",
+          "stats": {
+            "total": 8,
+            "edges": 7,
+            "activities": 1,
+            "checkpoints": 2,
+            "cursors": 1,
+            "byType": {
+              "goal": 1,
+              "intent": 1,
+              "fact": 3,
+              "vuln": 1,
+              "hint": 1,
+              "question": 1
+            },
+            "intents": {
+              "open": 0,
+              "active": 0,
+              "done": 1,
+              "blocked": 0,
+              "dead": 0
+            },
+            "vulns": {
+              "critical": 0,
+              "high": 1,
+              "medium": 0,
+              "low": 0,
+              "info": 0
+            },
+            "confidence": {
+              "suspected": 0,
+              "static-confirmed": 1,
+              "reproduced": 0,
+              "confirmed": 0,
+              "unspecified": 0
+            },
+            "frontier": 1,
+            "confirmed": 0,
+            "candidates": 1
+          }
+        },
+        "request": {
+          "agentId": "agent:primary",
+          "focus": "v1",
+          "requestedFocus": null,
+          "cursorReason": "verify the fixation",
+          "cursorAt": 1767226620000,
+          "depth": 2,
+          "budgetTokens": 4000,
+          "since": "cp1",
+          "sinceAt": 1767226140000,
+          "sinceSource": "checkpoint:cp1"
+        },
+        "currentFocus": {
+          "id": "v1",
+          "type": "vuln",
+          "title": "Session fixation on login",
+          "severity": "high",
+          "confidence": "static-confirmed",
+          "detail": "The session id survives authentication; reproduced twice.",
+          "author": "agent:primary",
+          "updatedBy": "agent:primary",
+          "at": 1767226200000
+        },
+        "objectives": [
+          {
+            "id": "g1",
+            "type": "goal",
+            "title": "Map the login flow",
+            "status": "active",
+            "tags": [
+              "auth",
+              "web"
+            ],
+            "detail": "Find every step between the form and the session cookie.",
+            "author": "agent:primary",
+            "updatedBy": "agent:primary",
+            "at": 1767227040000
+          }
+        ],
+        "neighborhood": [
+          {
+            "depth": 1,
+            "direction": "out",
+            "relation": "depends-on",
+            "node": {
+              "id": "f2",
+              "type": "fact",
+              "title": "Session cookie lacks SameSite",
+              "confidence": "static-confirmed",
+              "author": "agent:primary",
+              "at": 1767225900000
+            }
+          },
+          {
+            "depth": 1,
+            "direction": "in",
+            "relation": "related-to",
+            "node": {
+              "id": "h1",
+              "type": "hint",
+              "title": "Check whether logout rotates the id",
+              "author": "agent:primary",
+              "at": 1767226020000
+            }
+          },
+          {
+            "depth": 1,
+            "direction": "in",
+            "relation": "supports",
+            "node": {
+              "id": "f3",
+              "type": "fact",
+              "title": "Server returns the same id after login",
+              "tags": [
+                "promoted",
+                "bash"
+              ],
+              "author": "agent:primary",
+              "at": 1767226740000
+            }
+          },
+          {
+            "depth": 2,
+            "direction": "out",
+            "relation": "related-to",
+            "node": {
+              "id": "g1",
+              "type": "goal",
+              "title": "Map the login flow",
+              "status": "active",
+              "tags": [
+                "auth",
+                "web"
+              ],
+              "detail": "Find every step between the form and the session cookie.",
+              "author": "agent:primary",
+              "updatedBy": "agent:primary",
+              "at": 1767227040000
+            }
+          },
+          {
+            "depth": 2,
+            "direction": "in",
+            "relation": "supersedes",
+            "node": {
+              "id": "f1",
+              "type": "fact",
+              "title": "Login posts to /api/session",
+              "confidence": "confirmed",
+              "detail": "Observed in the form markup.",
+              "author": "agent:primary",
+              "at": 1767225840000
+            }
+          }
+        ],
+        "openThreads": [
+          {
+            "id": "q1",
+            "type": "question",
+            "title": "Does SSO share the same handler?",
+            "status": "open",
+            "tags": [
+              "sso"
+            ],
+            "author": "agent:primary",
+            "updatedBy": "agent:primary",
+            "at": 1767226560000
+          }
+        ],
+        "findings": [
+          {
+            "id": "v1",
+            "type": "vuln",
+            "title": "Session fixation on login",
+            "severity": "high",
+            "confidence": "static-confirmed",
+            "detail": "The session id survives authentication; reproduced twice.",
+            "author": "agent:primary",
+            "updatedBy": "agent:primary",
+            "at": 1767226200000
+          }
+        ],
+        "confirmedFacts": [
+          {
+            "id": "f2",
+            "type": "fact",
+            "title": "Session cookie lacks SameSite",
+            "confidence": "static-confirmed",
+            "author": "agent:primary",
+            "at": 1767225900000
+          },
+          {
+            "id": "f1",
+            "type": "fact",
+            "title": "Login posts to /api/session",
+            "confidence": "confirmed",
+            "detail": "Observed in the form markup.",
+            "author": "agent:primary",
+            "at": 1767225840000
+          }
+        ],
+        "retiredNodes": [],
+        "notes": [
+          {
+            "id": "h1",
+            "type": "hint",
+            "title": "Check whether logout rotates the id",
+            "author": "agent:primary",
+            "at": 1767226020000
+          }
+        ],
+        "otherNodes": [
+          {
+            "id": "f3",
+            "type": "fact",
+            "title": "Server returns the same id after login",
+            "tags": [
+              "promoted",
+              "bash"
+            ],
+            "author": "agent:primary",
+            "at": 1767226740000
+          },
+          {
+            "id": "i1",
+            "type": "intent",
+            "title": "Read the login handler first",
+            "status": "done",
+            "author": "agent:primary",
+            "updatedBy": "agent:primary",
+            "at": 1767226440000
+          }
+        ],
+        "recentChanges": [
+          {
+            "id": "g1",
+            "type": "goal",
+            "title": "Map the login flow",
+            "status": "active",
+            "tags": [
+              "auth",
+              "web"
+            ],
+            "detail": "Find every step between the form and the session cookie.",
+            "author": "agent:primary",
+            "updatedBy": "agent:primary",
+            "at": 1767227040000
+          },
+          {
+            "id": "f3",
+            "type": "fact",
+            "title": "Server returns the same id after login",
+            "tags": [
+              "promoted",
+              "bash"
+            ],
+            "author": "agent:primary",
+            "at": 1767226740000
+          },
+          {
+            "id": "q1",
+            "type": "question",
+            "title": "Does SSO share the same handler?",
+            "status": "open",
+            "tags": [
+              "sso"
+            ],
+            "author": "agent:primary",
+            "updatedBy": "agent:primary",
+            "at": 1767226560000
+          },
+          {
+            "id": "i1",
+            "type": "intent",
+            "title": "Read the login handler first",
+            "status": "done",
+            "author": "agent:primary",
+            "updatedBy": "agent:primary",
+            "at": 1767226440000
+          },
+          {
+            "id": "v1",
+            "type": "vuln",
+            "title": "Session fixation on login",
+            "severity": "high",
+            "confidence": "static-confirmed",
+            "detail": "The session id survives authentication; reproduced twice.",
+            "author": "agent:primary",
+            "updatedBy": "agent:primary",
+            "at": 1767226200000
+          }
+        ],
+        "changes": [
+          {
+            "kind": "relation-added",
+            "id": "f1->f2:supersedes",
+            "from": "f1",
+            "to": "f2",
+            "relation": "supersedes",
+            "at": 1767226980000,
+            "eventId": "event_FIXTURE_030"
+          },
+          {
+            "kind": "relation-removed",
+            "id": "f1->f2:contradicts",
+            "at": 1767226920000,
+            "eventId": "event_FIXTURE_029"
+          },
+          {
+            "kind": "node-removed",
+            "id": "f4",
+            "at": 1767226860000,
+            "eventId": "event_FIXTURE_028"
+          },
+          {
+            "kind": "relation-added",
+            "id": "f3->v1:supports",
+            "from": "f3",
+            "to": "v1",
+            "relation": "supports",
+            "at": 1767226740000,
+            "eventId": "event_FIXTURE_026"
+          },
+          {
+            "kind": "relation-removed",
+            "id": "h1->g1:related-to",
+            "at": 1767226380000,
+            "eventId": "event_FIXTURE_019"
+          },
+          {
+            "kind": "relation-added",
+            "id": "h1->g1:related-to",
+            "from": "h1",
+            "to": "g1",
+            "relation": "related-to",
+            "at": 1767226320000,
+            "eventId": "event_FIXTURE_018"
+          },
+          {
+            "kind": "relation-added",
+            "id": "f1->f2:contradicts",
+            "from": "f1",
+            "to": "f2",
+            "relation": "contradicts",
+            "label": "different endpoints",
+            "at": 1767226260000,
+            "eventId": "event_FIXTURE_017"
+          }
+        ],
+        "checkpoints": [
+          {
+            "id": "cp1",
+            "at": 1767226140000,
+            "agentId": "agent:primary",
+            "cursorNodeId": "g1",
+            "summary": "Mapped the form and cookie; fixation suspected."
+          }
+        ],
+        "recentActivity": [
+          {
+            "id": "act1",
+            "tool": "Bash",
+            "status": "success",
+            "summary": "curl -i /api/session",
+            "at": 1767226680000,
+            "linkedNodeIds": [
+              "v1"
+            ]
+          }
+        ],
+        "relations": [
+          {
+            "id": "f1->f2:supersedes",
+            "from": "f1",
+            "to": "f2",
+            "kind": "supersedes",
+            "label": null
+          },
+          {
+            "id": "f3->v1:supports",
+            "from": "f3",
+            "to": "v1",
+            "kind": "supports",
+            "label": null
+          },
+          {
+            "id": "h1->v1:related-to",
+            "from": "h1",
+            "to": "v1",
+            "kind": "related-to",
+            "label": null
+          },
+          {
+            "id": "v1->f2:depends-on",
+            "from": "v1",
+            "to": "f2",
+            "kind": "depends-on",
+            "label": null
+          },
+          {
+            "id": "f2->g1:related-to",
+            "from": "f2",
+            "to": "g1",
+            "kind": "related-to",
+            "label": null
+          },
+          {
+            "id": "f1->g1:supports",
+            "from": "f1",
+            "to": "g1",
+            "kind": "supports",
+            "label": null
+          },
+          {
+            "id": "i1->g1:supports",
+            "from": "i1",
+            "to": "g1",
+            "kind": "supports",
+            "label": null
+          }
+        ],
+        "omitted": {},
+        "truncated": false,
+        "estimatedTokens": 1631
+      }
+    },
+    {
+      "board": "research",
+      "args": [
+        "context",
+        "--focus",
+        "v1",
+        "--depth",
+        "1",
+        "--budget",
+        "600",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.context.v1",
+        "policy": {
+          "readOnly": true,
+          "prescriptive": false,
+          "nextStepSelection": "agent-controlled"
+        },
+        "board": {
+          "title": "Contract fixture: research",
+          "stats": {
+            "total": 8,
+            "edges": 7,
+            "activities": 1,
+            "checkpoints": 2,
+            "cursors": 1,
+            "byType": {
+              "goal": 1,
+              "intent": 1,
+              "fact": 3,
+              "vuln": 1,
+              "hint": 1,
+              "question": 1
+            },
+            "intents": {
+              "open": 0,
+              "active": 0,
+              "done": 1,
+              "blocked": 0,
+              "dead": 0
+            },
+            "vulns": {
+              "critical": 0,
+              "high": 1,
+              "medium": 0,
+              "low": 0,
+              "info": 0
+            },
+            "confidence": {
+              "suspected": 0,
+              "static-confirmed": 1,
+              "reproduced": 0,
+              "confirmed": 0,
+              "unspecified": 0
+            },
+            "frontier": 1,
+            "confirmed": 0,
+            "candidates": 1
+          }
+        },
+        "request": {
+          "agentId": "agent:primary",
+          "focus": "v1",
+          "requestedFocus": "v1",
+          "cursorReason": "verify the fixation",
+          "cursorAt": 1767226620000,
+          "depth": 1,
+          "budgetTokens": 600,
+          "since": null,
+          "sinceAt": null,
+          "sinceSource": null
+        },
+        "currentFocus": {
+          "id": "v1",
+          "type": "vuln",
+          "title": "Session fixation on login",
+          "severity": "high",
+          "confidence": "static-confirmed",
+          "detail": "The session id survives authentication; reproduced twice.",
+          "author": "agent:primary",
+          "updatedBy": "agent:primary",
+          "at": 1767226200000
+        },
+        "objectives": [
+          {
+            "id": "g1",
+            "type": "goal",
+            "title": "Map the login flow",
+            "status": "active",
+            "tags": [
+              "auth",
+              "web"
+            ],
+            "detail": "Find every step between the form and the session cookie.",
+            "author": "agent:primary",
+            "updatedBy": "agent:primary",
+            "at": 1767227040000
+          }
+        ],
+        "neighborhood": [
+          {
+            "depth": 1,
+            "direction": "out",
+            "relation": "depends-on",
+            "node": {
+              "id": "f2",
+              "type": "fact",
+              "title": "Session cookie lacks SameSite",
+              "confidence": "static-confirmed",
+              "author": "agent:primary",
+              "at": 1767225900000
+            }
+          },
+          {
+            "depth": 1,
+            "direction": "in",
+            "relation": "related-to",
+            "node": {
+              "id": "h1",
+              "type": "hint",
+              "title": "Check whether logout rotates the id",
+              "author": "agent:primary",
+              "at": 1767226020000
+            }
+          },
+          {
+            "depth": 1,
+            "direction": "in",
+            "relation": "supports",
+            "node": {
+              "id": "f3",
+              "type": "fact",
+              "title": "Server returns the same id after login",
+              "tags": [
+                "promoted",
+                "bash"
+              ],
+              "author": "agent:primary",
+              "at": 1767226740000
+            }
+          }
+        ],
+        "openThreads": [],
+        "findings": [],
+        "confirmedFacts": [],
+        "retiredNodes": [],
+        "notes": [],
+        "otherNodes": [],
+        "recentChanges": [],
+        "changes": [],
+        "checkpoints": [
+          {
+            "id": "cp1",
+            "at": 1767226140000,
+            "agentId": "agent:primary",
+            "cursorNodeId": "g1",
+            "summary": "Mapped the form and cookie; fixation suspected."
+          }
+        ],
+        "recentActivity": [],
+        "relations": [],
+        "omitted": {
+          "confirmedFacts": 2,
+          "otherNodes": 2,
+          "relations": 7,
+          "openThreads": 1,
+          "findings": 1,
+          "notes": 1,
+          "recentActivity": 1
+        },
+        "truncated": true,
+        "estimatedTokens": 594
+      }
+    },
+    {
+      "board": "empty",
+      "args": [
+        "context",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.context.v1",
+        "policy": {
+          "readOnly": true,
+          "prescriptive": false,
+          "nextStepSelection": "agent-controlled"
+        },
+        "board": {
+          "title": null,
+          "stats": {
+            "total": 0,
+            "edges": 0,
+            "activities": 0,
+            "checkpoints": 0,
+            "cursors": 0,
+            "byType": {},
+            "intents": {
+              "open": 0,
+              "active": 0,
+              "done": 0,
+              "blocked": 0,
+              "dead": 0
+            },
+            "vulns": {
+              "critical": 0,
+              "high": 0,
+              "medium": 0,
+              "low": 0,
+              "info": 0
+            },
+            "confidence": {
+              "suspected": 0,
+              "static-confirmed": 0,
+              "reproduced": 0,
+              "confirmed": 0,
+              "unspecified": 0
+            },
+            "frontier": 0,
+            "confirmed": 0,
+            "candidates": 0
+          }
+        },
+        "request": {
+          "agentId": "agent:primary",
+          "focus": null,
+          "requestedFocus": null,
+          "cursorReason": null,
+          "cursorAt": null,
+          "depth": 2,
+          "budgetTokens": 4000,
+          "since": null,
+          "sinceAt": null,
+          "sinceSource": null
+        },
+        "currentFocus": null,
+        "objectives": [],
+        "neighborhood": [],
+        "openThreads": [],
+        "findings": [],
+        "confirmedFacts": [],
+        "retiredNodes": [],
+        "notes": [],
+        "otherNodes": [],
+        "recentChanges": [],
+        "changes": [],
+        "checkpoints": [],
+        "recentActivity": [],
+        "relations": [],
+        "omitted": {},
+        "truncated": false,
+        "estimatedTokens": 241
+      }
+    }
+  ]
+}

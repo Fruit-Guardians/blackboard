@@ -1,0 +1,57 @@
+{
+  "command": "promote",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "promote",
+        "act1",
+        "--kind",
+        "observation",
+        "--title",
+        "Same id twice",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "node": {
+          "id": "o1",
+          "type": "observation",
+          "title": "Same id twice",
+          "ts": "<now>",
+          "session": "<session-id>",
+          "tags": [
+            "promoted",
+            "bash"
+          ],
+          "author": "agent:primary",
+          "activityId": "act1"
+        },
+        "edge": null,
+        "cursor": null
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "node",
+          "node": {
+            "id": "o1",
+            "type": "observation",
+            "title": "Same id twice",
+            "ts": "<now>",
+            "session": "<session-id>",
+            "tags": [
+              "promoted",
+              "bash"
+            ],
+            "author": "agent:primary",
+            "activityId": "act1"
+          }
+        }
+      ]
+    }
+  ]
+}

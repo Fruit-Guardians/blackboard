@@ -1,0 +1,53 @@
+{
+  "command": "activity",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "activity",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": [
+        {
+          "id": "act1",
+          "tool": "Bash",
+          "summary": "curl -i /api/session",
+          "status": "success",
+          "agentId": "agent:primary",
+          "at": 1767226680000,
+          "sessionId": "session_FIXTURE",
+          "linkedNodeIds": [
+            "v1"
+          ]
+        }
+      ]
+    },
+    {
+      "board": "research",
+      "args": [
+        "activity",
+        "show",
+        "act1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "id": "act1",
+        "tool": "Bash",
+        "summary": "curl -i /api/session",
+        "status": "success",
+        "agentId": "agent:primary",
+        "at": 1767226680000,
+        "sessionId": "session_FIXTURE",
+        "linkedNodeIds": [
+          "v1"
+        ]
+      }
+    }
+  ]
+}

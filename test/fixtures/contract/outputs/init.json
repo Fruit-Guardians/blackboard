@@ -1,0 +1,33 @@
+{
+  "command": "init",
+  "cases": [
+    {
+      "board": null,
+      "args": [
+        "init",
+        "--title",
+        "New board",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "cwd": "<root>/board",
+        "board": "<root>/board/.blackboard",
+        "title": "New board",
+        "session": "<session-id>"
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "meta",
+          "set": {
+            "title": "New board"
+          }
+        }
+      ]
+    }
+  ]
+}

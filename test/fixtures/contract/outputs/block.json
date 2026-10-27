@@ -1,0 +1,40 @@
+{
+  "command": "block",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "block",
+        "h1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "id": "h1",
+        "type": "hint",
+        "title": "Check whether logout rotates the id",
+        "ts": 1767226020000,
+        "session": "session_FIXTURE",
+        "author": "agent:primary",
+        "status": "blocked",
+        "updated": "<now>",
+        "updatedBy": "agent:primary"
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "patch",
+          "id": "h1",
+          "set": {
+            "status": "blocked",
+            "updated": "<now>",
+            "updatedBy": "agent:primary"
+          }
+        }
+      ]
+    }
+  ]
+}

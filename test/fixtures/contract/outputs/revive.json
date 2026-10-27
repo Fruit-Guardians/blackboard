@@ -1,0 +1,40 @@
+{
+  "command": "revive",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "revive",
+        "i1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "id": "i1",
+        "type": "intent",
+        "title": "Read the login handler first",
+        "ts": 1767225720000,
+        "session": "session_FIXTURE",
+        "author": "agent:primary",
+        "status": "open",
+        "updated": "<now>",
+        "updatedBy": "agent:primary"
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "patch",
+          "id": "i1",
+          "set": {
+            "status": "open",
+            "updated": "<now>",
+            "updatedBy": "agent:primary"
+          }
+        }
+      ]
+    }
+  ]
+}

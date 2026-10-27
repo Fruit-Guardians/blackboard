@@ -1,0 +1,69 @@
+{
+  "command": "receipt",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "receipt",
+        "req-fixture-1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.receipt.v1",
+        "requestId": "req-fixture-1",
+        "command": "patchNode",
+        "fingerprint": "951e50bc7f7ddeedf89d69269ebb659dce7a741965b005b167786d9197437c6a",
+        "status": "committed",
+        "result": {
+          "id": "g1",
+          "type": "goal",
+          "title": "Map the login flow",
+          "ts": 1767225660000,
+          "session": "session_FIXTURE",
+          "detail": "Find every step between the form and the session cookie.",
+          "tags": [
+            "auth",
+            "web"
+          ],
+          "author": "agent:primary",
+          "status": "active",
+          "updated": 1767227040000,
+          "updatedBy": "agent:primary"
+        },
+        "eventIds": [
+          "event_FIXTURE_031"
+        ],
+        "committedEventIds": [
+          "event_FIXTURE_031"
+        ],
+        "at": 1767227040000
+      }
+    },
+    {
+      "board": "research",
+      "args": [
+        "receipt",
+        "req-missing",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 1,
+      "output": null
+    },
+    {
+      "board": "research",
+      "args": [
+        "receipt",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 1,
+      "output": null
+    }
+  ]
+}

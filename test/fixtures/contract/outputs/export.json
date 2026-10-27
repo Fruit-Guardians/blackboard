@@ -1,0 +1,20 @@
+{
+  "command": "export",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "export",
+        "--out",
+        "<root>/out.html",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "file": "<root>/out.html"
+      }
+    }
+  ]
+}

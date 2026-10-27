@@ -1,0 +1,81 @@
+{
+  "command": "link",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "link",
+        "h1",
+        "q1",
+        "--rel",
+        "depends-on",
+        "--label",
+        "same handler",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "id": "h1->q1:depends-on",
+        "from": "h1",
+        "to": "q1",
+        "kind": "depends-on",
+        "ts": "<now>",
+        "author": "agent:primary",
+        "label": "same handler"
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "edge",
+          "edge": {
+            "id": "h1->q1:depends-on",
+            "from": "h1",
+            "to": "q1",
+            "kind": "depends-on",
+            "ts": "<now>",
+            "author": "agent:primary",
+            "label": "same handler"
+          }
+        }
+      ]
+    },
+    {
+      "board": "research",
+      "args": [
+        "link",
+        "q1",
+        "g1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "id": "q1->g1:related-to",
+        "from": "q1",
+        "to": "g1",
+        "kind": "related-to",
+        "ts": "<now>",
+        "author": "agent:primary"
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "edge",
+          "edge": {
+            "id": "q1->g1:related-to",
+            "from": "q1",
+            "to": "g1",
+            "kind": "related-to",
+            "ts": "<now>",
+            "author": "agent:primary"
+          }
+        }
+      ]
+    }
+  ]
+}

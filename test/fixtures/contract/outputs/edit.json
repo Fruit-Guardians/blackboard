@@ -1,0 +1,69 @@
+{
+  "command": "edit",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "edit",
+        "v1",
+        "--title",
+        "Session fixation",
+        "--sev",
+        "critical",
+        "--tag",
+        "auth",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "id": "v1",
+        "type": "vuln",
+        "title": "Session fixation",
+        "ts": 1767225960000,
+        "session": "session_FIXTURE",
+        "detail": "The session id survives authentication; reproduced twice.",
+        "author": "agent:primary",
+        "severity": "critical",
+        "confidence": "static-confirmed",
+        "updated": "<now>",
+        "updatedBy": "agent:primary",
+        "tags": [
+          "auth"
+        ]
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "patch",
+          "id": "v1",
+          "set": {
+            "title": "Session fixation",
+            "severity": "critical",
+            "tags": [
+              "auth"
+            ],
+            "updated": "<now>",
+            "updatedBy": "agent:primary"
+          }
+        }
+      ]
+    },
+    {
+      "board": "research",
+      "args": [
+        "edit",
+        "nope",
+        "--title",
+        "x",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 1,
+      "output": null
+    }
+  ]
+}

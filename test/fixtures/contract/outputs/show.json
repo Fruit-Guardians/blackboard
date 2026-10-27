@@ -1,0 +1,113 @@
+{
+  "command": "show",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "show",
+        "v1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "node": {
+          "id": "v1",
+          "type": "vuln",
+          "title": "Session fixation on login",
+          "ts": 1767225960000,
+          "session": "session_FIXTURE",
+          "detail": "The session id survives authentication; reproduced twice.",
+          "author": "agent:primary",
+          "severity": "high",
+          "confidence": "static-confirmed",
+          "updated": 1767226200000,
+          "updatedBy": "agent:primary"
+        },
+        "parents": [
+          {
+            "id": "h1",
+            "type": "hint",
+            "title": "Check whether logout rotates the id",
+            "ts": 1767226020000,
+            "session": "session_FIXTURE",
+            "author": "agent:primary",
+            "edge": "related-to"
+          },
+          {
+            "id": "f3",
+            "type": "fact",
+            "title": "Server returns the same id after login",
+            "ts": 1767226740000,
+            "session": "session_FIXTURE",
+            "tags": [
+              "promoted",
+              "bash"
+            ],
+            "author": "agent:primary",
+            "activityId": "act1",
+            "edge": "supports"
+          }
+        ],
+        "children": [
+          {
+            "id": "f2",
+            "type": "fact",
+            "title": "Session cookie lacks SameSite",
+            "ts": 1767225900000,
+            "session": "session_FIXTURE",
+            "author": "agent:primary",
+            "confidence": "static-confirmed",
+            "edge": "depends-on"
+          }
+        ]
+      }
+    },
+    {
+      "board": "integrity",
+      "args": [
+        "show",
+        "x1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "node": {
+          "id": "x1",
+          "type": "experiment",
+          "title": "Unknown type is kept",
+          "ts": 1767225780000,
+          "session": "session_FIXTURE",
+          "author": "agent:primary"
+        },
+        "parents": [],
+        "children": [
+          {
+            "id": "n1",
+            "type": "note",
+            "title": "Kept note",
+            "ts": 1767225660000,
+            "session": "session_FIXTURE",
+            "author": "agent:primary",
+            "edge": "inspired-by"
+          }
+        ]
+      }
+    },
+    {
+      "board": "research",
+      "args": [
+        "show",
+        "nope",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 1,
+      "output": null
+    }
+  ]
+}
