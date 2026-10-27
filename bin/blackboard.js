@@ -533,11 +533,17 @@ function cmdShow(args, flags) {
     console.log('');
     console.log(n.detail);
   }
+  const parents = parentsOf(g, nodeId);
+  if (parents.length) {
+    console.log('');
+    console.log(C.dim('— 上游 —'));
+    for (const p of parents) console.log(`  ${C.dim(EDGE_LABEL[p.edge] || p.edge)} ${nodeLine(p)}`);
+  }
   const kids = childrenOf(g, nodeId);
   if (kids.length) {
     console.log('');
     console.log(C.dim('— 下游 —'));
-    for (const k of kids) console.log(`  ${C.dim(EDGE_LABEL[k.kind] || k.kind)} ${nodeLine(k)}`);
+    for (const k of kids) console.log(`  ${C.dim(EDGE_LABEL[k.edge] || k.edge)} ${nodeLine(k)}`);
   }
 }
 
