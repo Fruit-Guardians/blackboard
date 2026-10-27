@@ -4,7 +4,7 @@
 
 ## 一句话
 
-按“问题 → 候选 → 证据 → 裁定 → 排除与覆盖”来记录研究，是一种可选的记录方式，放在 Skill 的参考 [`references/inquiry.md`](../skills/blackboard/references/inquiry.md) 里。内核不认识它，也不为它改变任何投影、预算或 `lint`。Agent 用不用、用哪种方式，都由它自己决定。
+按“问题 → 候选 → 证据 → 裁定 → 排除与覆盖”来记录研究，是一种可选的记录方式，放在 Skill 的方法包 [`methods/inquiry.md`](../skills/blackboard/methods/inquiry.md) 里。内核不认识它，也不为它改变任何投影、预算或 `lint`。Agent 用不用、用哪种方式，都由它自己决定。
 
 ## 背景
 
@@ -30,7 +30,7 @@ exp1 暴露的几处失误都和研究的骨架有关：
 
 ## 做了什么
 
-- 新增 [`skills/blackboard/references/inquiry.md`](../skills/blackboard/references/inquiry.md)。开头说明它是可选的，不用也是正常记录；内容只讲怎么记，不讲先做什么：
+- 新增 [`skills/blackboard/references/inquiry.md`](../skills/blackboard/methods/inquiry.md)。开头说明它是可选的，不用也是正常记录；内容只讲怎么记，不讲先做什么：
   - 五个要素对应的节点、状态和关系；
   - 约定关系名 `answers`（候选 answers 问题），内核按未知关系照常保存；
   - 裁定只由 Agent 写，证据多少不等于已裁定；

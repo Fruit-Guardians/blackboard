@@ -1,3 +1,12 @@
+---
+name: inquiry
+description: 按问题、候选、证据、裁定、排除记录研究；有几个相互竞争的解释、需要记下排除了什么、或要让接手者分清已定与未定时可选使用。只讲怎么记录，不规定研究步骤。
+metadata:
+  version: "1"
+  invocation: agent
+  relations: answers, refines, supports, contradicts, supersedes
+---
+
 # 可选的研究记录方式：问题、候选、证据、裁定、排除
 
 这是一种可选的记录方式，不是研究步骤。只在你自己觉得有用时读取和使用：同时有几个相互竞争的解释、需要记下排除了什么、或者要让接手者分清“已定”和“未定”。不用它也是完整、正常的记录；没有候选的问题、只有一条观察的记录，都不需要补成这个结构。
@@ -29,7 +38,7 @@ blackboard link "<证据ID>" "<另一候选ID>" --rel contradicts --label "小�
 
 ## 裁定只由你写
 
-状态和边是两次独立写入。“有几条支持、状态仍是 open”是合法的记录：证据多少不等于已经裁定，是否改状态由你判断。推翻时先有 `contradicts` 边，再设 `refuted`；取代用 `supersedes` 和 `superseded`，两者不同义，见[记录语义](recording.md)。
+状态和边是两次独立写入。“有几条支持、状态仍是 open”是合法的记录：证据多少不等于已经裁定，是否改状态由你判断。推翻时先有 `contradicts` 边，再设 `refuted`；取代用 `supersedes` 和 `superseded`，两者不同义，见[记录语义](../references/recording.md)。
 
 ## 没决定的方向单独成节点
 
