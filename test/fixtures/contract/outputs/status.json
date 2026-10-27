@@ -1,0 +1,401 @@
+{
+  "command": "status",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "status",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "stats": {
+          "total": 8,
+          "edges": 7,
+          "activities": 1,
+          "checkpoints": 2,
+          "cursors": 1,
+          "byType": {
+            "goal": 1,
+            "intent": 1,
+            "fact": 3,
+            "vuln": 1,
+            "hint": 1,
+            "question": 1
+          },
+          "intents": {
+            "open": 0,
+            "active": 0,
+            "done": 1,
+            "blocked": 0,
+            "dead": 0
+          },
+          "vulns": {
+            "critical": 0,
+            "high": 1,
+            "medium": 0,
+            "low": 0,
+            "info": 0
+          },
+          "confidence": {
+            "suspected": 0,
+            "static-confirmed": 1,
+            "reproduced": 0,
+            "confirmed": 0,
+            "unspecified": 0
+          },
+          "frontier": 1,
+          "confirmed": 0,
+          "candidates": 1
+        },
+        "cursor": {
+          "id": "v1",
+          "type": "vuln",
+          "title": "Session fixation on login",
+          "ts": 1767225960000,
+          "session": "session_FIXTURE",
+          "detail": "The session id survives authentication; reproduced twice.",
+          "author": "agent:primary",
+          "severity": "high",
+          "confidence": "static-confirmed",
+          "updated": 1767226200000,
+          "updatedBy": "agent:primary"
+        },
+        "cursors": {
+          "agent:primary": {
+            "id": "cursor_FIXTURE_002",
+            "agentId": "agent:primary",
+            "from": "g1",
+            "to": "v1",
+            "at": 1767226620000,
+            "sessionId": "session_FIXTURE",
+            "reason": "verify the fixation"
+          }
+        },
+        "title": "Contract fixture: research",
+        "session": "<session-id>",
+        "cwd": "<root>/board",
+        "agentId": "agent:primary",
+        "viewer": {
+          "port": "<port>",
+          "url": "http://127.0.0.1:<port>",
+          "state": "offline",
+          "cwd": null,
+          "readOnly": null
+        },
+        "integration": {
+          "claude": {
+            "skill": {
+              "project": false,
+              "user": false
+            },
+            "hooks": {
+              "project": [],
+              "user": []
+            }
+          },
+          "codex": {
+            "skill": {
+              "project": false,
+              "user": false
+            }
+          },
+          "errors": []
+        },
+        "latestNode": {
+          "id": "g1",
+          "type": "goal",
+          "title": "Map the login flow",
+          "ts": 1767225660000,
+          "session": "session_FIXTURE",
+          "detail": "Find every step between the form and the session cookie.",
+          "tags": [
+            "auth",
+            "web"
+          ],
+          "author": "agent:primary",
+          "status": "active",
+          "updated": 1767227040000,
+          "updatedBy": "agent:primary"
+        }
+      }
+    },
+    {
+      "board": "research",
+      "args": [
+        "status",
+        "--agent",
+        "agent:reviewer",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "stats": {
+          "total": 8,
+          "edges": 7,
+          "activities": 1,
+          "checkpoints": 2,
+          "cursors": 1,
+          "byType": {
+            "goal": 1,
+            "intent": 1,
+            "fact": 3,
+            "vuln": 1,
+            "hint": 1,
+            "question": 1
+          },
+          "intents": {
+            "open": 0,
+            "active": 0,
+            "done": 1,
+            "blocked": 0,
+            "dead": 0
+          },
+          "vulns": {
+            "critical": 0,
+            "high": 1,
+            "medium": 0,
+            "low": 0,
+            "info": 0
+          },
+          "confidence": {
+            "suspected": 0,
+            "static-confirmed": 1,
+            "reproduced": 0,
+            "confirmed": 0,
+            "unspecified": 0
+          },
+          "frontier": 1,
+          "confirmed": 0,
+          "candidates": 1
+        },
+        "cursor": null,
+        "cursors": {
+          "agent:primary": {
+            "id": "cursor_FIXTURE_002",
+            "agentId": "agent:primary",
+            "from": "g1",
+            "to": "v1",
+            "at": 1767226620000,
+            "sessionId": "session_FIXTURE",
+            "reason": "verify the fixation"
+          }
+        },
+        "title": "Contract fixture: research",
+        "session": "<session-id>",
+        "cwd": "<root>/board",
+        "agentId": "agent:reviewer",
+        "viewer": {
+          "port": "<port>",
+          "url": "http://127.0.0.1:<port>",
+          "state": "offline",
+          "cwd": null,
+          "readOnly": null
+        },
+        "integration": {
+          "claude": {
+            "skill": {
+              "project": false,
+              "user": false
+            },
+            "hooks": {
+              "project": [],
+              "user": []
+            }
+          },
+          "codex": {
+            "skill": {
+              "project": false,
+              "user": false
+            }
+          },
+          "errors": []
+        },
+        "latestNode": {
+          "id": "g1",
+          "type": "goal",
+          "title": "Map the login flow",
+          "ts": 1767225660000,
+          "session": "session_FIXTURE",
+          "detail": "Find every step between the form and the session cookie.",
+          "tags": [
+            "auth",
+            "web"
+          ],
+          "author": "agent:primary",
+          "status": "active",
+          "updated": 1767227040000,
+          "updatedBy": "agent:primary"
+        }
+      }
+    },
+    {
+      "board": "empty",
+      "args": [
+        "status",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "stats": {
+          "total": 0,
+          "edges": 0,
+          "activities": 0,
+          "checkpoints": 0,
+          "cursors": 0,
+          "byType": {},
+          "intents": {
+            "open": 0,
+            "active": 0,
+            "done": 0,
+            "blocked": 0,
+            "dead": 0
+          },
+          "vulns": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0,
+            "info": 0
+          },
+          "confidence": {
+            "suspected": 0,
+            "static-confirmed": 0,
+            "reproduced": 0,
+            "confirmed": 0,
+            "unspecified": 0
+          },
+          "frontier": 0,
+          "confirmed": 0,
+          "candidates": 0
+        },
+        "cursor": null,
+        "cursors": {},
+        "title": "",
+        "session": "<session-id>",
+        "cwd": "<root>/board",
+        "agentId": "agent:primary",
+        "viewer": {
+          "port": "<port>",
+          "url": "http://127.0.0.1:<port>",
+          "state": "offline",
+          "cwd": null,
+          "readOnly": null
+        },
+        "integration": {
+          "claude": {
+            "skill": {
+              "project": false,
+              "user": false
+            },
+            "hooks": {
+              "project": [],
+              "user": []
+            }
+          },
+          "codex": {
+            "skill": {
+              "project": false,
+              "user": false
+            }
+          },
+          "errors": []
+        },
+        "latestNode": null
+      }
+    },
+    {
+      "board": "integrity",
+      "args": [
+        "status",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "stats": {
+          "total": 2,
+          "edges": 1,
+          "activities": 0,
+          "checkpoints": 0,
+          "cursors": 0,
+          "byType": {
+            "note": 1,
+            "experiment": 1
+          },
+          "intents": {
+            "open": 0,
+            "active": 0,
+            "done": 0,
+            "blocked": 0,
+            "dead": 0
+          },
+          "vulns": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0,
+            "info": 0
+          },
+          "confidence": {
+            "suspected": 0,
+            "static-confirmed": 0,
+            "reproduced": 0,
+            "confirmed": 0,
+            "unspecified": 0
+          },
+          "frontier": 0,
+          "confirmed": 0,
+          "candidates": 0
+        },
+        "cursor": null,
+        "cursors": {},
+        "title": "Contract fixture: integrity",
+        "session": "<session-id>",
+        "cwd": "<root>/board",
+        "agentId": "agent:primary",
+        "viewer": {
+          "port": "<port>",
+          "url": "http://127.0.0.1:<port>",
+          "state": "offline",
+          "cwd": null,
+          "readOnly": null
+        },
+        "integration": {
+          "claude": {
+            "skill": {
+              "project": false,
+              "user": false
+            },
+            "hooks": {
+              "project": [],
+              "user": []
+            }
+          },
+          "codex": {
+            "skill": {
+              "project": false,
+              "user": false
+            }
+          },
+          "errors": []
+        },
+        "latestNode": {
+          "id": "x1",
+          "type": "experiment",
+          "title": "Unknown type is kept",
+          "ts": 1767225780000,
+          "session": "session_FIXTURE",
+          "author": "agent:primary"
+        }
+      }
+    }
+  ]
+}

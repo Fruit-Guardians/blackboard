@@ -1,0 +1,43 @@
+{
+  "command": "done",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "done",
+        "q1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "id": "q1",
+        "type": "question",
+        "title": "Does SSO share the same handler?",
+        "ts": 1767226080000,
+        "session": "session_FIXTURE",
+        "tags": [
+          "sso"
+        ],
+        "author": "agent:primary",
+        "status": "done",
+        "updated": "<now>",
+        "updatedBy": "agent:primary"
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "patch",
+          "id": "q1",
+          "set": {
+            "status": "done",
+            "updated": "<now>",
+            "updatedBy": "agent:primary"
+          }
+        }
+      ]
+    }
+  ]
+}

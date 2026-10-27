@@ -1,0 +1,136 @@
+{
+  "command": "here",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "here",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "agentId": "agent:primary",
+        "cursor": "v1",
+        "node": {
+          "id": "v1",
+          "type": "vuln",
+          "title": "Session fixation on login",
+          "ts": 1767225960000,
+          "session": "session_FIXTURE",
+          "detail": "The session id survives authentication; reproduced twice.",
+          "author": "agent:primary",
+          "severity": "high",
+          "confidence": "static-confirmed",
+          "updated": 1767226200000,
+          "updatedBy": "agent:primary"
+        },
+        "neighbors": [
+          {
+            "direction": "out",
+            "edge": {
+              "id": "v1->f2:depends-on",
+              "from": "v1",
+              "to": "f2",
+              "kind": "depends-on",
+              "ts": 1767225960000,
+              "author": "agent:primary"
+            },
+            "node": {
+              "id": "f2",
+              "type": "fact",
+              "title": "Session cookie lacks SameSite",
+              "ts": 1767225900000,
+              "session": "session_FIXTURE",
+              "author": "agent:primary",
+              "confidence": "static-confirmed"
+            }
+          },
+          {
+            "direction": "in",
+            "edge": {
+              "id": "h1->v1:related-to",
+              "from": "h1",
+              "to": "v1",
+              "kind": "related-to",
+              "ts": 1767226020000,
+              "author": "agent:primary"
+            },
+            "node": {
+              "id": "h1",
+              "type": "hint",
+              "title": "Check whether logout rotates the id",
+              "ts": 1767226020000,
+              "session": "session_FIXTURE",
+              "author": "agent:primary"
+            }
+          },
+          {
+            "direction": "in",
+            "edge": {
+              "id": "f3->v1:supports",
+              "from": "f3",
+              "to": "v1",
+              "kind": "supports",
+              "ts": 1767226740000,
+              "author": "agent:primary"
+            },
+            "node": {
+              "id": "f3",
+              "type": "fact",
+              "title": "Server returns the same id after login",
+              "ts": 1767226740000,
+              "session": "session_FIXTURE",
+              "tags": [
+                "promoted",
+                "bash"
+              ],
+              "author": "agent:primary",
+              "activityId": "act1"
+            }
+          }
+        ],
+        "trail": [
+          {
+            "id": "cursor_FIXTURE_001",
+            "agentId": "agent:primary",
+            "from": null,
+            "to": "g1",
+            "at": 1767225780000,
+            "sessionId": "session_FIXTURE",
+            "reason": "start at the goal"
+          },
+          {
+            "id": "cursor_FIXTURE_002",
+            "agentId": "agent:primary",
+            "from": "g1",
+            "to": "v1",
+            "at": 1767226620000,
+            "sessionId": "session_FIXTURE",
+            "reason": "verify the fixation"
+          }
+        ]
+      }
+    },
+    {
+      "board": "research",
+      "args": [
+        "here",
+        "--agent",
+        "agent:reviewer",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "agentId": "agent:reviewer",
+        "cursor": null,
+        "node": null,
+        "neighbors": [],
+        "trail": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,225 @@
+{
+  "command": "ls",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "ls",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": [
+        {
+          "id": "g1",
+          "type": "goal",
+          "title": "Map the login flow",
+          "ts": 1767225660000,
+          "session": "session_FIXTURE",
+          "detail": "Find every step between the form and the session cookie.",
+          "tags": [
+            "auth",
+            "web"
+          ],
+          "author": "agent:primary",
+          "status": "active",
+          "updated": 1767227040000,
+          "updatedBy": "agent:primary"
+        },
+        {
+          "id": "i1",
+          "type": "intent",
+          "title": "Read the login handler first",
+          "ts": 1767225720000,
+          "session": "session_FIXTURE",
+          "author": "agent:primary",
+          "status": "done",
+          "updated": 1767226440000,
+          "updatedBy": "agent:primary"
+        },
+        {
+          "id": "f1",
+          "type": "fact",
+          "title": "Login posts to /api/session",
+          "ts": 1767225840000,
+          "session": "session_FIXTURE",
+          "detail": "Observed in the form markup.",
+          "author": "agent:primary",
+          "confidence": "confirmed"
+        },
+        {
+          "id": "f2",
+          "type": "fact",
+          "title": "Session cookie lacks SameSite",
+          "ts": 1767225900000,
+          "session": "session_FIXTURE",
+          "author": "agent:primary",
+          "confidence": "static-confirmed"
+        },
+        {
+          "id": "v1",
+          "type": "vuln",
+          "title": "Session fixation on login",
+          "ts": 1767225960000,
+          "session": "session_FIXTURE",
+          "detail": "The session id survives authentication; reproduced twice.",
+          "author": "agent:primary",
+          "severity": "high",
+          "confidence": "static-confirmed",
+          "updated": 1767226200000,
+          "updatedBy": "agent:primary"
+        },
+        {
+          "id": "h1",
+          "type": "hint",
+          "title": "Check whether logout rotates the id",
+          "ts": 1767226020000,
+          "session": "session_FIXTURE",
+          "author": "agent:primary"
+        },
+        {
+          "id": "q1",
+          "type": "question",
+          "title": "Does SSO share the same handler?",
+          "ts": 1767226080000,
+          "session": "session_FIXTURE",
+          "tags": [
+            "sso"
+          ],
+          "author": "agent:primary",
+          "status": "open",
+          "updated": 1767226560000,
+          "updatedBy": "agent:primary"
+        },
+        {
+          "id": "f3",
+          "type": "fact",
+          "title": "Server returns the same id after login",
+          "ts": 1767226740000,
+          "session": "session_FIXTURE",
+          "tags": [
+            "promoted",
+            "bash"
+          ],
+          "author": "agent:primary",
+          "activityId": "act1"
+        }
+      ]
+    },
+    {
+      "board": "research",
+      "args": [
+        "list",
+        "--type",
+        "fact",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": [
+        {
+          "id": "f1",
+          "type": "fact",
+          "title": "Login posts to /api/session",
+          "ts": 1767225840000,
+          "session": "session_FIXTURE",
+          "detail": "Observed in the form markup.",
+          "author": "agent:primary",
+          "confidence": "confirmed"
+        },
+        {
+          "id": "f2",
+          "type": "fact",
+          "title": "Session cookie lacks SameSite",
+          "ts": 1767225900000,
+          "session": "session_FIXTURE",
+          "author": "agent:primary",
+          "confidence": "static-confirmed"
+        },
+        {
+          "id": "f3",
+          "type": "fact",
+          "title": "Server returns the same id after login",
+          "ts": 1767226740000,
+          "session": "session_FIXTURE",
+          "tags": [
+            "promoted",
+            "bash"
+          ],
+          "author": "agent:primary",
+          "activityId": "act1"
+        }
+      ]
+    },
+    {
+      "board": "research",
+      "args": [
+        "ls",
+        "--open-only",
+        "--limit",
+        "2",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": [
+        {
+          "id": "q1",
+          "type": "question",
+          "title": "Does SSO share the same handler?",
+          "ts": 1767226080000,
+          "session": "session_FIXTURE",
+          "tags": [
+            "sso"
+          ],
+          "author": "agent:primary",
+          "status": "open",
+          "updated": 1767226560000,
+          "updatedBy": "agent:primary"
+        }
+      ]
+    },
+    {
+      "board": "empty",
+      "args": [
+        "ls",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": []
+    },
+    {
+      "board": "integrity",
+      "args": [
+        "ls",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": [
+        {
+          "id": "n1",
+          "type": "note",
+          "title": "Kept note",
+          "ts": 1767225660000,
+          "session": "session_FIXTURE",
+          "author": "agent:primary"
+        },
+        {
+          "id": "x1",
+          "type": "experiment",
+          "title": "Unknown type is kept",
+          "ts": 1767225780000,
+          "session": "session_FIXTURE",
+          "author": "agent:primary"
+        }
+      ]
+    }
+  ]
+}

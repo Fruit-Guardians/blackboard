@@ -1,0 +1,18 @@
+{
+  "command": "tail",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "tail",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "tail": "8节点 · 7关系 · 开放 1 · 活动 1 · 当前 v1"
+      }
+    }
+  ]
+}

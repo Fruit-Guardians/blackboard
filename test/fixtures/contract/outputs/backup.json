@@ -1,0 +1,40 @@
+{
+  "command": "backup",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "backup",
+        "--out",
+        "<root>/backup",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.backup-receipt.v1",
+        "kind": "backup",
+        "path": "<root>/backup",
+        "manifest": "<root>/backup/manifest.json",
+        "eventsSha256": "487f1b6e2b5318c190421a8ef2d8ee0769706b8c6307504242a345d1b1df0d3f",
+        "eventCount": 33,
+        "integrity": {
+          "eventCount": 33,
+          "corruptLines": 0,
+          "futureEvents": 0,
+          "rejected": 0,
+          "unknownOps": 0,
+          "incompleteTailBytes": 0
+        },
+        "files": [
+          {
+            "path": "events.jsonl",
+            "bytes": 7369,
+            "sha256": "487f1b6e2b5318c190421a8ef2d8ee0769706b8c6307504242a345d1b1df0d3f"
+          }
+        ]
+      }
+    }
+  ]
+}

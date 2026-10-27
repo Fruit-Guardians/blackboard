@@ -1,0 +1,62 @@
+{
+  "command": "remove",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "remove",
+        "h1",
+        "--reason",
+        "answered",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "id": "h1",
+        "edges": [
+          "h1->v1:related-to"
+        ]
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "remove",
+          "kind": "node",
+          "id": "h1",
+          "by": "agent:primary",
+          "reason": "answered",
+          "at": "<now>"
+        }
+      ]
+    },
+    {
+      "board": "research",
+      "args": [
+        "rm",
+        "q1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "id": "q1",
+        "edges": []
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "remove",
+          "kind": "node",
+          "id": "q1",
+          "by": "agent:primary",
+          "at": "<now>"
+        }
+      ]
+    }
+  ]
+}

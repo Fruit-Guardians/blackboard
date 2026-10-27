@@ -1,0 +1,7 @@
+{"op":"meta","set":{"title":"Contract fixture: integrity"}}
+{"eventVersion":1,"eventId":"event_FIXTURE_001","op":"node","node":{"id":"n1","type":"note","title":"Kept note","ts":1767225660000,"session":"session_FIXTURE","author":"agent:primary"}}
+not a json line
+{"eventVersion":1,"eventId":"event_FIXTURE_002","op":"future-op","payload":{"x":1}}
+{"eventVersion":2,"eventId":"event_FIXTURE_003","op":"node","node":{"id":"n2","type":"note","title":"Written by a newer kernel","ts":1767225720000,"session":"session_FIXTURE","author":"agent:primary"}}
+{"eventVersion":1,"eventId":"event_FIXTURE_004","op":"node","node":{"id":"x1","type":"experiment","title":"Unknown type is kept","ts":1767225780000,"session":"session_FIXTURE","author":"agent:primary"}}
+{"eventVersion":1,"eventId":"event_FIXTURE_005","op":"edge","edge":{"id":"x1->n1:inspired-by","from":"x1","to":"n1","kind":"inspired-by","ts":1767225840000,"author":"agent:primary"}}

@@ -1,0 +1,49 @@
+{
+  "command": "reset",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "reset",
+        "--yes",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "session": "<session-id>",
+        "title": "",
+        "started": "<now-iso>",
+        "focus": null,
+        "cursors": {},
+        "seq": {
+          "s": 0,
+          "g": 0,
+          "i": 0,
+          "o": 0,
+          "f": 0,
+          "hy": 0,
+          "q": 0,
+          "a": 0,
+          "r": 0,
+          "fd": 0,
+          "v": 0,
+          "h": 0,
+          "sm": 0,
+          "n": 0,
+          "c": 0
+        },
+        "hooks": true
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "reset",
+          "by": "agent:primary"
+        }
+      ]
+    }
+  ]
+}

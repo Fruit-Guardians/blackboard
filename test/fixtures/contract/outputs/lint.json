@@ -1,0 +1,81 @@
+{
+  "command": "lint",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "lint",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "summary": {
+          "nodes": 8,
+          "edges": 7,
+          "issues": 1,
+          "warnings": 0,
+          "infos": 1
+        },
+        "issues": [
+          {
+            "level": "info",
+            "code": "isolated-nodes",
+            "message": "<human-text>",
+            "nodeIds": [
+              "q1"
+            ],
+            "count": 1,
+            "byType": {
+              "question": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "board": "integrity",
+      "args": [
+        "lint",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "summary": {
+          "nodes": 2,
+          "edges": 1,
+          "issues": 3,
+          "warnings": 2,
+          "infos": 1
+        },
+        "issues": [
+          {
+            "level": "warn",
+            "code": "log-integrity",
+            "message": "<human-text>",
+            "nodeIds": [],
+            "corruptLines": 1,
+            "rejected": 0
+          },
+          {
+            "level": "warn",
+            "code": "log-version",
+            "message": "<human-text>",
+            "nodeIds": [],
+            "futureEvents": 1
+          },
+          {
+            "level": "info",
+            "code": "unknown-events",
+            "message": "<human-text>",
+            "nodeIds": [],
+            "unknownOps": 1
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,263 @@
+{
+  "command": "search",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "search",
+        "session",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.search.v1",
+        "readOnly": true,
+        "prescriptive": false,
+        "query": "session",
+        "total": 4,
+        "items": [
+          {
+            "id": "g1",
+            "node": {
+              "id": "g1",
+              "type": "goal",
+              "title": "Map the login flow",
+              "ts": 1767225660000,
+              "session": "session_FIXTURE",
+              "detail": "Find every step between the form and the session cookie.",
+              "tags": [
+                "auth",
+                "web"
+              ],
+              "author": "agent:primary",
+              "status": "active",
+              "updated": 1767227040000,
+              "updatedBy": "agent:primary"
+            },
+            "matches": [
+              {
+                "field": "detail",
+                "value": "Find every step between the form and the session cookie."
+              }
+            ],
+            "relations": [
+              {
+                "id": "i1->g1:supports",
+                "from": "i1",
+                "to": "g1",
+                "kind": "supports",
+                "ts": 1767225720000,
+                "author": "agent:primary"
+              },
+              {
+                "id": "f1->g1:supports",
+                "from": "f1",
+                "to": "g1",
+                "kind": "supports",
+                "ts": 1767225840000,
+                "author": "agent:primary"
+              },
+              {
+                "id": "f2->g1:related-to",
+                "from": "f2",
+                "to": "g1",
+                "kind": "related-to",
+                "ts": 1767225900000,
+                "author": "agent:primary"
+              }
+            ]
+          },
+          {
+            "id": "v1",
+            "node": {
+              "id": "v1",
+              "type": "vuln",
+              "title": "Session fixation on login",
+              "ts": 1767225960000,
+              "session": "session_FIXTURE",
+              "detail": "The session id survives authentication; reproduced twice.",
+              "author": "agent:primary",
+              "severity": "high",
+              "confidence": "static-confirmed",
+              "updated": 1767226200000,
+              "updatedBy": "agent:primary"
+            },
+            "matches": [
+              {
+                "field": "title",
+                "value": "Session fixation on login"
+              },
+              {
+                "field": "detail",
+                "value": "The session id survives authentication; reproduced twice."
+              }
+            ],
+            "relations": [
+              {
+                "id": "v1->f2:depends-on",
+                "from": "v1",
+                "to": "f2",
+                "kind": "depends-on",
+                "ts": 1767225960000,
+                "author": "agent:primary"
+              },
+              {
+                "id": "h1->v1:related-to",
+                "from": "h1",
+                "to": "v1",
+                "kind": "related-to",
+                "ts": 1767226020000,
+                "author": "agent:primary"
+              },
+              {
+                "id": "f3->v1:supports",
+                "from": "f3",
+                "to": "v1",
+                "kind": "supports",
+                "ts": 1767226740000,
+                "author": "agent:primary"
+              }
+            ]
+          },
+          {
+            "id": "f2",
+            "node": {
+              "id": "f2",
+              "type": "fact",
+              "title": "Session cookie lacks SameSite",
+              "ts": 1767225900000,
+              "session": "session_FIXTURE",
+              "author": "agent:primary",
+              "confidence": "static-confirmed"
+            },
+            "matches": [
+              {
+                "field": "title",
+                "value": "Session cookie lacks SameSite"
+              }
+            ],
+            "relations": [
+              {
+                "id": "f2->g1:related-to",
+                "from": "f2",
+                "to": "g1",
+                "kind": "related-to",
+                "ts": 1767225900000,
+                "author": "agent:primary"
+              },
+              {
+                "id": "v1->f2:depends-on",
+                "from": "v1",
+                "to": "f2",
+                "kind": "depends-on",
+                "ts": 1767225960000,
+                "author": "agent:primary"
+              },
+              {
+                "id": "f1->f2:supersedes",
+                "from": "f1",
+                "to": "f2",
+                "kind": "supersedes",
+                "ts": 1767226980000,
+                "author": "agent:primary"
+              }
+            ]
+          },
+          {
+            "id": "f1",
+            "node": {
+              "id": "f1",
+              "type": "fact",
+              "title": "Login posts to /api/session",
+              "ts": 1767225840000,
+              "session": "session_FIXTURE",
+              "detail": "Observed in the form markup.",
+              "author": "agent:primary",
+              "confidence": "confirmed"
+            },
+            "matches": [
+              {
+                "field": "title",
+                "value": "Login posts to /api/session"
+              }
+            ],
+            "relations": [
+              {
+                "id": "f1->g1:supports",
+                "from": "f1",
+                "to": "g1",
+                "kind": "supports",
+                "ts": 1767225840000,
+                "author": "agent:primary"
+              },
+              {
+                "id": "f1->f2:supersedes",
+                "from": "f1",
+                "to": "f2",
+                "kind": "supersedes",
+                "ts": 1767226980000,
+                "author": "agent:primary"
+              }
+            ]
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "board": "research",
+      "args": [
+        "search",
+        "--type",
+        "fact",
+        "--rel",
+        "supports",
+        "--related-to",
+        "v1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.search.v1",
+        "readOnly": true,
+        "prescriptive": false,
+        "query": "",
+        "total": 1,
+        "items": [
+          {
+            "id": "f3",
+            "node": {
+              "id": "f3",
+              "type": "fact",
+              "title": "Server returns the same id after login",
+              "ts": 1767226740000,
+              "session": "session_FIXTURE",
+              "tags": [
+                "promoted",
+                "bash"
+              ],
+              "author": "agent:primary",
+              "activityId": "act1"
+            },
+            "matches": [],
+            "relations": [
+              {
+                "id": "f3->v1:supports",
+                "from": "f3",
+                "to": "v1",
+                "kind": "supports",
+                "ts": 1767226740000,
+                "author": "agent:primary"
+              }
+            ]
+          }
+        ],
+        "truncated": false
+      }
+    }
+  ]
+}

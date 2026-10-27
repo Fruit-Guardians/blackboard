@@ -1,0 +1,131 @@
+{
+  "command": "cursor",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "cursor",
+        "f1",
+        "--reason",
+        "look again",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "cursor": {
+          "id": "<cursor-id>",
+          "agentId": "agent:primary",
+          "from": "v1",
+          "to": "f1",
+          "at": "<now>",
+          "sessionId": "<session-id>",
+          "reason": "look again"
+        }
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "cursor",
+          "cursor": {
+            "id": "<cursor-id>",
+            "agentId": "agent:primary",
+            "from": "v1",
+            "to": "f1",
+            "at": "<now>",
+            "sessionId": "<session-id>",
+            "reason": "look again"
+          }
+        }
+      ]
+    },
+    {
+      "board": "research",
+      "args": [
+        "cursor",
+        "none",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "cursor": {
+          "id": "<cursor-id>",
+          "agentId": "agent:primary",
+          "from": "v1",
+          "to": null,
+          "at": "<now>",
+          "sessionId": "<session-id>"
+        }
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "cursor",
+          "cursor": {
+            "id": "<cursor-id>",
+            "agentId": "agent:primary",
+            "from": "v1",
+            "to": null,
+            "at": "<now>",
+            "sessionId": "<session-id>"
+          }
+        }
+      ]
+    },
+    {
+      "board": "research",
+      "args": [
+        "focus",
+        "q1",
+        "--agent",
+        "agent:reviewer",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "cursor": {
+          "id": "<cursor-id>",
+          "agentId": "agent:reviewer",
+          "from": null,
+          "to": "q1",
+          "at": "<now>",
+          "sessionId": "<session-id>"
+        }
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "cursor",
+          "cursor": {
+            "id": "<cursor-id>",
+            "agentId": "agent:reviewer",
+            "from": null,
+            "to": "q1",
+            "at": "<now>",
+            "sessionId": "<session-id>"
+          }
+        }
+      ]
+    },
+    {
+      "board": "research",
+      "args": [
+        "cursor",
+        "nope",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 1,
+      "output": null
+    }
+  ]
+}

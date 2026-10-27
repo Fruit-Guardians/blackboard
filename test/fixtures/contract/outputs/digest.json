@@ -1,0 +1,33 @@
+{
+  "command": "digest",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "digest",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "digest": "# blackboard 黑板恢复 — Contract fixture: research\n\n逻辑节点 8 · 逻辑关系 7 · 开放节点 1 · 原始活动 1 · 检查点 2\n\n## 当前节点\n- [v1] 漏洞 · 静态确认：Session fixation on login\n  The session id survives authentication; reproduced twice.\n\n## 当前邻域\n- [v1] --依赖--> [f2] 事实 · 静态确认：Session cookie lacks SameSite\n- [h1] 提示：Check whether logout rotates the id --相关--> [v1]\n- [f3] 事实：Server returns the same id after login --支持--> [v1]\n\n## 最近轨迹\n- g1 → v1\n  - 01-01 08:03 → g1：start at the goal\n  - 01-01 08:17 → v1：verify the fixation\n\n## 开放节点\n- [q1] 问题 · open：Does SSO share the same handler?\n\n## 最近检查点\n- [cp1] 01-01 08:09 @g1 Mapped the form and cookie; fixation suspected.\n\n## 最近逻辑节点\n- [g1] 目标 · active：Map the login flow\n- [i1] 意图 · done：Read the login handler first\n- [f1] 事实 · 已确认：Login posts to /api/session\n- [f2] 事实 · 静态确认：Session cookie lacks SameSite\n- [h1] 提示：Check whether logout rotates the id\n- [q1] 问题 · open：Does SSO share the same handler?\n- [f3] 事实：Server returns the same id after login\n\n_此摘要只恢复黑板现场，不替 Agent 决定下一步。逻辑关系与游标轨迹相互独立。_"
+      }
+    },
+    {
+      "board": "research",
+      "args": [
+        "digest",
+        "--agent",
+        "agent:reviewer",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "digest": "# blackboard 黑板恢复 — Contract fixture: research\n\n逻辑节点 8 · 逻辑关系 7 · 开放节点 1 · 原始活动 1 · 检查点 2\n\n## 当前节点\n_当前 Agent 尚未设置游标。游标是可选的注意力标记，用 `blackboard cursor <id>` 或创建节点时加 `--enter` 设置；下面改为列出最近活跃的节点。_\n\n## 最近活跃节点\n- [g1] 目标 · active：Map the login flow\n  Find every step between the form and the session cookie.\n- [f3] 事实：Server returns the same id after login\n- [q1] 问题 · open：Does SSO share the same handler?\n- [i1] 意图 · done：Read the login handler first\n- [v1] 漏洞 · 静态确认：Session fixation on login\n  The session id survives authentication; reproduced twice.\n- [h1] 提示：Check whether logout rotates the id\n- [f2] 事实 · 静态确认：Session cookie lacks SameSite\n- [f1] 事实 · 已确认：Login posts to /api/session\n  Observed in the form markup.\n\n## 相关关系\n- [i1] --支持--> [g1]\n- [f1] --支持--> [g1]\n- [f2] --相关--> [g1]\n- [v1] --依赖--> [f2]\n- [h1] --相关--> [v1]\n- [f3] --支持--> [v1]\n- [f1] --取代--> [f2]\n\n## 最近轨迹\n_尚无游标移动记录。_\n\n## 开放节点\n- [q1] 问题 · open：Does SSO share the same handler?\n\n## 最近检查点\n- [cp2] 01-01 08:25 Fixation confirmed by promoted activity.\n\n_此摘要只恢复黑板现场，不替 Agent 决定下一步。逻辑关系与游标轨迹相互独立。_"
+      }
+    }
+  ]
+}

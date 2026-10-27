@@ -1,0 +1,38 @@
+{
+  "command": "unlink",
+  "cases": [
+    {
+      "board": "research",
+      "args": [
+        "unlink",
+        "f1",
+        "f2",
+        "--rel",
+        "supersedes",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "id": "f1->f2:supersedes",
+        "from": "f1",
+        "to": "f2",
+        "kind": "supersedes",
+        "ts": 1767226980000,
+        "author": "agent:primary"
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "remove",
+          "kind": "edge",
+          "id": "f1->f2:supersedes",
+          "by": "agent:primary",
+          "at": "<now>"
+        }
+      ]
+    }
+  ]
+}
