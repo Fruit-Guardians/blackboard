@@ -82,7 +82,8 @@
           "cwdFlag": true,
           "noInit": true,
           "rejectTruncation": true,
-          "inputTruncationMetadata": true
+          "inputTruncationMetadata": true,
+          "nodeEdgeLabel": true
         },
         "contextContract": {
           "readOnly": true,

@@ -30,11 +30,11 @@ blackboard 不认识这种方式：`context`、`digest`、`lint` 不会因为你
 ```sh
 blackboard node add question "为什么导入会丢掉重命名的文件" --to "<目标ID>" --cwd "/已确认项目" --no-init
 blackboard node add hypothesis "diff 阶段把重命名当成删除加新增" --confidence suspected --to "<问题ID>" --rel answers --cwd "/已确认项目" --no-init
-blackboard node add observation "关闭重命名检测后丢失消失" --to "<候选ID>" --rel supports --detail "复现条件、命令、结果位置" --cwd "/已确认项目" --no-init
+blackboard node add observation "关闭重命名检测后丢失消失" --to "<候选ID>" --rel supports --label "只改这一个条件，丢失就消失" --detail "复现条件、命令、结果位置" --cwd "/已确认项目" --no-init
 blackboard link "<证据ID>" "<另一候选ID>" --rel contradicts --label "小文件同样丢失，与阈值无关" --cwd "/已确认项目" --no-init
 ```
 
-`node add --to` 目前不接受 `--label`；需要写关系说明时，用 `link` 另加一次。
+`node add --to … --label` 在创建时就写下关系说明（`capabilities --json` 的 `features.nodeEdgeLabel` 表示支持）；较旧的 CLI 不接受时，用 `link` 另加一次。
 
 ## 裁定只由你写
 
@@ -67,7 +67,7 @@ blackboard show "<候选ID>" --json --cwd "/已确认项目"
 
 第一条列出回答这个问题的候选及其状态；第二条的 `parents` 是指向候选的证据，`edge` 字段标明 `supports` 还是 `contradicts`。`context` 照常把这些节点按类型和状态分段，`answers` 边出现在关系列表里。
 
-页面编辑目前只能选内置关系，`answers` 请用 CLI 写入。
+页面上新建关联时只能选内置关系，`answers` 请用 CLI 写入；页面照常显示它。
 
 ## 不同研究的侧重
 
