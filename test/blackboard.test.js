@@ -922,6 +922,33 @@ test('CLI accepts short, bracketed and prefixed ids and lists candidates when am
   assert.throws(() => run('cursor', 'n'), /ambiguous node reference/);
 });
 
+test('CLI show text lists upstream and downstream relations by their recorded kind', (t) => {
+  const dir = fixture(t);
+  const env = { ...process.env, BLACKBOARD_CWD: dir };
+  const run = (...args) => execFileSync(process.execPath, [CLI, ...args], { env, encoding: 'utf8' });
+  run('node', 'add', 'hypothesis', 'H');
+  run('node', 'add', 'note', 'N1');
+  run('node', 'add', 'note', 'N2');
+  run('node', 'add', 'note', 'N3');
+  run('link', 'n1', 'hy1', '--rel', 'supports');
+  run('link', 'n2', 'hy1', '--rel', 'contradicts');
+  run('link', 'hy1', 'n3', '--rel', 'depends-on');
+  const text = run('show', 'hy1');
+  assert.doesNotMatch(text, /undefined/);
+  const up = text.indexOf('— 上游 —');
+  const down = text.indexOf('— 下游 —');
+  assert.ok(up >= 0 && down > up, text);
+  const upstream = text.slice(up, down);
+  assert.match(upstream, /支持 .*n1.*N1/);
+  assert.match(upstream, /反驳 .*n2.*N2/);
+  assert.ok(upstream.indexOf('n1') < upstream.indexOf('n2'), text);
+  assert.doesNotMatch(upstream, /n3/);
+  assert.match(text.slice(down), /依赖 .*n3.*N3/);
+  const leaf = run('show', 'n3');
+  assert.match(leaf, /— 上游 —\n.*依赖 .*hy1/);
+  assert.doesNotMatch(leaf, /— 下游 —/);
+});
+
 function hookSettings(dir) {
   const file = path.join(dir, '.claude', 'settings.json');
   return { file, read: () => JSON.parse(fs.readFileSync(file, 'utf8')) };
