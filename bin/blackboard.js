@@ -116,6 +116,7 @@ ${b('逻辑节点')}
             --status <state>           可选状态
             --sev <severity>           严重度
             --confidence <level>       suspected|static-confirmed|reproduced|confirmed
+            --no-truncate              超限时整条不保存；同样适用于 edit/link/checkpoint/promote
 
 ${b('游标与关系')}
   blackboard cursor <id|none> [--reason "…"] 只移动当前游标，不创建逻辑边
@@ -191,24 +192,24 @@ function fail(msg) {
 const BOOLEAN_FLAGS = new Set([
   'json', 'open', 'write', 'all', 'open-only', 'quiet', 'enter', 'relate-here',
   'user', 'project', 'yes', 'with-activity', 'here', 'codex', 'no-hooks',
-  'no-skill', 'no-serve', 'read-only', 'markdown', 'force', 'no-init',
+  'no-skill', 'no-serve', 'read-only', 'markdown', 'force', 'no-init', 'no-truncate',
 ]);
 // Every write takes the same three: who is writing, which board, and whether a missing board may be created.
 const WRITE_FLAGS = 'agent cwd no-init request-id';
-const NODE_FLAGS = `detail tag status sev confidence at parent to enter relate-here rel kind reason ${WRITE_FLAGS} json`;
+const NODE_FLAGS = `detail tag status sev confidence at parent to enter relate-here rel kind reason ${WRITE_FLAGS} no-truncate json`;
 const COMMAND_FLAGS = {
   init: 'title here cwd json',
   setup: 'target title port open no-hooks no-skill no-serve json',
   status: 'port agent cwd json',
   node: NODE_FLAGS, start: NODE_FLAGS, goal: NODE_FLAGS, intent: NODE_FLAGS,
   fact: NODE_FLAGS, vuln: NODE_FLAGS, hint: NODE_FLAGS,
-  checkpoint: `summary title trigger write ${WRITE_FLAGS} json`, compact: `summary title trigger write ${WRITE_FLAGS} json`,
+  checkpoint: `summary title trigger write ${WRITE_FLAGS} no-truncate json`, compact: `summary title trigger write ${WRITE_FLAGS} no-truncate json`,
   cursor: `reason ${WRITE_FLAGS} json`, focus: `reason ${WRITE_FLAGS} json`, here: 'agent cwd json',
   activity: 'limit cwd json',
-  promote: `kind type title detail to enter relate-here rel reason ${WRITE_FLAGS} json`,
+  promote: `kind type title detail to enter relate-here rel reason ${WRITE_FLAGS} no-truncate json`,
   done: `${WRITE_FLAGS} json`, block: `${WRITE_FLAGS} json`, revive: `${WRITE_FLAGS} json`,
-  edit: `title detail status sev confidence tag ${WRITE_FLAGS} json`,
-  link: `rel kind label ${WRITE_FLAGS} json`, unlink: `rel kind ${WRITE_FLAGS} json`,
+  edit: `title detail status sev confidence tag ${WRITE_FLAGS} no-truncate json`,
+  link: `rel kind label ${WRITE_FLAGS} no-truncate json`, unlink: `rel kind ${WRITE_FLAGS} json`,
   remove: `reason ${WRITE_FLAGS} json`, rm: `reason ${WRITE_FLAGS} json`,
   ls: 'type open open-only limit cwd json', list: 'type open open-only limit cwd json',
   show: 'cwd json', tree: 'depth cwd', digest: 'agent write quiet cwd json',
@@ -648,7 +649,8 @@ function cmdCapabilities(args, flags) {
     commands: Object.keys(COMMAND_FLAGS).filter((key) => !key.startsWith('-')),
     features: { context: true, incrementalContext: true, search: true, nodeHistory: true,
       checkpointChanges: true, backupRestore: true, requestReceipts: true,
-      writeAttribution: true, cwdFlag: true, noInit: true },
+      writeAttribution: true, cwdFlag: true, noInit: true,
+      rejectTruncation: true, inputTruncationMetadata: true },
     contextContract: { readOnly: true, prescriptive: false, nextStepSelection: 'agent-controlled' },
     limits: LIMITS,
   };
@@ -885,6 +887,7 @@ function addSimple(type, args, flags) {
       agentId: agentOf(flags),
       author: agentOf(flags),
       requestId: flags['request-id'],
+      ...(flags['no-truncate'] ? { rejectTruncation: true } : {}),
     },
     cwd(),
   );
@@ -911,6 +914,7 @@ function cmdCheckpoint(args, flags) {
       trigger: flags.trigger || (process.argv[2] === 'compact' ? 'manual-compact' : 'manual'),
       agentId,
       requestId: flags['request-id'],
+      ...(flags['no-truncate'] ? { rejectTruncation: true } : {}),
     },
     cwd(),
   );
@@ -1030,6 +1034,7 @@ function cmdPromote(args, flags) {
     agentId: agentOf(flags),
     author: agentOf(flags),
     requestId: flags['request-id'],
+    ...(flags['no-truncate'] ? { rejectTruncation: true } : {}),
   }, cwd());
   warnTruncated(result);
   if (flags.json) return out(flags, result);
@@ -1058,7 +1063,7 @@ function cmdEdit(args, flags) {
   if (flags.confidence) set.confidence = flags.confidence;
   if (flags.tag) set.tags = [].concat(flags.tag);
   if (!Object.keys(set).length) fail('没有要修改的字段');
-  const n = patchNode(id, set, cwd(), { by: agentOf(flags), requestId: flags['request-id'] });
+  const n = patchNode(id, set, cwd(), { by: agentOf(flags), requestId: flags['request-id'], ...(flags['no-truncate'] ? { rejectTruncation: true } : {}) });
   warnTruncated(n);
   if (flags.json) return out(flags, n);
   if (!process.env.BLACKBOARD_QUIET) console.log(`${C.grn('✓')} ${nodeLine(n)}`);
@@ -1069,7 +1074,7 @@ function cmdLink(args, flags) {
   const [from, to] = args;
   if (!from || !to) fail('用法: blackboard link <from> <to> [--rel supports]');
   const kind = flags.rel || flags.kind || 'related-to';
-  const edge = addEdge({ from, to, kind, label: flags.label || '', author: agentOf(flags), requestId: flags['request-id'] }, cwd());
+  const edge = addEdge({ from, to, kind, label: flags.label || '', author: agentOf(flags), requestId: flags['request-id'], ...(flags['no-truncate'] ? { rejectTruncation: true } : {}) }, cwd());
   warnTruncated(edge);
   if (flags.json) return out(flags, edge);
   if (!process.env.BLACKBOARD_QUIET) {

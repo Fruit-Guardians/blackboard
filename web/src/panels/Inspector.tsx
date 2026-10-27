@@ -29,7 +29,6 @@ type Props = HistoryAvailability & {
 
 export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, linkCopied, writable, onReload, isStatic, connected, revision }: Props) {
   const relations = edges.filter((edge) => edge.from === node.id || edge.to === node.id);
-  const text = presentNode(node);
   const severe = node.severity === 'critical' || node.severity === 'high';
   return (
     <aside
@@ -46,9 +45,9 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        <h2 className="m-0 text-[17px] font-semibold leading-snug tracking-[-0.01em] [overflow-wrap:anywhere]">{text.headline}</h2>
-        {text.summary && <p className="mt-2 mb-0 text-[13px] leading-[22px] text-subtle [overflow-wrap:anywhere]">{text.summary}</p>}
-        {text.detail && <p className="mt-2 mb-0 text-[13px] leading-[22px] text-subtle [overflow-wrap:anywhere]">{text.detail}</p>}
+        <InputIntegrityNotice record={node} />
+        <h2 className="m-0 whitespace-pre-wrap text-[17px] font-semibold leading-snug tracking-[-0.01em] [overflow-wrap:anywhere]">{node.title.trim() ? node.title : t('node.untitled')}</h2>
+        {node.detail && <p className="mt-2 mb-0 whitespace-pre-wrap text-[13px] leading-[22px] text-subtle [overflow-wrap:anywhere]">{node.detail}</p>}
 
         <dl className="mt-5 mb-0 divide-y rounded-lg border text-[13px]">
           <Prop label={t('inspector.status')} value={statusLabel(node.status)} />
@@ -87,6 +86,8 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
                       </span>
                       <ChevronRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                     </button>
+                    {edge.label && <p className="m-0 ml-7 pb-1.5 whitespace-pre-wrap text-xs leading-5 text-subtle [overflow-wrap:anywhere]">{edge.label}</p>}
+                    {edge.inputTruncation && <div className="ml-7"><InputIntegrityNotice record={edge} /></div>}
                     {writable && (
                       <span className="absolute right-1 top-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100">
                         <IconButton label={t('inspector.unlink')} onClick={() => { removeEdge(edge.id).catch((e) => { window.alert(t('inspector.unlinkFailed', { error: e instanceof Error ? e.message : String(e) })); }); }}><Unlink /></IconButton>
@@ -118,6 +119,17 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
       </div>
     </aside>
   );
+}
+
+/** Describe recorded input loss, without judging the claim or reconstructing missing text. */
+function InputIntegrityNotice({ record }: { record: Pick<BoardNode, 'inputTruncation'> }) {
+  const entries = Object.entries(record.inputTruncation || {}).filter(([, value]) => value && Number.isSafeInteger(value.originalLength) && Number.isSafeInteger(value.storedLength) && value.originalLength > value.storedLength && value.storedLength >= 0);
+  if (!entries.length) return null;
+  const fieldLabels: Record<string, string> = { title: t('edit.title'), detail: t('edit.detail'), label: t('inspector.relationLabel') };
+  return <section role="note" aria-label={t('inspector.inputTruncated')} className="mb-3 rounded-lg border bg-secondary/50 p-3 text-xs leading-5 text-foreground">
+    <p className="m-0">{t('inspector.inputTruncated')}</p>
+    <ul className="m-0 mt-1 list-inside list-disc p-0">{entries.map(([field, value]) => <li key={field}>{t('inspector.inputLengths', { field: fieldLabels[field] || field, original: value.originalLength, stored: value.storedLength })}</li>)}</ul>
+  </section>;
 }
 
 function Prop({ label, value, tone }: { label: string; value: string; tone?: 'danger' }) {

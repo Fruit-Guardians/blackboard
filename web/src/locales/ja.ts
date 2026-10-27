@@ -35,6 +35,8 @@ export const ja: Messages = {
   'node.untitled': '無題のノード',
   'node.current': '現在',
   'node.agentHere': '{agent} がここにいます',
+  'node.preview': 'プレビュー',
+  'node.previewHint': '選択して記録の全文を読む',
 
   'relation.proves': '証明', 'relation.prove': '証明', 'relation.supports': '支持', 'relation.contradicts': '反証',
   'relation.supersedes': '置き換え', 'relation.resolves': '解決', 'relation.derived-from': '派生元',
@@ -55,6 +57,7 @@ export const ja: Messages = {
   'api.noResponse': 'blackboard サービスが応答しません',
   'api.readOnly': 'blackboard は読み取り専用で動作しています',
   'api.failed': 'リクエストに失敗しました（{status}）',
+  'api.inputTooLong': '保存されませんでした：{fields} が文字数の上限を超えています。短くするか分割してください。下書きは保持されています。',
 
   'topbar.connecting': '接続中', 'topbar.live': '同期済み', 'topbar.offline': '再接続中', 'topbar.static': 'オフラインのスナップショット',
   'topbar.collapseNav': 'ナビゲーションを折りたたむ', 'topbar.expandNav': 'ナビゲーションを展開',
@@ -97,6 +100,9 @@ export const ja: Messages = {
   'inspector.unlink': 'この関係を解除', 'inspector.unlinkFailed': '関係を解除できませんでした：{error}',
   'inspector.noRelations': 'このノードにはまだ関係がありません。',
   'inspector.raw': '生データ',
+  'inspector.inputTruncated': 'この入力は保存時に切り詰められました。以下のフィールドは元の全文ではありません。',
+  'inspector.inputLengths': '{field}：元の長さ {original} 文字 / 保存済み {stored} 文字',
+  'inspector.relationLabel': '関係の説明',
 
   'filter.label': 'ノードを絞り込む', 'filter.labelActive': '絞り込み（{n} 件有効）',
   'filter.type': '種類', 'filter.status': '状態', 'filter.confidence': '確度', 'filter.risk': 'リスク',
@@ -111,6 +117,7 @@ export const ja: Messages = {
   'sidebar.open': '未検証', 'sidebar.noOpen': '未解決の仮説はありません',
   'sidebar.findings': '発見', 'sidebar.noFindings': 'まだ発見は記録されていません',
   'sidebar.inbox': '未接続',
+  'sidebar.more': '残り {n} 件の記録',
   'sidebar.nodes': '{n} ノード', 'sidebar.edges': '{n} 関係', 'sidebar.openCount': '{n} 未検証',
   'sidebar.candidates': '{n} 候補', 'sidebar.risk': '{n} 高リスク',
 

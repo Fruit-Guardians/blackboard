@@ -197,7 +197,7 @@ function Item({ item, hero, byId, onFocus }: { item: DigestItem; hero?: boolean 
         </span>
         <span className={cn('text-[13px] leading-5 text-foreground', hero && 'text-sm font-medium')}>{node.title}</span>
         {node.location && <span className="font-mono text-[11px] text-muted-foreground">{node.location}</span>}
-        {item.children.map((child, i) => <span key={i} className="line-clamp-2 text-xs leading-5 text-subtle">{child}</span>)}
+        {item.children.map((child, i) => <span key={i} className="whitespace-pre-wrap text-xs leading-5 text-subtle [overflow-wrap:anywhere]">{child}</span>)}
       </button>
     );
   }

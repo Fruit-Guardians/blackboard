@@ -31,6 +31,8 @@ blackboard 只提供数据，不是工作流引擎：不批准、阻断、排序
 
 下列例子中的 `/已确认项目` 必须替换成已确认的绝对项目路径，`<目标ID>` 等尖括号占位符必须替换成命令输出中的实际 ID。每条命令都用 `--cwd` 指定项目，避免工具调用的工作目录不同而写错项目。写命令再加 `--no-init`：黑板只在用户同意后由 `init` 或 `setup` 创建；路径写错时命令报错退出，而不是在错误位置新建一块空板。
 
+保存承载判断、限制或证据的文本前，可用 `capabilities --json` 确认 `features.rejectTruncation`。支持时为节点创建、编辑、连边和检查点加 `--no-truncate`，超限则由你自主缩写、拆分或引用证据文件，不把半条论断保存成完整记录；这不影响原任务继续。读取到 `inputTruncation` 时，明确说明写入时曾丢失文本，不将其当作完整原输入；没有该字段的旧记录也不据此断言完整。
+
 多个参与者共用一块黑板时，每条命令还要加 `--agent <稳定名称>`，节点、关系和修改会以该身份记为作者；单人使用可省略，默认为 `agent:primary`。详见 [并行 Agent](references/parallel-agents.md)。环境变量 `BLACKBOARD_CWD`、`BLACKBOARD_AGENT` 仍然有效，参数优先。CLI 若报 `未知选项 --cwd`，说明它早于本 Skill：改用这两个环境变量作命令前缀，并在写入前用 `status` 确认黑板已存在。
 
 优先用 PATH 中的 `blackboard`。不可用时，安装后的 Skill 可用 `node "__BLACKBOARD_CLI__"` 替换命令名，**仅限路径已展开为真实文件**。如果路径仍是双下划线包围的 CLI 占位符，说明直接加载了仓库源 Skill；不要执行占位符、不要猜安装路径。可在已确认的 blackboard 仓库根使用 `node bin/blackboard.js`，否则先定位实际 CLI。

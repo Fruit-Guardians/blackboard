@@ -128,7 +128,7 @@ function Workspace() {
   const openItems = useMemo(() => allNodes
     // Same notion of open as stats.frontier / context.openThreads (deferred is closed).
     .filter((node) => node.id !== currentId && ['intent', 'hypothesis', 'question'].includes(node.type) && ['open', 'active', 'blocked'].includes(node.status || 'open'))
-    .slice(-8).reverse(), [allNodes, currentId]);
+    .reverse(), [allNodes, currentId]);
   const inbox = useMemo(() => {
     const linked = new Set(allEdges.flatMap((edge) => [edge.from, edge.to]));
     return allNodes.filter((node) => !linked.has(node.id)).reverse();

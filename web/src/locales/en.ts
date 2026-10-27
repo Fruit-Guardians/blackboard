@@ -36,6 +36,8 @@ export const en: Messages = {
   'node.untitled': 'Untitled node',
   'node.current': 'Current',
   'node.agentHere': '{agent} is here',
+  'node.preview': 'Preview',
+  'node.previewHint': 'Select to read the complete record',
 
   'relation.proves': 'proves', 'relation.prove': 'proves', 'relation.supports': 'supports', 'relation.contradicts': 'contradicts',
   'relation.supersedes': 'supersedes', 'relation.resolves': 'resolves', 'relation.derived-from': 'derived from',
@@ -56,6 +58,7 @@ export const en: Messages = {
   'api.noResponse': 'The blackboard service is not responding',
   'api.readOnly': 'The blackboard is running read-only',
   'api.failed': 'Request failed ({status})',
+  'api.inputTooLong': 'Not saved: {fields} exceeds the length limit. Shorten or split it; your draft is preserved.',
 
   'topbar.connecting': 'Connecting', 'topbar.live': 'Synced', 'topbar.offline': 'Reconnecting', 'topbar.static': 'Offline snapshot',
   'topbar.collapseNav': 'Collapse navigation', 'topbar.expandNav': 'Expand navigation',
@@ -98,6 +101,9 @@ export const en: Messages = {
   'inspector.unlink': 'Remove this relation', 'inspector.unlinkFailed': 'Could not remove the relation: {error}',
   'inspector.noRelations': 'This node has no relations yet.',
   'inspector.raw': 'Raw data',
+  'inspector.inputTruncated': 'This input was shortened when it was saved. The following fields are not the complete original text.',
+  'inspector.inputLengths': '{field}: original {original} characters / saved {stored} characters',
+  'inspector.relationLabel': 'Relation label',
 
   'filter.label': 'Filter nodes', 'filter.labelActive': 'Filter ({n} active)',
   'filter.type': 'Type', 'filter.status': 'Status', 'filter.confidence': 'Confidence', 'filter.risk': 'Risk',
@@ -112,6 +118,7 @@ export const en: Messages = {
   'sidebar.open': 'Open', 'sidebar.noOpen': 'No open hypotheses',
   'sidebar.findings': 'Findings', 'sidebar.noFindings': 'No findings recorded yet',
   'sidebar.inbox': 'Unconnected',
+  'sidebar.more': '{n} more records',
   'sidebar.nodes': '{n} node|{n} nodes', 'sidebar.edges': '{n} relation|{n} relations', 'sidebar.openCount': '{n} open',
   'sidebar.candidates': '{n} candidate|{n} candidates', 'sidebar.risk': '{n} high risk',
 

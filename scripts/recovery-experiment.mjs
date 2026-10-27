@@ -10,7 +10,7 @@ import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { applyAll, emptyGraph } from '../lib/model.js';
 import { readEvents } from '../lib/store.js';
-import { buildAgentContext } from '../lib/context.js';
+import { buildAgentContext, estimateTokensText } from '../lib/context.js';
 
 const SCHEMA = 'blackboard.recovery-experiment.v1';
 const ARMS = ['A', 'B', 'C'];
@@ -28,7 +28,9 @@ function fail(message) {
 }
 
 function estimateTokens(value) {
-  return Math.ceil(JSON.stringify(value).length / 4);
+  // Match context's compact-JSON accounting; pretty file indentation is not
+  // part of this estimate. All arms use the same mixed-language text weights.
+  return Math.ceil(estimateTokensText(JSON.stringify(value)));
 }
 
 function readJson(file) {
@@ -73,7 +75,12 @@ function stripRelations(packet) {
   copy.changes = copy.changes.filter((change) => !change.kind.startsWith('relation-'));
   delete copy.omitted.relations;
   copy.truncated = Object.keys(copy.omitted).length > 0;
-  copy.estimatedTokens = estimateTokens(copy);
+  // Removing relations may change the estimate's own number of digits.
+  let previous;
+  do {
+    previous = copy.estimatedTokens;
+    copy.estimatedTokens = estimateTokens(copy);
+  } while (copy.estimatedTokens !== previous);
   return copy;
 }
 
@@ -156,7 +163,9 @@ export function prepare({ board, at, since = null, budget = 4000, agent = 'agent
     }])),
     checkpointsAtCut: events.filter((ev) => ev.op === 'checkpoint').map((ev) => ev.checkpoint.id),
     arms: {
-      A: { file: 'A-summary.md', source: summaryFile ? 'summary-file' : 'checkpoint-summary', chars: summary.length, estimatedTokens: estimateTokens(summary) },
+      // A is authored plain text, not a JSON string: count its actual newlines
+      // and quotes, without JSON escaping or the file's final separator newline.
+      A: { file: 'A-summary.md', source: summaryFile ? 'summary-file' : 'checkpoint-summary', chars: summary.length, estimatedTokens: Math.ceil(estimateTokensText(summary)) },
       B: { file: 'B-nodes.json', ...armSize(materials.B) },
       C: { file: 'C-graph.json', ...armSize(materials.C) },
     },

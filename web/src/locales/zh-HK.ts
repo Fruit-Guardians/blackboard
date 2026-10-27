@@ -35,6 +35,8 @@ export const zhHK: Messages = {
   'node.untitled': '未命名節點',
   'node.current': '目前',
   'node.agentHere': '{agent} 在這裡',
+  'node.preview': '預覽',
+  'node.previewHint': '點擊查看完整記錄',
 
   'relation.proves': '證明', 'relation.prove': '證明', 'relation.supports': '支持', 'relation.contradicts': '反駁',
   'relation.supersedes': '取代', 'relation.resolves': '解決', 'relation.derived-from': '衍生自',
@@ -55,6 +57,7 @@ export const zhHK: Messages = {
   'api.noResponse': '黑板服務沒有回應',
   'api.readOnly': '黑板以唯讀模式執行',
   'api.failed': '請求失敗（{status}）',
+  'api.inputTooLong': '未儲存：{fields} 超出長度上限。請縮寫或拆分；目前草稿仍保留。',
 
   'topbar.connecting': '連線中', 'topbar.live': '已同步', 'topbar.offline': '重新連線中', 'topbar.static': '離線快照',
   'topbar.collapseNav': '收合導覽', 'topbar.expandNav': '展開導覽',
@@ -97,6 +100,9 @@ export const zhHK: Messages = {
   'inspector.unlink': '中斷這條關係', 'inspector.unlinkFailed': '中斷關係失敗：{error}',
   'inspector.noRelations': '這個節點尚未建立邏輯關係。',
   'inspector.raw': '原始資料',
+  'inspector.inputTruncated': '此記錄的輸入在寫入時被截短，以下欄位並非完整原文。',
+  'inspector.inputLengths': '{field}：原始 {original} 字元 / 已儲存 {stored} 字元',
+  'inspector.relationLabel': '關係說明',
 
   'filter.label': '篩選節點', 'filter.labelActive': '篩選（已啟用 {n} 項）',
   'filter.type': '類型', 'filter.status': '狀態', 'filter.confidence': '可信度', 'filter.risk': '風險',
@@ -111,6 +117,7 @@ export const zhHK: Messages = {
   'sidebar.open': '待驗證', 'sidebar.noOpen': '目前沒有開放假設',
   'sidebar.findings': '發現', 'sidebar.noFindings': '還沒有記錄發現',
   'sidebar.inbox': '未連接',
+  'sidebar.more': '其餘 {n} 筆記錄',
   'sidebar.nodes': '{n} 節點', 'sidebar.edges': '{n} 關係', 'sidebar.openCount': '{n} 待驗證',
   'sidebar.candidates': '{n} 候選', 'sidebar.risk': '{n} 高風險',
 

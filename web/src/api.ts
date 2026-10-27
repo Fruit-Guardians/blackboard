@@ -21,13 +21,18 @@ async function send<T>(method: string, url: string, body?: unknown): Promise<T> 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     if (response.status === 409 && data.error === 'node_conflict') throw new NodeConflict(Array.isArray(data.fields) ? data.fields : []);
+    if (data.code === 'input_too_long' || data.error === 'input_too_long') {
+      const labels: Record<string, string> = { title: t('edit.title'), detail: t('edit.detail') };
+      const fields = Array.isArray(data.fields) ? data.fields.filter((field: unknown): field is string => typeof field === 'string').map((field: string) => labels[field] || field).join(', ') : '';
+      throw new Error(t('api.inputTooLong', { fields }));
+    }
     throw new Error(data.error === 'read_only' ? t('api.readOnly') : data.error || t('api.failed', { status: response.status }));
   }
   return data as T;
 }
 
-export const addNode = (input: NodeInput) => send<{ node: { id: string } }>('POST', '/api/nodes', input);
-export const patchNode = (id: string, set: NodePatch) => send<unknown>('PATCH', `/api/nodes/${encodeURIComponent(id)}`, set);
+export const addNode = (input: NodeInput) => send<{ node: { id: string } }>('POST', '/api/nodes', { ...input, rejectTruncation: true });
+export const patchNode = (id: string, set: NodePatch) => send<unknown>('PATCH', `/api/nodes/${encodeURIComponent(id)}`, { ...set, rejectTruncation: true });
 export const removeNode = (id: string) => send<unknown>('DELETE', `/api/nodes/${encodeURIComponent(id)}`);
 export const addEdge = (from: string, to: string, kind: string) => send<unknown>('POST', '/api/edges', { from, to, kind });
 export const removeEdge = (id: string) => send<unknown>('DELETE', `/api/edges?id=${encodeURIComponent(id)}`);

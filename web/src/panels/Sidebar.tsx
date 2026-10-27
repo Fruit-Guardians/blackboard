@@ -58,13 +58,13 @@ export function Sidebar({ current, openItems, findings, inbox, selectedId, count
           {current ? <Row node={current} selected={selectedId === current.id} current onSelect={onSelect} /> : <Empty>{t('sidebar.noCursor')}</Empty>}
         </Section>
         <Section title={t('sidebar.open')} count={openItems.length}>
-          {openItems.length ? openItems.map((node) => <Row key={node.id} node={node} selected={selectedId === node.id} onSelect={onSelect} />) : <Empty>{t('sidebar.noOpen')}</Empty>}
+          {openItems.length ? <NodeRows nodes={openItems} limit={8} selectedId={selectedId} onSelect={onSelect} /> : <Empty>{t('sidebar.noOpen')}</Empty>}
         </Section>
         <Section title={t('sidebar.findings')} count={findings.length}>
-          {findings.length ? findings.slice(0, 8).map((node) => <Row key={node.id} node={node} selected={selectedId === node.id} onSelect={onSelect} />) : <Empty>{t('sidebar.noFindings')}</Empty>}
+          {findings.length ? <NodeRows nodes={findings} limit={8} selectedId={selectedId} onSelect={onSelect} /> : <Empty>{t('sidebar.noFindings')}</Empty>}
         </Section>
         <Section title={t('sidebar.inbox')} count={inbox.length} defaultOpen={false}>
-          {inbox.slice(0, 10).map((node) => <Row key={node.id} node={node} selected={selectedId === node.id} onSelect={onSelect} />)}
+          <NodeRows nodes={inbox} limit={10} selectedId={selectedId} onSelect={onSelect} />
         </Section>
         </>)}
       </nav>
@@ -80,6 +80,20 @@ export function Sidebar({ current, openItems, findings, inbox, selectedId, count
       </footer>
     </div>
   );
+}
+
+/** Keep the compact first page, but make every remaining record explicitly reachable. */
+function NodeRows({ nodes, limit, selectedId, onSelect }: { nodes: BoardNode[]; limit: number; selectedId: string | null; onSelect: (id: string) => void }) {
+  const row = (node: BoardNode) => <Row key={node.id} node={node} selected={selectedId === node.id} onSelect={onSelect} />;
+  return <>
+    {nodes.slice(0, limit).map(row)}
+    {nodes.length > limit && <details className="group/more">
+      <summary className="flex cursor-pointer list-none items-center gap-1 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="size-3 transition-transform group-open/more:rotate-90" />{t('sidebar.more', { n: nodes.length - limit })}
+      </summary>
+      <div className="flex flex-col gap-px">{nodes.slice(limit).map(row)}</div>
+    </details>}
+  </>;
 }
 
 function Section({ title, count, defaultOpen = true, children }: { title: string; count: number; defaultOpen?: boolean; children: ReactNode }) {

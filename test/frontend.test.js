@@ -120,6 +120,39 @@ test('API conflicts preserve the conflicting fields instead of treating the writ
   finally { globalThis.fetch = previous; }
 });
 
+test('viewer writes opt into rejecting truncated input while preserving the submitted fields and baselines', async () => {
+  const previous = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); return { ok: true, json: async () => ({ node: { id: 'n1' } }) }; };
+  const create = { type: 'finding', title: 'Authored title', detail: 'Authored detail' };
+  const patch = { detail: 'Changed detail', expected: { detail: 'Authored detail' } };
+  try {
+    await api.addNode(create); await api.patchNode('n/1', patch);
+    assert.deepEqual(calls, [
+      { url: '/api/nodes', body: { ...create, rejectTruncation: true } },
+      { url: '/api/nodes/n%2F1', body: { ...patch, rejectTruncation: true } },
+    ]);
+    assert.equal('rejectTruncation' in create, false, 'sending must not mutate the creation draft');
+    assert.equal('rejectTruncation' in patch, false, 'sending must not mutate the edit draft');
+  } finally { globalThis.fetch = previous; }
+});
+
+test('viewer length rejection explains that nothing was saved rather than treating the write as success', async () => {
+  const previous = globalThis.fetch;
+  // Match the server's error envelope: the stable code is separate from its readable message.
+  const responses = [
+    { error: 'input too long: detail (20001 > 20000); no text was saved', code: 'input_too_long', fields: ['detail'], limits: { detail: { originalLength: 20001, storedLength: 20000 } } },
+    { error: 'input_too_long', fields: ['detail'] },
+  ];
+  try {
+    for (const response of responses) {
+      globalThis.fetch = async () => ({ ok: false, status: 422, json: async () => response });
+      await assert.rejects(api.patchNode('n', { detail: 'x'.repeat(20001) }), /未保存.*详情/);
+    }
+  }
+  finally { globalThis.fetch = previous; }
+});
+
 
 test('canvas state summary never hides a refuted status behind a reproduced confidence', () => {
   assert.equal(nodeStateSummary({ status: 'refuted', severity: 'high', confidence: 'reproduced' }), '已反驳 · 高危 · 已复现');

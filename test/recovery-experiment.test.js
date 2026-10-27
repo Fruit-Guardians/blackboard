@@ -6,6 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { check, prepare } from '../scripts/recovery-experiment.mjs';
+import { estimateTokensText } from '../lib/context.js';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const SCRIPT = path.join(ROOT, 'scripts/recovery-experiment.mjs');
@@ -40,6 +41,95 @@ const nodeIds = (packet) => [
   ...['objectives', 'openThreads', 'findings', 'confirmedFacts', 'notes', 'recentChanges'].flatMap((key) => packet[key].map((n) => n.id)),
   ...packet.neighborhood.map((item) => item.node.id),
 ].filter(Boolean).sort();
+
+const compactTokens = (packet) => Math.ceil(estimateTokensText(JSON.stringify(packet)));
+
+function mixedTextBoard(t) {
+  const { root, file } = board();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const events = fs.readFileSync(file, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  for (const event of events) {
+    if (event.node) {
+      event.node.title = `观察 ${event.node.id}: mixed ASCII 与中文`;
+      event.node.detail = '第一行：只观察到局部结果。\n限制：真实部署状态未验证，path="src/sample.js"。';
+    }
+    if (event.checkpoint) event.checkpoint.summary = `检查点 ${event.checkpoint.id}: 已记录支持与反证。\n限制：其余情况未验证。`;
+  }
+  fs.writeFileSync(file, `${events.map((event) => JSON.stringify(event)).join('\n')}\n`);
+  return { root, file };
+}
+
+test('summary costs count authored plain text rather than JSON quotes and escaped newlines', (t) => {
+  const { root } = mixedTextBoard(t);
+  const summaryFile = path.join(root, 'summary.md');
+  const summary = '第一行：条件未验证。\nSecond line: "quoted" path C:\\sample\\file。';
+  fs.writeFileSync(summaryFile, ` \n${summary}\n `);
+  const out = path.join(root, 'out');
+  const manifest = prepare({ board: root, at: 'cp1', summaryFile, out });
+  assert.equal(read(out, 'A-summary.md'), `${summary}\n`);
+  assert.equal(manifest.arms.A.chars, summary.length, 'character counts retain the existing content-only convention');
+  assert.equal(manifest.arms.A.estimatedTokens, Math.ceil(estimateTokensText(summary)));
+  assert.notEqual(manifest.arms.A.estimatedTokens, compactTokens(summary), 'plain-text costs must not include JSON quoting/escaping');
+});
+
+test('mixed-language node and graph arms share the compact JSON token estimator', (t) => {
+  const { root, file } = mixedTextBoard(t);
+  const before = fs.readFileSync(file);
+  const out = path.join(root, 'out');
+  const manifest = prepare({ board: root, at: 'cp2', budget: 8000, out });
+  const b = JSON.parse(read(out, 'B-nodes.json'));
+  const c = JSON.parse(read(out, 'C-graph.json'));
+  assert.deepEqual(nodeIds(b), nodeIds(c));
+  assert.deepEqual(b.relations, []);
+  assert.ok(c.relations.length > 0);
+  for (const [arm, packet] of [['B', b], ['C', c]]) {
+    assert.equal(packet.estimatedTokens, compactTokens(packet), `${arm} estimate includes its final own digit count`);
+    assert.equal(manifest.arms[arm].estimatedTokens, compactTokens(packet), `${arm} manifest uses the same estimator`);
+    assert.equal(manifest.arms[arm].chars, JSON.stringify(packet).length, `${arm} chars count compact JSON, not file indentation`);
+    assert.ok(manifest.arms[arm].estimatedTokens > Math.ceil(manifest.arms[arm].chars / 4), `${arm} accounts for Chinese text`);
+  }
+  assert.deepEqual(fs.readFileSync(file), before);
+  assert.deepEqual(fs.readdirSync(path.join(root, '.blackboard')), ['events.jsonl']);
+});
+
+test('mixed-language resume costs sum the final interrupted and delta packet estimates', (t) => {
+  const { root } = mixedTextBoard(t);
+  const out = path.join(root, 'out');
+  const manifest = prepare({ board: root, at: 'cp2', since: 'cp1', budget: 8000, out });
+  for (const arm of ['B', 'C']) {
+    const material = JSON.parse(read(out, `${arm}-${arm === 'B' ? 'nodes' : 'graph'}.json`));
+    const packets = [material.interrupted, material.since];
+    for (const packet of packets) assert.equal(packet.estimatedTokens, compactTokens(packet), `${arm} packet estimate`);
+    assert.equal(manifest.arms[arm].estimatedTokens, packets.reduce((sum, packet) => sum + compactTokens(packet), 0));
+    assert.equal(manifest.arms[arm].chars, packets.reduce((sum, packet) => sum + JSON.stringify(packet).length, 0));
+  }
+  const summary = read(out, 'A-summary.md').slice(0, -1);
+  assert.match(summary, /## 中断前（cp1）[\s\S]*## 截至 cp2/);
+  assert.equal(manifest.arms.A.estimatedTokens, Math.ceil(estimateTokensText(summary)));
+});
+
+test('the nodes-only estimate settles after its own digit count shrinks', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bb-recovery-digits-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, '.blackboard'));
+  const events = [
+    { op: 'node', node: { id: 'g', type: 'goal', title: 'Goal', ts: 1 } },
+    { op: 'node', node: { id: 'f', type: 'fact', title: 'Evidence', detail: 'x'.repeat(1321), ts: 2, confidence: 'confirmed' } },
+    { op: 'edge', edge: { id: 'e', from: 'f', to: 'g', kind: 'supports', ts: 3 } },
+    { op: 'cursor', cursor: { agentId: 'agent:primary', to: 'g', at: 4 } },
+  ];
+  fs.writeFileSync(path.join(root, '.blackboard/events.jsonl'), `${events.map((event) => JSON.stringify(event)).join('\n')}\n`);
+  const summaryFile = path.join(root, 'summary.md');
+  fs.writeFileSync(summaryFile, 'Goal and evidence.');
+  const out = path.join(root, 'out');
+  const manifest = prepare({ board: root, at: 'event:4', budget: 64000, summaryFile, out });
+  const b = JSON.parse(read(out, 'B-nodes.json'));
+  const c = JSON.parse(read(out, 'C-graph.json'));
+  assert.equal(String(c.estimatedTokens).length, 4);
+  assert.equal(String(b.estimatedTokens).length, 3);
+  assert.equal(b.estimatedTokens, compactTokens(b));
+  assert.equal(manifest.arms.B.estimatedTokens, b.estimatedTokens);
+});
 
 test('takeover materials stop at the cut and differ only in relations', () => {
   const { root, file } = board();

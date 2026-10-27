@@ -62,6 +62,7 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
       tabIndex={-1}
       style={{ '--c': `var(--node-${item.type in DOT_CLASS ? item.type : 'note'})` } as CSSProperties}
       data-detail-level={level}
+      title={t('node.previewHint')}
       aria-label={`${typeLabel(item.type)}：${item.title}${state ? ` · ${state}` : ''}`}
       className={cn(
         'flex flex-col gap-1.5 py-3 pl-4 pr-3.5 text-left',
@@ -114,6 +115,7 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
         )}
       >
         {overview && <TypeDot type={item.type} className="mr-2 mb-0.5 size-2.5 align-middle" />}
+        <span className="mr-1.5 text-[10px] font-normal text-muted-foreground">{t('node.preview')}</span>
         {text.headline}
       </h3>
       {level === 'detail' && !compact && text.summary && (

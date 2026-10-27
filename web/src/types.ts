@@ -3,6 +3,7 @@ export type BoardNode = {
   type: string;
   title: string;
   detail?: string;
+  inputTruncation?: Record<string, { originalLength: number; storedLength: number }> | null;
   status?: string;
   severity?: string;
   confidence?: string;
@@ -17,6 +18,8 @@ export type BoardEdge = {
   from: string;
   to: string;
   kind: string;
+  label?: string;
+  inputTruncation?: Record<string, { originalLength: number; storedLength: number }> | null;
   ts?: number;
 };
 

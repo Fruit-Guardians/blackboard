@@ -34,6 +34,8 @@ export const zhCN = {
   'node.untitled': '未命名节点',
   'node.current': '当前',
   'node.agentHere': '{agent} 在这里',
+  'node.preview': '预览',
+  'node.previewHint': '点击查看完整记录',
 
   'relation.proves': '证明', 'relation.prove': '证明', 'relation.supports': '支持', 'relation.contradicts': '反驳',
   'relation.supersedes': '取代', 'relation.resolves': '解决', 'relation.derived-from': '派生自',
@@ -54,6 +56,7 @@ export const zhCN = {
   'api.noResponse': '黑板服务没有响应',
   'api.readOnly': '黑板以只读方式运行',
   'api.failed': '请求失败（{status}）',
+  'api.inputTooLong': '未保存：{fields} 超出长度上限。请缩写或拆分；当前草稿仍保留。',
 
   'topbar.connecting': '连接中', 'topbar.live': '已同步', 'topbar.offline': '重连中', 'topbar.static': '离线快照',
   'topbar.collapseNav': '收起导航', 'topbar.expandNav': '展开导航',
@@ -96,6 +99,9 @@ export const zhCN = {
   'inspector.unlink': '断开这条关系', 'inspector.unlinkFailed': '断开关系失败：{error}',
   'inspector.noRelations': '这个节点尚未建立逻辑关系。',
   'inspector.raw': '原始数据',
+  'inspector.inputTruncated': '此记录的输入在写入时被截短，以下字段不是完整原文。',
+  'inspector.inputLengths': '{field}：原始 {original} 字符 / 已保存 {stored} 字符',
+  'inspector.relationLabel': '关系说明',
 
   'filter.label': '筛选节点', 'filter.labelActive': '筛选（已启用 {n} 项）',
   'filter.type': '类型', 'filter.status': '状态', 'filter.confidence': '可信度', 'filter.risk': '风险',
@@ -110,6 +116,7 @@ export const zhCN = {
   'sidebar.open': '待验证', 'sidebar.noOpen': '当前没有开放假设',
   'sidebar.findings': '发现', 'sidebar.noFindings': '还没有记录发现',
   'sidebar.inbox': '未连接',
+  'sidebar.more': '其余 {n} 条记录',
   'sidebar.nodes': '{n} 节点', 'sidebar.edges': '{n} 关系', 'sidebar.openCount': '{n} 待验证',
   'sidebar.candidates': '{n} 候选', 'sidebar.risk': '{n} 高风险',
 
