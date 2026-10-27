@@ -216,4 +216,4 @@
 
 ## 相关文档
 
-[设计文档](BLACKBOARD_DESIGN.md) · [研究骨架设计](INQUIRY.md) · [恢复对照试验方案](RECOVERY_EXPERIMENT.md) · [DSH 接入调研](DSH_PLUGIN_RESEARCH.md) · [性能](performance.md) · [CI](ci.md) · [工程约定](../AGENT.md)
+[设计文档](BLACKBOARD_DESIGN.md) · [研究记录方式（可选 Skill 参考）](INQUIRY.md) · [恢复对照试验方案](RECOVERY_EXPERIMENT.md) · [DSH 接入调研](DSH_PLUGIN_RESEARCH.md) · [性能](performance.md) · [CI](ci.md) · [工程约定](../AGENT.md)
