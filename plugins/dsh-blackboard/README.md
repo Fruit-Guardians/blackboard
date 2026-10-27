@@ -6,7 +6,7 @@ blackboard 的可选 **DeepSeek Harness 适配器**，位于主仓库的 `plugin
 DSH → dsh-blackboard → 独立安装的 blackboard CLI → 项目 .blackboard/events.jsonl
 ```
 
-目标版本：DSH `0.2.1-rc.2`、blackboard `0.6.x`。Node 与 DSH 的运行要求一致：`^22.19.0 || >=24.0.0`。源码是可直接运行的 ESM，安装后不依赖构建或生命周期脚本。
+目标版本：DSH `0.2.1-rc.2`。blackboard 不按版本号判断，而按 `capabilities --json` 检测：`schema` 为 `blackboard.capabilities.v1`，`features` 含 `writeAttribution`、`cwdFlag`、`noInit`，用到的 8 个命令输出声明为插件读取的 schema，并声明 `writeTargets`，即 [公开契约](../../docs/CONTRACT.md) v1。早于契约的构建（包括 2026-10-27 的 0.6.1 发布准备提交）缺少 `outputs`、`writeTargets`，诊断会报 RUNTIME_INCOMPATIBLE。Node 与 DSH 的运行要求一致：`^22.19.0 || >=24.0.0`。源码是可直接运行的 ESM，安装后不依赖构建或生命周期脚本。
 
 ## 插件展示信息
 
@@ -53,7 +53,7 @@ dsh --profile web --dump-config
 用户选择接入的项目后，独立执行一次：
 
 ```sh
-BLACKBOARD_CWD=/absolute/path/to/your-project blackboard init --json
+blackboard init --cwd /absolute/path/to/your-project --json
 ```
 
 将配置示例中的目录替换为实际绝对路径，通过 profile 的 `cordis.patch.yml` 或启动 overlay 应用：
@@ -127,9 +127,9 @@ bundle 默认 `projects: []`，安装本身不启用任何项目。DSH 替换整
 
 data 是 CLI 的原始结构化结果，diagnostics 保留 stderr 提示（包括字段截断）。context 强制核对 `blackboard.context.v1` 及 policy 中的 readOnly=true、prescriptive=false、nextStepSelection=agent-controlled。
 
-失败通过 DSH 标准错误结果呈现，消息携带错误代码：NOT_ENABLED、BOARD_NOT_INITIALIZED、SESSION_REQUIRED、WORKSPACE_MISSING、AMBIGUOUS_PROJECT、RUNTIME_MISSING、RUNTIME_VERSION、SPAWN_FAILED、CLI_FAILED、INVALID_JSON、CONTEXT_CONTRACT、POLICY_REQUIRED、WRITE_POLICY、TIMEOUT、ABORTED、OUTPUT_LIMIT 或 DISPOSED。模型参数不开放任意命令、shell 或目标目录。
+失败通过 DSH 标准错误结果呈现，消息携带错误代码：NOT_ENABLED、BOARD_NOT_INITIALIZED、SESSION_REQUIRED、WORKSPACE_MISSING、AMBIGUOUS_PROJECT、RUNTIME_MISSING、RUNTIME_INCOMPATIBLE、SPAWN_FAILED、CLI_FAILED、INVALID_JSON、CONTEXT_CONTRACT、POLICY_REQUIRED、WRITE_POLICY、TIMEOUT、ABORTED、OUTPUT_LIMIT 或 DISPOSED。模型参数不开放任意命令、shell 或目标目录。
 
-固定 CLI 桥接在启动前执行宿主模式/路径校验，不把它宣称为独立的 OS 沙箱。boardRoot 配置到工作区外时，workspace-write 模式下写工具会返回 WRITE_POLICY。read-only 模式仍可读取已配置黑板。文件系统上的并发路径替换仍由实际运行环境的隔离承担。
+固定 CLI 桥接只通过公开契约调用内核：项目根和身份以 `--cwd`、`--agent` 显式传入（写命令另加 `--no-init`），不设置也不继承 `BLACKBOARD_CWD`、`BLACKBOARD_AGENT`；写入前按 `capabilities.writeTargets` 声明的每个文件做宿主模式/路径校验：已存在的目标解析真实路径后必须在工作区内，悬空软链拒绝，尚不存在的目标看最近的已存在上级目录。不把它宣称为独立的 OS 沙箱。Skill 仍按发布包结构从 CLI 所在包的 `skills/blackboard/` 读取，这一处不在公开契约内。boardRoot 配置到工作区外时，workspace-write 模式下写工具会返回 WRITE_POLICY。read-only 模式仍可读取已配置黑板。文件系统上的并发路径替换仍由实际运行环境的隔离承担。
 
 超时、取消或输出过限时，写入可能已经提交；先读取现场，不自动重试写操作。黑板内容是用户或 Agent 留下的数据，不能提升为宿主指令。
 

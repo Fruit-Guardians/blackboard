@@ -27,11 +27,11 @@ const nonce = `HANDOFF-${randomBytes(8).toString('hex')}`;
 const marker = `E2E-${randomBytes(4).toString('hex')}`;
 const hypothesis = `缓存可能掩盖旧值 ${marker}`;
 const observation = `重启后读到相同值 ${marker}`;
-const env = { ...process.env, DSH_HOME: home, BLACKBOARD_CWD: project, DSH_TELEMETRY_DISABLED: '1', DSH_TOOLS_MODE: 'native', DSH_PERMISSION_MODE: 'workspace-write' };
+const env = { ...process.env, DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1', DSH_TOOLS_MODE: 'native', DSH_PERMISSION_MODE: 'workspace-write' };
 const hash = async (file) => createHash('sha256').update(await fs.readFile(file)).digest('hex');
 const run = (command, args, cwd = project) => exec(command, args, { cwd, env, timeout: 300_000, maxBuffer: 8_388_608 });
 const write = (name, value) => fs.writeFile(path.join(evidence, name), typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n', { mode: 0o600 });
-const inspect = async (args) => JSON.parse((await run(process.execPath, [runtimeCli, ...args])).stdout);
+const inspect = async ([command, ...args]) => JSON.parse((await run(process.execPath, [runtimeCli, command, `--cwd=${project}`, ...args])).stdout);
 const report = { mode: 'live-model-headless', evidence, marker, phases: [], checks: {}, exitCode: null };
 let authBefore, modelBefore, installed = false;
 
@@ -78,7 +78,7 @@ try {
   await fs.mkdir(home, { recursive: true });
   await fs.symlink(authFile, path.join(home, '.env'));
   await run('git', ['init', '-q']);
-  await run(process.execPath, [runtimeCli, 'init', '--here', '--json']);
+  await run(process.execPath, [runtimeCli, 'init', '--here', `--cwd=${project}`, '--json']);
   await run(dsh, ['--profile', profile, '--from-default-profile', 'headless', '--dump-config']);
   const packed = JSON.parse((await run('npm', ['pack', '--json', '--pack-destination', evidence], root)).stdout)[0];
   const tarball = path.join(evidence, packed.filename);

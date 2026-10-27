@@ -18,7 +18,7 @@ const dsh = process.env.DSH_BIN || 'dsh';
 const run = (command, args, extraEnv = {}) => exec(command, args, { cwd: root, env: { ...env, ...extraEnv }, timeout: 60_000, maxBuffer: 2_097_152 });
 try {
   await fs.mkdir(project);
-  await run(process.execPath, [runtimeCli, 'init', '--json'], { BLACKBOARD_CWD: project });
+  await run(process.execPath, [runtimeCli, 'init', `--cwd=${project}`, '--json']);
   const observer = path.join(fixture, 'observer.mjs');
   await fs.writeFile(observer, `
 import assert from 'node:assert/strict';

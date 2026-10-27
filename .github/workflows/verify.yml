@@ -84,6 +84,9 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       # Unit fixtures do not load the host SDK or need an installed DSH/model account.
+      # The real-CLI test runs against this checkout's kernel, so the adapter is checked against the contract it ships with.
       - run: npm --prefix plugins/dsh-blackboard test
+        env:
+          BLACKBOARD_TEST_CLI: ${{ github.workspace }}/bin/blackboard.js
       - run: npm --prefix plugins/dsh-blackboard run check
       # Real Host loader/settings and paid-model E2E remain explicit local release checks.

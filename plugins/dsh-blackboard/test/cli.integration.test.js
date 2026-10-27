@@ -15,7 +15,7 @@ test('real blackboard CLI: all tools, two boards/identities, replay, read-only c
   const a = path.join(root, 'a'), b = path.join(root, 'b');
   for (const dir of [a, b]) {
     await fs.mkdir(dir);
-    execFileSync(process.execPath, [runtimeCli, 'init', '--json'], { cwd: dir, env: { ...process.env, BLACKBOARD_CWD: dir, ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) } });
+    execFileSync(process.execPath, [runtimeCli, 'init', `--cwd=${dir}`, '--json'], { cwd: dir, env: { ...process.env, ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) } });
   }
   const config = normalizeConfig({ runtimeCli, projects: [{ workspace: a }, { workspace: b }] });
   const bridge = new CliBridge(config); t.after(() => bridge.dispose());

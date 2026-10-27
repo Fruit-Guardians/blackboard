@@ -19,21 +19,42 @@ export function execution(cwd, id = 'session-a', signal = new AbortController().
   return { agent: { id, session: { id, header: { cwd } } }, signal };
 }
 
-export async function fakeRuntime(root) {
+/** The parts of `capabilities --json` this adapter reads; tests vary them to stand for other releases. */
+export function capabilities(overrides = {}) {
+  const outputs = {
+    status: 'blackboard.status.v1', context: 'blackboard.context.v1', show: 'blackboard.show.v1',
+    node: 'blackboard.node-add.v1', edit: 'blackboard.node.v1', link: 'blackboard.edge.v1',
+    cursor: 'blackboard.cursor.v1', checkpoint: 'blackboard.checkpoint.v1',
+  };
+  return {
+    schema: 'blackboard.capabilities.v1', schemaVersion: 1, version: '9.9.9-fixture',
+    commands: Object.keys(outputs),
+    features: { writeAttribution: true, cwdFlag: true, noInit: true },
+    outputs: Object.fromEntries(Object.entries(outputs).map(([command, schema]) => [command, { shape: 'object', schema }])),
+    writeTargets: [
+      { path: '.blackboard/events.jsonl', role: 'log' }, { path: '.blackboard/lock', role: 'lock' },
+      { path: '.blackboard/state.json', role: 'cache' }, { path: '.blackboard/state.json.tmp', role: 'cache-temp' },
+    ],
+    ...overrides,
+  };
+}
+
+export async function fakeRuntime(root, declared = capabilities()) {
   const runtime = path.join(root, 'runtime');
   await fs.mkdir(path.join(runtime, 'bin'), { recursive: true });
-  await fs.writeFile(path.join(runtime, 'package.json'), JSON.stringify({ name: 'blackboard', version: '0.6.0' }));
+  await fs.writeFile(path.join(runtime, 'bin/capabilities.json'), JSON.stringify(declared));
   const cli = path.join(runtime, 'bin/blackboard.js');
   await fs.writeFile(cli, `
 const args = process.argv.slice(2);
 switch (args[0]) {
+  case 'capabilities': process.stdout.write(require('fs').readFileSync(__dirname + '/capabilities.json', 'utf8')); break;
   case 'bad-json': process.stdout.write('not json'); break;
   case 'scalar': process.stdout.write('42'); break;
   case 'failure': process.stderr.write('fixture failure'); process.exitCode=7; break;
   case 'sleep': setTimeout(()=>console.log('{}'), 30000); break;
   case 'flood': process.stdout.write('x'.repeat(4096)); break;
   case 'warning': process.stderr.write('field truncated'); console.log('{}'); break;
-  default: console.log(JSON.stringify({ args, cwd: process.cwd(), board: process.env.BLACKBOARD_CWD, agent: process.env.BLACKBOARD_AGENT }));
+  default: console.log(JSON.stringify({ args, cwd: process.cwd(), env: Object.fromEntries(Object.entries(process.env).filter(([k]) => k.startsWith('BLACKBOARD_'))) }));
 }
 `);
   return cli;
