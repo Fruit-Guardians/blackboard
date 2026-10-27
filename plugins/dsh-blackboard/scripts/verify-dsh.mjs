@@ -27,8 +27,8 @@ const runtimeCli = normalizeConfig({ runtimeCli: process.env.BLACKBOARD_TEST_CLI
 const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'dsh-blackboard-native-'));
 const ctx = new Context();
 try {
-  execFileSync(process.execPath, [runtimeCli, 'init', '--json'], {
-    cwd: dir, env: { ...process.env, BLACKBOARD_CWD: dir, ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) },
+  execFileSync(process.execPath, [runtimeCli, 'init', `--cwd=${dir}`, '--json'], {
+    cwd: dir, env: { ...process.env, ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) },
   });
   await ctx.plugin(systemPrompt.default);
   await ctx.plugin(tools.default);

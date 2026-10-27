@@ -24,10 +24,30 @@ test('user text stays positional, no implicit enter or relation, and writes are 
   const bridge = { run: async (scope, argv) => { calls.push({ scope, argv }); return { data: { id: 'n1' } }; } };
   const specs = toolSpecifications(config, bridge), add = specs.find((s) => s.name === 'blackboard_node_add');
   await add.execute({ type: '--custom', title: '--enter', detail: '--json', tags: ['-tag'] }, execution(project));
-  assert.deepEqual(calls[0].argv, ['node', '--json', '--detail=--json', '--tag=-tag', '--', 'add', '--custom', '--enter']);
+  assert.deepEqual(calls[0].argv, ['node', `--cwd=${project}`, '--agent=dsh:session-a', '--no-init', '--json', '--detail=--json', '--tag=-tag', '--', 'add', '--custom', '--enter']);
   assert.equal(calls[0].scope.agentId, 'dsh:session-a');
   assert.equal(calls[0].argv.includes('--enter'), true); // title after --, not an option
   assert.equal(calls[0].argv.indexOf('--enter') > calls[0].argv.indexOf('--'), true);
+});
+
+test('reads bind the board explicitly; only writes add --no-init and reach write authorization with the runtime', async (t) => {
+  const root = await temporary(t), project = await board(root), calls = [], authorized = [];
+  const runtime = { capabilities: { writeTargets: [] } };
+  const bridge = { run: async (scope, argv, _signal, beforeSpawn) => { await beforeSpawn?.(runtime); calls.push(argv); return { data: {} }; } };
+  const specs = new Map(toolSpecifications(normalizeConfig({ projects: [{ workspace: project }] }), bridge,
+    async (_scope, _exec, given) => { authorized.push(given); }).map((s) => [s.name, s]));
+  const run = (name, args) => specs.get(`blackboard_${name}`).execute(args, execution(project));
+  await run('status', {});
+  await run('node_get', { id: 'n1' });
+  await assert.rejects(run('context', { agentId: 'dsh:other' }), { code: 'CONTEXT_CONTRACT' });
+  await run('cursor', { id: 'n1' });
+  assert.deepEqual(calls, [
+    ['status', `--cwd=${project}`, '--agent=dsh:session-a', '--json'],
+    ['show', `--cwd=${project}`, '--json', '--', 'n1'],
+    ['context', `--cwd=${project}`, '--agent=dsh:other'],
+    ['cursor', `--cwd=${project}`, '--agent=dsh:session-a', '--no-init', '--json', '--', 'n1'],
+  ]);
+  assert.deepEqual(authorized, [runtime]);
 });
 
 test('reject invalid context and implicit next cursor selection', async (t) => {

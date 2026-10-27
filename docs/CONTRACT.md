@@ -151,7 +151,7 @@
 | `BLACKBOARD_LOCK_TIMEOUT_MS` | 等待事件写锁的毫秒数，默认 10000 |
 | `BLACKBOARD_DEBUG` | 出错时把完整堆栈打到 stderr，仅用于调试 |
 
-适配层应显式传 `--cwd`、`--agent`，不要依赖继承的环境变量（见阶段 2）。
+适配层应显式传 `--cwd`、`--agent`，不要依赖继承的环境变量。DSH 插件已这样做，并且不把继承来的 `BLACKBOARD_CWD`、`BLACKBOARD_AGENT` 传给子进程。
 
 ## 固定输出测试
 
@@ -177,5 +177,4 @@ UPDATE_CONTRACT=1 node --test test/contract-output.test.js
 ## 已知缺口
 
 - `reset --json` 返回的是内部状态对象（含 `seq` 等兼容字段），与 `state.json` 同形。v1 先冻结；以后改成独立的回执时要升版本。
-- DSH 插件仍写死 `lock`、`state.json.tmp` 两个文件名，没有改读 `writeTargets`，见 [发展方向](ROADMAP.md) 阶段 2。
 - 路线图提到用 exp1 的事件前缀做固定日志。它是研究日志，含本机绝对路径，按 [AGENT.md](../AGENT.md) 的“安全与隐私”只留本地，不进公开测试；固定日志只用上面的合成数据。

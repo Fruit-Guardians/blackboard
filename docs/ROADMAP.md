@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | 内核 | 稳定 | 事件日志是唯一事实源，CLI 是唯一写入路径；每次写入记录作者；Linux、macOS、Windows × Node 18/22/24 的 CI 全部通过 |
 | 契约 | 已成文 | [公开契约](CONTRACT.md) v1：30 个命令的 `--json` 输出都声明了 schema，固定输出测试守着；`capabilities` 列出每个输出的 schema 和内核会写的文件 |
-| 适配 | 落后于契约 | DSH 插件仍用环境变量传项目根和身份，读运行时的 `package.json` 并只接受 0.6.x，写入授权写死了 `lock`、`state.json.tmp` 两个内部文件名 |
+| 适配 | 只依赖契约 | DSH 插件显式传 `--cwd`/`--agent`/`--no-init`，用 `capabilities` 做特性检测，写入授权读 `writeTargets`；Skill 仍按发布包结构定位，DSH 第二阶段未做 |
 | 证据 | 一块黑板 | exp1：黑板记录答对 13/14，检查点摘要 4–5/14；但只有一个任务、每组一次、非盲评 |
 
 ### 已完成（2026-10-23 以来）
@@ -73,9 +73,12 @@
 
 **交付：**
 
-- DSH 插件改为显式传 `--cwd`/`--agent`/`--no-init`，不再设置 `BLACKBOARD_CWD`、`BLACKBOARD_AGENT`。
-- 用 `capabilities` 做特性检测，去掉对运行时 `package.json` 路径和 0.6.x 的硬编码。
-- 写入授权改读 `capabilities` 声明的写入目标，去掉写死的 `lock`、`state.json.tmp`。
+进度：前三项已完成；DSH 插件现在要求带公开契约 v1 的内核。
+
+- [x] DSH 插件改为显式传 `--cwd`/`--agent`/`--no-init`，不再设置 `BLACKBOARD_CWD`、`BLACKBOARD_AGENT`，也不把继承来的这两个变量传给子进程。
+- [x] 用 `capabilities` 做特性检测，去掉对运行时 `package.json` 路径和 0.6.x 的硬编码。
+- [x] 写入授权改读 `capabilities` 声明的写入目标，去掉写死的 `lock`、`state.json.tmp`。
+- Skill 仍按发布包结构从 CLI 所在包的 `skills/blackboard/` 读取。`skill` 命令不在契约内，等有第二个宿主需要时再决定是否把位置放进 `capabilities`。
 - DSH 第二阶段（沿用上一版）：自动刷新恢复上下文，在上下文压缩前后保存检查点。DSH 不保证等待写入完成后才压缩，保存时机必须如实说明。
 - MCP 的取舍规则不变：现在不做 MCP Server；出现第四个宿主时做一个通用 MCP 适配，而不是第四个专用适配。
 

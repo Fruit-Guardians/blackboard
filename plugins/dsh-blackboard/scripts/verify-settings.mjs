@@ -18,7 +18,7 @@ const run = (command, args, extra = {}) => exec(command, args, { cwd: root, env:
 try {
   await fs.mkdir(project);
   await fs.writeFile(path.join(project, '.git'), 'gitdir: fixture\n');
-  await run(process.execPath, [runtimeCli, 'init', '--here', '--json'], { BLACKBOARD_CWD: project });
+  await run(process.execPath, [runtimeCli, 'init', '--here', `--cwd=${project}`, '--json']);
   const before = await fs.readFile(path.join(project, '.blackboard/events.jsonl'));
   const observer = path.join(fixture, 'observer.mjs');
   await fs.writeFile(observer, `
