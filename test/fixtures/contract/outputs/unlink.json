@@ -15,6 +15,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.edge.v1",
         "id": "f1->f2:supersedes",
         "from": "f1",
         "to": "f2",

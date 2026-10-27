@@ -12,6 +12,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node.v1",
         "id": "q1",
         "type": "question",
         "title": "Does SSO share the same handler?",

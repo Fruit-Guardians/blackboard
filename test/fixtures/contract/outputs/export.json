@@ -13,6 +13,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.export.v1",
         "file": "<root>/out.html"
       }
     }

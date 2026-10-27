@@ -107,6 +107,7 @@ const CASES = {
   digest: [
     { board: 'research', args: ['digest'] },
     { board: 'research', args: ['digest', '--agent', 'agent:reviewer'] },
+    { board: 'research', args: ['digest', '--write'] },
   ],
   context: [
     { board: 'research', args: ['context'] },
@@ -245,15 +246,36 @@ function firstDiff(actual, expected, at = '') {
   return null;
 }
 
-function runCase(t, spec) {
+/** Every file under `dir` with its contents, so a run's writes can be listed. */
+function snapshot(dir, base = dir, files = {}) {
+  let entries = [];
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return files; }
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) snapshot(full, base, files);
+    else files[path.relative(base, full).split(path.sep).join('/')] = fs.readFileSync(full, 'utf8');
+  }
+  return files;
+}
+
+/** Files the run created, changed or removed. */
+function touched(before, after) {
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter((file) => before[file] !== after[file]).sort();
+}
+
+/** Run one case; the files it wrote under the project root are pushed onto `writes`. */
+function runCase(t, spec, writes = []) {
   const dirs = prepare(t, spec.board);
   for (const args of spec.before || []) {
     const r = cli([...fill(args, dirs), '--json'], dirs);
     assert.equal(r.status, 0, `${args.join(' ')}\n${r.stderr}`);
   }
   const before = readLog(dirs.board).length;
+  const files = snapshot(dirs.board);
   const args = [...spec.args, ...(spec.cwd === false ? [] : ['--cwd', '<board>']), '--json'];
   const r = cli(fill(args, dirs), dirs);
+  writes.push(...touched(files, snapshot(dirs.board)));
   let output = null;
   if (r.stdout.trim()) {
     try {
@@ -309,6 +331,50 @@ function tableRows(doc, heading) {
   return rows.slice(1);
 }
 
+function capabilities() {
+  return JSON.parse(spawnSync(process.execPath, [CLI, 'capabilities', '--json'], { encoding: 'utf8' }).stdout);
+}
+
+/** The capabilities.outputs entry a case answers to; `activity show` has its own. */
+const outputKey = (command, spec) => (command === 'activity' && spec.args[1] === 'show' ? 'activity show' : command);
+
+test('contract output: every output matches the schema capabilities declares', () => {
+  const { outputs } = capabilities();
+  const answered = new Set();
+  for (const [command, cases] of Object.entries(CASES)) {
+    const baseline = JSON.parse(fs.readFileSync(path.join(OUTPUTS, `${command}.json`), 'utf8'));
+    cases.forEach((spec, i) => {
+      const { exitCode, output } = baseline.cases[i];
+      if (exitCode !== 0) return;
+      const key = outputKey(command, spec);
+      const declared = outputs[key];
+      answered.add(key);
+      assert.ok(declared, `capabilities.outputs lacks ${key}`);
+      if (declared.shape === 'array') {
+        assert.ok(Array.isArray(output), `${spec.args.join(' ')} prints an array`);
+        assert.match(declared.items, /^blackboard\.[a-z-]+\.v\d+$/);
+      } else {
+        assert.equal(declared.shape, 'object');
+        assert.equal(output?.schema, declared.schema, `${spec.args.join(' ')} prints the schema capabilities declares`);
+      }
+    });
+  }
+  assert.deepEqual([...answered].sort(), Object.keys(outputs).sort(), 'every declared output has a case');
+});
+
+test('contract output: commands write only declared targets inside the project', (t) => {
+  const declared = new Set(capabilities().writeTargets.map((target) => target.path));
+  for (const [command, cases] of Object.entries(CASES)) {
+    for (const spec of cases) {
+      const writes = [];
+      runCase(t, spec, writes);
+      for (const file of writes) {
+        assert.ok(declared.has(file), `${spec.args.join(' ')} (${command}) wrote ${file}, which capabilities.writeTargets does not declare`);
+      }
+    }
+  }
+});
+
 const codeNames = (cell) => [...cell.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
 
 test('contract doc: command table matches baselines and capabilities', () => {
@@ -332,7 +398,13 @@ test('contract doc: command table matches baselines and capabilities', () => {
   }
   for (const cells of uncovered) named.push(...codeNames(cells[0]));
 
-  const capabilities = JSON.parse(spawnSync(process.execPath, [CLI, 'capabilities', '--json'], { encoding: 'utf8' }).stdout);
-  assert.deepEqual([...named].sort(), [...capabilities.commands].sort(),
+  const { outputs } = capabilities();
+  for (const cells of covered) {
+    const command = codeNames(cells[0])[0];
+    const declared = outputs[command];
+    assert.equal(codeNames(cells[3])[0], declared.schema || declared.items, `${command} row names the schema capabilities declares`);
+  }
+
+  assert.deepEqual([...named].sort(), [...capabilities().commands].sort(),
     'every command in capabilities appears once in CONTRACT.md, covered or explicitly not covered');
 });

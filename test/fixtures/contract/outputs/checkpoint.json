@@ -13,6 +13,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.checkpoint.v1",
         "id": "cp3",
         "agentId": "agent:primary",
         "at": "<now>",
@@ -52,6 +53,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.checkpoint.v1",
         "id": "cp3",
         "agentId": "agent:primary",
         "at": "<now>",

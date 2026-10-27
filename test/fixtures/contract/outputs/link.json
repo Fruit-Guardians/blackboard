@@ -17,6 +17,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.edge.v1",
         "id": "h1->q1:depends-on",
         "from": "h1",
         "to": "q1",
@@ -54,6 +55,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.edge.v1",
         "id": "q1->g1:related-to",
         "from": "q1",
         "to": "g1",

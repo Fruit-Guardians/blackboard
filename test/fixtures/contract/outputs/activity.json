@@ -37,6 +37,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.activity.v1",
         "id": "act1",
         "tool": "Bash",
         "summary": "curl -i /api/session",

@@ -12,6 +12,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.show.v1",
         "node": {
           "id": "v1",
           "type": "vuln",
@@ -75,6 +76,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.show.v1",
         "node": {
           "id": "x1",
           "type": "experiment",

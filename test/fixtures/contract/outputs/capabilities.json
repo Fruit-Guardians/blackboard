@@ -9,6 +9,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.capabilities.v1",
         "schemaVersion": 1,
         "version": "<package-version>",
         "eventVersion": 1,
@@ -93,7 +94,163 @@
           "detail": 20000,
           "label": 500,
           "summary": 12000
-        }
+        },
+        "outputs": {
+          "init": {
+            "shape": "object",
+            "schema": "blackboard.init.v1"
+          },
+          "status": {
+            "shape": "object",
+            "schema": "blackboard.status.v1"
+          },
+          "node": {
+            "shape": "object",
+            "schema": "blackboard.node-add.v1"
+          },
+          "checkpoint": {
+            "shape": "object",
+            "schema": "blackboard.checkpoint.v1"
+          },
+          "cursor": {
+            "shape": "object",
+            "schema": "blackboard.cursor.v1"
+          },
+          "here": {
+            "shape": "object",
+            "schema": "blackboard.here.v1"
+          },
+          "activity": {
+            "shape": "array",
+            "items": "blackboard.activity.v1"
+          },
+          "activity show": {
+            "shape": "object",
+            "schema": "blackboard.activity.v1"
+          },
+          "promote": {
+            "shape": "object",
+            "schema": "blackboard.node-add.v1"
+          },
+          "done": {
+            "shape": "object",
+            "schema": "blackboard.node.v1"
+          },
+          "block": {
+            "shape": "object",
+            "schema": "blackboard.node.v1"
+          },
+          "revive": {
+            "shape": "object",
+            "schema": "blackboard.node.v1"
+          },
+          "edit": {
+            "shape": "object",
+            "schema": "blackboard.node.v1"
+          },
+          "link": {
+            "shape": "object",
+            "schema": "blackboard.edge.v1"
+          },
+          "unlink": {
+            "shape": "object",
+            "schema": "blackboard.edge.v1"
+          },
+          "remove": {
+            "shape": "object",
+            "schema": "blackboard.remove.v1"
+          },
+          "ls": {
+            "shape": "array",
+            "items": "blackboard.node.v1"
+          },
+          "show": {
+            "shape": "object",
+            "schema": "blackboard.show.v1"
+          },
+          "digest": {
+            "shape": "object",
+            "schema": "blackboard.digest.v1"
+          },
+          "context": {
+            "shape": "object",
+            "schema": "blackboard.context.v1"
+          },
+          "lint": {
+            "shape": "object",
+            "schema": "blackboard.lint.v1"
+          },
+          "tail": {
+            "shape": "object",
+            "schema": "blackboard.tail.v1"
+          },
+          "export": {
+            "shape": "object",
+            "schema": "blackboard.export.v1"
+          },
+          "reset": {
+            "shape": "object",
+            "schema": "blackboard.reset.v1"
+          },
+          "search": {
+            "shape": "object",
+            "schema": "blackboard.search.v1"
+          },
+          "history": {
+            "shape": "object",
+            "schema": "blackboard.history.v1"
+          },
+          "changes": {
+            "shape": "object",
+            "schema": "blackboard.changes.v1"
+          },
+          "backup": {
+            "shape": "object",
+            "schema": "blackboard.backup-receipt.v1"
+          },
+          "restore": {
+            "shape": "object",
+            "schema": "blackboard.restore-receipt.v1"
+          },
+          "receipt": {
+            "shape": "object",
+            "schema": "blackboard.receipt.v1"
+          },
+          "capabilities": {
+            "shape": "object",
+            "schema": "blackboard.capabilities.v1"
+          }
+        },
+        "writeTargets": [
+          {
+            "path": ".blackboard/events.jsonl",
+            "role": "log"
+          },
+          {
+            "path": ".blackboard/lock",
+            "role": "lock"
+          },
+          {
+            "path": ".blackboard/state.json",
+            "role": "cache"
+          },
+          {
+            "path": ".blackboard/state.json.tmp",
+            "role": "cache-temp"
+          },
+          {
+            "path": ".blackboard/config.json",
+            "role": "config"
+          },
+          {
+            "path": ".blackboard/.gitignore",
+            "role": "gitignore"
+          },
+          {
+            "path": ".blackboard/digest.md",
+            "role": "digest"
+          }
+        ]
       }
     },
     {

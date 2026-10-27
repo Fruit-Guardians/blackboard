@@ -11,6 +11,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.lint.v1",
         "summary": {
           "nodes": 8,
           "edges": 7,
@@ -44,6 +45,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.lint.v1",
         "summary": {
           "nodes": 2,
           "edges": 1,
