@@ -192,7 +192,8 @@ function fill(args, { root, board }) {
 function cli(args, { root }) {
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (key.startsWith('BLACKBOARD_')) delete env[key];
-  Object.assign(env, { HOME: path.join(root, 'home'), BLACKBOARD_QUIET: '1', BLACKBOARD_PORT: String(PORT) });
+  // digest prints times in the local zone, so every machine renders them as UTC.
+  Object.assign(env, { HOME: path.join(root, 'home'), BLACKBOARD_QUIET: '1', BLACKBOARD_PORT: String(PORT), TZ: 'UTC' });
   return spawnSync(process.execPath, [CLI, ...args], { cwd: root, env, encoding: 'utf8' });
 }
 
@@ -225,6 +226,23 @@ function normalize(value, root, key) {
   // Paths under the temp root read the same on every platform.
   if (value.includes(root)) return value.replaceAll(root, '<root>').replaceAll('\\', '/');
   return value.replaceAll(`127.0.0.1:${PORT}`, '127.0.0.1:<port>');
+}
+
+/** Path and values of the first difference, so a CI log names the field that changed. */
+function firstDiff(actual, expected, at = '') {
+  if (Object.is(actual, expected)) return null;
+  const isObject = (v) => v && typeof v === 'object';
+  if (!isObject(actual) || !isObject(expected) || Array.isArray(actual) !== Array.isArray(expected)) {
+    return `${at || '(root)'}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`;
+  }
+  for (const key of new Set([...Object.keys(expected), ...Object.keys(actual)])) {
+    const sub = Array.isArray(actual) ? `${at}[${key}]` : `${at}.${key}`;
+    if (!(key in actual)) return `${sub}: missing (expected ${JSON.stringify(expected[key])})`;
+    if (!(key in expected)) return `${sub}: unexpected ${JSON.stringify(actual[key])}`;
+    const diff = firstDiff(actual[key], expected[key], sub);
+    if (diff) return diff;
+  }
+  return null;
 }
 
 function runCase(t, spec) {
@@ -265,7 +283,8 @@ for (const [command, cases] of Object.entries(CASES)) {
     }
     assert.ok(fs.existsSync(file), `missing baseline ${path.relative(REPO, file)}; run UPDATE_CONTRACT=1 npm test`);
     const expected = JSON.parse(fs.readFileSync(file, 'utf8'));
-    assert.deepEqual(actual, expected, `${command} --json output changed; see docs/CONTRACT.md before updating the baseline`);
+    const diff = firstDiff(actual, expected);
+    assert.ok(!diff, `${command} --json output changed at ${diff}\nSee docs/CONTRACT.md before updating the baseline.`);
   });
 }
 

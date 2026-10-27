@@ -22,7 +22,7 @@
 - **加字段兼容。** 读取方必须忽略不认识的字段。
 - **改语义、删字段或改类型不兼容**，要先升 schema 版本（如 `blackboard.context.v1` → `v2`），对象输出才能这样改。
 - 事件格式同理：新字段、新操作不改 `EVENT_VERSION`；只有旧版本按旧逻辑回放会得到错误投影时才升。
-- 给人读的文字不是契约，即使出现在 JSON 里：`lint` 的 `issues[].message`、`digest.digest`、`tail.tail` 的正文。它们的字段名和类型是契约，文字不是。测试把 `lint` 的 `message` 换成占位符；`digest`、`tail` 的正文仍然存档，改文字时更新存档即可，不升版本。
+- 给人读的文字不是契约，即使出现在 JSON 里：`lint` 的 `issues[].message`、`digest.digest`、`tail.tail` 的正文。它们的字段名和类型是契约，文字不是。`digest` 正文里的时间按本机时区显示（`MM-DD HH:mm`），同一块黑板在不同时区的机器上文字不同；需要准确时间请读 `context`、`history` 等输出里的毫秒时间戳。测试把 `lint` 的 `message` 换成占位符；`digest`、`tail` 的正文仍然存档，改文字时更新存档即可，不升版本。
 
 ## v1 的四个决定
 
@@ -138,7 +138,7 @@ npm test
 ```
 
 - 固定日志：`research`（各类节点与关系、编辑、状态变化、断开与重连、两个检查点、两个游标、活动与提升、删除节点和关系、带 `--request-id` 的写入）、`empty`（刚初始化）、`integrity`（见上）。它们先用真实 CLI 生成，再把时间、ID、会话改成固定值，所以可以直接阅读和复现。
-- 每个用例在固定日志的新副本上运行，带 `--json`，默认加 `--cwd`。HOME 被隔离，`BLACKBOARD_*` 环境被清空，查看器端口指向一个空闲端口。
+- 每个用例在固定日志的新副本上运行，带 `--json`，默认加 `--cwd`。HOME 被隔离，`BLACKBOARD_*` 环境被清空，查看器端口指向一个空闲端口，时区固定为 `TZ=UTC`。
 - 运行时才产生的值换成占位符后再比较：临时目录 `<root>`、当前时间 `<now>`/`<now-iso>`、新生成的 ID `<event-id>`/`<cursor-id>`/`<session-id>`、端口 `<port>`、CLI 版本 `<package-version>`、`lint` 文字 `<human-text>`。其余每个字段的值都参与比较。
 
 输出变了，测试就失败。按兼容规则处理：
