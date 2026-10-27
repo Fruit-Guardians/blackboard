@@ -49,7 +49,7 @@ test('release install copies the package and integrations point at current, not 
   assert.equal(result.refresh.error, undefined);
 
   const dir = path.join(home, 'versions', VERSION);
-  for (const entry of ['bin/blackboard.js', 'lib/model.js', 'skills/blackboard/SKILL.md', 'skills/blackboard/references/threat-model.md', 'public/index.html', 'package.json', 'README.md', '.release.json']) {
+  for (const entry of ['bin/blackboard.js', 'lib/model.js', 'skills/blackboard/SKILL.md', 'skills/blackboard/methods/threat-model.md', 'public/index.html', 'package.json', 'README.md', '.release.json']) {
     assert.ok(fs.existsSync(path.join(dir, entry)), entry);
   }
   assert.equal(fs.existsSync(path.join(dir, 'test')), false);
@@ -86,8 +86,8 @@ test('Skill and hooks installed through current survive switching versions', (t)
   const skillFile = path.join(env.HOME, '.claude', 'skills', 'blackboard', 'SKILL.md');
   const settingsFile = path.join(env.HOME, '.claude', 'settings.json');
   const recorded = () => [fs.readFileSync(skillFile, 'utf8'), fs.readFileSync(settingsFile, 'utf8')];
-  assert.equal(fs.readFileSync(path.join(path.dirname(skillFile), 'references/threat-model.md'), 'utf8'),
-    fs.readFileSync(path.join(REPO, 'skills/blackboard/references/threat-model.md'), 'utf8'));
+  assert.equal(fs.readFileSync(path.join(path.dirname(skillFile), 'methods/threat-model.md'), 'utf8'),
+    fs.readFileSync(path.join(REPO, 'skills/blackboard/methods/threat-model.md'), 'utf8'));
   for (const text of recorded()) {
     assert.ok(text.includes(currentCli));
     assert.ok(!text.includes(path.join(home, 'versions')));

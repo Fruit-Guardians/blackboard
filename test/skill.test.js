@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const CLI = path.join(ROOT, 'bin/blackboard.js');
 const SOURCE = path.join(ROOT, 'skills/blackboard');
-const THREAT_MODEL = 'references/threat-model.md';
+const THREAT_MODEL = 'methods/threat-model.md';
 
 function files(dir, prefix = '') {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

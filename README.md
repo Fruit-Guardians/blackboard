@@ -178,14 +178,17 @@ skills/blackboard/
 ├── references/
 │   ├── setup.md               首次接入、打开与恢复、平台差异
 │   ├── recording.md           记录阈值、关系方向、可信度与检查点
-│   ├── parallel-agents.md     显式身份、项目与交接查询
-│   ├── audit.md               可选的审计记录语义
-│   └── threat-model.md        明确调用的可选威胁建模参考
+│   └── parallel-agents.md     显式身份、项目与交接查询
+├── methods/                   可选的记录方法，由 Agent 自选，内核不读取
+│   ├── INDEX.md               方法目录（由 scripts/method-index.mjs 生成）
+│   ├── audit.md               审计记录语义
+│   ├── inquiry.md             问题、候选、证据、裁定、排除
+│   └── threat-model.md        明确调用的威胁建模
 ├── agents/openai.yaml         展示名称、简介、默认提示与图标引用
 └── assets/blackboard-icon.svg 展示图标
 ```
 
-采用渐进式加载：先读取 `SKILL.md`，再按当前场景加载其直接链接的参考，不一次性加载全部参考。`agents/openai.yaml` 和图标用于支持它们的客户端展示，不改变黑板的记录规则，也不保证当前会话已加载 Skill。直接从仓库加载时，若 CLI 占位符尚未展开，不要执行占位符或猜测路径；使用 PATH 中的 `blackboard`，或已确认仓库根下的 `node bin/blackboard.js`。
+采用渐进式加载：先读取 `SKILL.md`，再按当前场景加载其直接链接的参考，不一次性加载全部参考。可选的记录方法多一层：先看 `methods/INDEX.md` 的一行说明，选中了才读对应方法；设计见 [方法框架](docs/METHODS.md)。`agents/openai.yaml` 和图标用于支持它们的客户端展示，不改变黑板的记录规则，也不保证当前会话已加载 Skill。直接从仓库加载时，若 CLI 占位符尚未展开，不要执行占位符或猜测路径；使用 PATH 中的 `blackboard`，或已确认仓库根下的 `node bin/blackboard.js`。
 
 ### Claude Code
 
@@ -233,7 +236,7 @@ Codex 可通过 Skill 和 CLI 读写黑板；用户级安装使用 `~/.agents/sk
 
 ### 按需威胁建模（可选）
 
-[威胁建模参考](skills/blackboard/references/threat-model.md)强调一种理解系统的思想：安全依赖哪些信任与假设，这些假设在什么条件下可能失效，又有什么证据支持当前判断。模型保留的是有条件、可复核的解释；图、分类和威胁条目只是表达手段。
+[威胁建模参考](skills/blackboard/methods/threat-model.md)强调一种理解系统的思想：安全依赖哪些信任与假设，这些假设在什么条件下可能失效，又有什么证据支持当前判断。模型保留的是有条件、可复核的解释；图、分类和威胁条目只是表达手段。
 
 它是需要时才调用的辅助视角。参考不规定构建步骤或研究顺序，也不以模型完整性约束 Agent 的行动。默认只返回分析，没有黑板也能使用；明确要求保留时，判断与证据复用现有节点、关系和事件日志。
 

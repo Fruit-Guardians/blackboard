@@ -24,7 +24,7 @@ blackboard 只提供数据，不是工作流引擎：不批准、阻断、排序
 | 首次 Claude Code 接入或明确重配 | 先读 [接入与打开](references/setup.md)，说明 setup 副作用后使用 |
 | 首次 Codex 接入 | 读 [接入与打开](references/setup.md)，用 init 和 Codex Skill 安装；不默认执行 Claude setup |
 | OMP、ZCode 等其他宿主接入 | 按当前宿主机制安装完整 Skill 包并展开 CLI 路径；不增加专用 CLI 分支、不安装其他宿主的 Hook |
-| 明确调用 threat model / 威胁建模 | 读 [按需威胁建模](references/threat-model.md)；理解当前问题的安全目标、信任假设与失效条件；默认只分析 |
+| 明确调用 threat model / 威胁建模 | 读 [按需威胁建模](methods/threat-model.md)；理解当前问题的安全目标、信任假设与失效条件；默认只分析 |
 | 已启用，只记录关键判断 | 使用下方最小命令；复杂关系见 [记录语义](references/recording.md) |
 
 ## 命令位置与项目归属
@@ -91,9 +91,7 @@ blackboard goal "审计 某库@1.2.3 的解析边界" --detail "源码：实际�
 - [接入与打开](references/setup.md)：首次接入、其他宿主的通用安装、已有黑板、服务生命周期与 setup 副作用。
 - [记录语义](references/recording.md)：阈值、关系方向、可信度、短 ID、游标与检查点。
 - [并行 Agent](references/parallel-agents.md)：每次显式项目/身份、Hook 继承边界、恢复与交接查询。
-- [按需威胁建模](references/threat-model.md)：仅在用户明确调用时读取；强调安全目标、信任假设和可修订的解释，默认只分析，不规定构建步骤。
-- [审计记录](references/audit.md)：仅在代码审计需要时读取；约束记录含义，不规定研究步骤。
-- [可选的研究记录方式](references/inquiry.md)：按问题、候选、证据、裁定、排除来记录；完全可选，不用也是正常记录，不规定研究步骤。
+- [可选的记录方法](methods/INDEX.md)：审计记录、研究记录方式、威胁建模等，每个一行说明。完全可选，用不用、用哪个由你决定，不用也是正常记录；只读你选中的那一个。
 
 ## 不可改变的边界
 
