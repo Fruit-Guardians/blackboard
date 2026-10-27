@@ -93,6 +93,7 @@ blackboard goal "审计 某库@1.2.3 的解析边界" --detail "源码：实际�
 - [并行 Agent](references/parallel-agents.md)：每次显式项目/身份、Hook 继承边界、恢复与交接查询。
 - [按需威胁建模](references/threat-model.md)：仅在用户明确调用时读取；强调安全目标、信任假设和可修订的解释，默认只分析，不规定构建步骤。
 - [审计记录](references/audit.md)：仅在代码审计需要时读取；约束记录含义，不规定研究步骤。
+- [可选的研究记录方式](references/inquiry.md)：按问题、候选、证据、裁定、排除来记录；完全可选，不用也是正常记录，不规定研究步骤。
 
 ## 不可改变的边界
 
