@@ -18,6 +18,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node.v1",
         "id": "v1",
         "type": "vuln",
         "title": "Session fixation",

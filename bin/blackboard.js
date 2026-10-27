@@ -223,6 +223,57 @@ const COMMAND_FLAGS = {
   service: 'cwd json', release: 'force json', hook: '', help: '', version: '', '-v': '', '--version': '',
 };
 
+// The contract's machine-readable outputs, one entry per command (aliases share
+// it). A top-level object carries its schema in band; an array keeps its shape
+// and is described here only. capabilities --json publishes this table.
+const object = (schema) => ({ shape: 'object', schema });
+const array = (items) => ({ shape: 'array', items });
+const NODE = 'blackboard.node.v1';
+const EDGE = 'blackboard.edge.v1';
+const ACTIVITY = 'blackboard.activity.v1';
+const OUTPUTS = {
+  init: object('blackboard.init.v1'),
+  status: object('blackboard.status.v1'),
+  node: object('blackboard.node-add.v1'),
+  checkpoint: object('blackboard.checkpoint.v1'),
+  cursor: object('blackboard.cursor.v1'),
+  here: object('blackboard.here.v1'),
+  activity: array(ACTIVITY),
+  'activity show': object(ACTIVITY),
+  promote: object('blackboard.node-add.v1'),
+  done: object(NODE), block: object(NODE), revive: object(NODE), edit: object(NODE),
+  link: object(EDGE), unlink: object(EDGE),
+  remove: object('blackboard.remove.v1'),
+  ls: array(NODE),
+  show: object('blackboard.show.v1'),
+  digest: object('blackboard.digest.v1'),
+  context: object('blackboard.context.v1'),
+  lint: object('blackboard.lint.v1'),
+  tail: object('blackboard.tail.v1'),
+  export: object('blackboard.export.v1'),
+  reset: object('blackboard.reset.v1'),
+  search: object('blackboard.search.v1'),
+  history: object('blackboard.history.v1'),
+  changes: object('blackboard.changes.v1'),
+  backup: object('blackboard.backup-receipt.v1'),
+  restore: object('blackboard.restore-receipt.v1'),
+  receipt: object('blackboard.receipt.v1'),
+  capabilities: object('blackboard.capabilities.v1'),
+};
+
+// Every file a command writes inside the project root, so an adapter can
+// authorize exactly these. export, backup and restore also write the path the
+// caller names; nothing else is written.
+const WRITE_TARGETS = [
+  { path: '.blackboard/events.jsonl', role: 'log' },
+  { path: '.blackboard/lock', role: 'lock' },
+  { path: '.blackboard/state.json', role: 'cache' },
+  { path: '.blackboard/state.json.tmp', role: 'cache-temp' },
+  { path: '.blackboard/config.json', role: 'config' },
+  { path: '.blackboard/.gitignore', role: 'gitignore' },
+  { path: '.blackboard/digest.md', role: 'digest' },
+];
+
 function parseArgs(argv, cmd = '') {
   const args = [];
   const flags = {};
@@ -336,8 +387,14 @@ function needInitRead() {
   return paths(cwd());
 }
 
-function out(flags, obj) {
-  if (flags.json) console.log(JSON.stringify(obj, null, 2));
+/**
+ * Print a --json output. An object leads with its schema, which always names
+ * the output, even if a record replayed from the log carries a field of that name.
+ */
+function out(flags, obj, output) {
+  if (!flags.json) return;
+  const body = output?.shape === 'object' ? Object.assign({ schema: output.schema }, obj, { schema: output.schema }) : obj;
+  console.log(JSON.stringify(body, null, 2));
 }
 
 function shortDetail(s, n = 100) {
@@ -373,7 +430,7 @@ async function cmdExport(args, flags) {
   const file = flags.out || flags.o || 'blackboard.html';
   const abs = path.resolve(cwd(), file);
   fs.writeFileSync(abs, renderExport({ cwd: cwd() }));
-  if (flags.json) return out(flags, { file: abs });
+  if (flags.json) return out(flags, { file: abs }, OUTPUTS.export);
   console.log(`${C.grn('已导出')} ${abs}`);
 }
 
@@ -394,7 +451,7 @@ async function cmdStatus(args, flags) {
   if (flags.json) return out(flags, {
     stats: s, cursor, cursors: g.cursors, title: g.meta.title || state.title, session: state.session,
     cwd: p.cwd, agentId, viewer, integration, latestNode,
-  });
+  }, OUTPUTS.status);
 
   console.log(
     `${C.bold('blackboard')} ${C.dim(p.cwd)}${g.meta.title || state.title ? ` · ${g.meta.title || state.title}` : ''}`,
@@ -444,7 +501,7 @@ function cmdList(args, flags) {
   }
   const limit = Number(flags.limit || flags.n || 30);
   nodes = nodes.slice(-limit);
-  if (flags.json) return out(flags, nodes);
+  if (flags.json) return out(flags, nodes, OUTPUTS.ls);
   if (!nodes.length) return console.log(C.dim('（空）'));
   for (const n of nodes) console.log(nodeLine(n));
 }
@@ -456,7 +513,7 @@ function cmdShow(args, flags) {
   const g = replay(cwd());
   const nodeId = refOrFail(g.nodes, id);
   const n = g.nodes[nodeId];
-  if (flags.json) return out(flags, { node: n, parents: parentsOf(g, nodeId), children: childrenOf(g, nodeId) });
+  if (flags.json) return out(flags, { node: n, parents: parentsOf(g, nodeId), children: childrenOf(g, nodeId) }, OUTPUTS.show);
   const chain = [];
   let cur = n;
   const seen = new Set();
@@ -541,7 +598,7 @@ function cmdDigest(args, flags) {
     fs.writeFileSync(p.digest, md);
     if (!flags.quiet) console.error(C.dim(`已写入 ${p.digest}`));
   }
-  if (flags.json) return out(flags, { digest: md });
+  if (flags.json) return out(flags, { digest: md }, OUTPUTS.digest);
   console.log(md);
 }
 
@@ -564,7 +621,7 @@ function cmdContext(args, flags) {
     maxItems: flags.limit || flags.n,
   });
   if (flags.markdown || flags.md) console.log(renderAgentContext(packet));
-  else console.log(JSON.stringify(packet, null, 2));
+  else out({ json: true }, packet, OUTPUTS.context);
 }
 
 function cmdSearch(args, flags) {
@@ -575,7 +632,7 @@ function cmdSearch(args, flags) {
     query: args.join(' '), type: flags.type, tags: flags.tag, status: flags.status,
     relation: flags.rel, relatedTo, limit: flags.limit || 30,
   });
-  if (flags.json) return out(flags, result);
+  if (flags.json) return out(flags, result, OUTPUTS.search);
   console.log(`${result.total} 条匹配${result.truncated ? `（显示 ${result.items.length} 条）` : ''}`);
   for (const item of result.items) {
     console.log(nodeLine(item.node));
@@ -589,7 +646,7 @@ async function cmdHistory(args, flags) {
   const { buildNodeHistory } = await import('../lib/history.js');
   const source = readEvents(cwd());
   const result = buildNodeHistory(source.events, args[0], source);
-  if (flags.json) return out(flags, result);
+  if (flags.json) return out(flags, result, OUTPUTS.history);
   console.log(`${result.nodeId} · ${result.entries.length} 条历史（只读）`);
   for (const entry of result.entries) {
     console.log(JSON.stringify(entry));
@@ -603,7 +660,7 @@ async function cmdChanges(args, flags) {
   const { buildCheckpointChanges } = await import('../lib/history.js');
   const source = readEvents(cwd());
   const result = buildCheckpointChanges(source.events, since, source);
-  if (flags.json) return out(flags, result);
+  if (flags.json) return out(flags, result, OUTPUTS.changes);
   console.log(`交接点 ${result.since.id} 之后（只读）`);
   console.log(`节点 +${result.nodes.added.length} ~${result.nodes.updated.length} -${result.nodes.removed.length}；关系 +${result.edges.added.length} -${result.edges.removed.length}`);
   for (const node of result.nodes.added) console.log(`+ ${nodeLine(node)}`);
@@ -618,7 +675,7 @@ async function cmdBackup(args, flags) {
   if (!flags.out || args.length) fail('用法: blackboard backup --out <新备份目录> [--json]');
   const { backupBoard } = await import('../lib/backup.js');
   const result = backupBoard(cwd(), path.resolve(cwd(), flags.out));
-  if (flags.json) return out(flags, { schema: 'blackboard.backup-receipt.v1', ...result });
+  if (flags.json) return out(flags, result, OUTPUTS.backup);
   console.log(`已备份 ${result.path} · SHA256 ${result.eventsSha256}`);
 }
 
@@ -626,7 +683,7 @@ async function cmdRestore(args, flags) {
   if (args.length !== 1 || !flags.into) fail('用法: blackboard restore <备份目录> --into <项目目录> [--json]');
   const { restoreBoard } = await import('../lib/backup.js');
   const result = restoreBoard(path.resolve(process.cwd(), args[0]), path.resolve(process.cwd(), flags.into));
-  if (flags.json) return out(flags, { schema: 'blackboard.restore-receipt.v1', ...result });
+  if (flags.json) return out(flags, result, OUTPUTS.restore);
   console.log(`已恢复 ${result.boardPath} · SHA256 ${result.eventsSha256}`);
 }
 
@@ -636,7 +693,7 @@ async function cmdReceipt(args, flags) {
   const { getReceipt } = await import('../lib/store.js');
   const receipt = getReceipt(args[0], cwd());
   if (!receipt) fail('request_not_found');
-  if (flags.json) return out(flags, { schema: 'blackboard.receipt.v1', ...receipt });
+  if (flags.json) return out(flags, receipt, OUTPUTS.receipt);
   console.log(`${receipt.requestId} · ${receipt.command} · ${receipt.status}`);
   if (receipt.status === 'pending') console.log('显式重试原命令并复用同 request-id，以恢复已记录的操作；查询不会补写。');
 }
@@ -653,8 +710,10 @@ function cmdCapabilities(args, flags) {
       rejectTruncation: true, inputTruncationMetadata: true },
     contextContract: { readOnly: true, prescriptive: false, nextStepSelection: 'agent-controlled' },
     limits: LIMITS,
+    outputs: OUTPUTS,
+    writeTargets: WRITE_TARGETS,
   };
-  if (flags.json) return out(flags, result);
+  if (flags.json) return out(flags, result, OUTPUTS.capabilities);
   console.log(`blackboard ${VERSION} · capabilities schema ${result.schemaVersion}`);
   console.log(Object.keys(result.features).join(', '));
 }
@@ -665,7 +724,7 @@ async function cmdLint(args, flags) {
   const result = lintGraph(replay(cwd()), {
     maxTitleLength: Number(flags['max-title'] || 80),
   });
-  if (flags.json) return out(flags, result);
+  if (flags.json) return out(flags, result, OUTPUTS.lint);
   console.log(`${C.bold('blackboard lint')} · ${result.summary.nodes} 节点 · ${result.summary.edges} 关系`);
   if (!result.issues.length) return console.log(C.grn('没有发现上下文质量提示。'));
   for (const x of result.issues) {
@@ -682,7 +741,8 @@ function cmdTail(args, flags) {
   needInitRead();
   const g = replay(cwd());
   const text = tail(g, agentOf(flags));
-  console.log(flags.json ? JSON.stringify({ tail: text }) : text);
+  if (flags.json) return out(flags, { tail: text }, OUTPUTS.tail);
+  console.log(text);
 }
 
 function cmdInit(args, flags) {
@@ -697,7 +757,7 @@ function cmdInit(args, flags) {
   if (flags.title) setMeta({ title: String(flags.title) }, target);
   const g = replay(target);
   const state = readState(target);
-  if (flags.json) return out(flags, { cwd: p.cwd, board: p.root, title: g.meta.title || state.title, session: state.session });
+  if (flags.json) return out(flags, { cwd: p.cwd, board: p.root, title: g.meta.title || state.title, session: state.session }, OUTPUTS.init);
   if (g.meta.title || flags.title) {
     console.log(`${C.grn('已初始化')} ${C.dim(p.cwd)} · ${g.meta.title}`);
   } else {
@@ -892,7 +952,7 @@ function addSimple(type, args, flags) {
     cwd(),
   );
   warnTruncated(result);
-  if (flags.json) return out(flags, result);
+  if (flags.json) return out(flags, result, OUTPUTS.node);
   if (!process.env.BLACKBOARD_QUIET) {
     const { edge } = result;
     const via = !edge ? '' : edge.from === result.node.id
@@ -920,7 +980,7 @@ function cmdCheckpoint(args, flags) {
   );
   if (flags.write) fs.writeFileSync(paths(cwd()).digest, buildDigest(replay(cwd()), cwd(), agentId));
   warnTruncated(checkpoint);
-  if (flags.json) return out(flags, checkpoint);
+  if (flags.json) return out(flags, checkpoint, OUTPUTS.checkpoint);
   if (!process.env.BLACKBOARD_QUIET) {
     console.log(`${C.cyn('+')} 检查点 ${checkpoint.id}${checkpoint.cursorNodeId ? ` @${checkpoint.cursorNodeId}` : ''}`);
   }
@@ -933,7 +993,7 @@ function cmdCursor(args, flags) {
   const agentId = agentOf(flags);
   if (!id) {
     const current = currentCursor(g, agentId);
-    if (flags.json) return out(flags, { cursor: current, agentId });
+    if (flags.json) return out(flags, { cursor: current, agentId }, OUTPUTS.cursor);
     console.log(current || '(none)');
     return;
   }
@@ -948,7 +1008,7 @@ function cmdCursor(args, flags) {
     id = open[open.length - 1].id;
   }
   const cursor = moveCursor(id, { reason: flags.reason || '', agentId, requestId: flags['request-id'] }, cwd());
-  if (flags.json) return out(flags, { cursor });
+  if (flags.json) return out(flags, { cursor }, OUTPUTS.cursor);
   if (!process.env.BLACKBOARD_QUIET) {
     if (cursor.to) {
       const target = replay(cwd()).nodes[cursor.to];
@@ -966,7 +1026,7 @@ function cmdHere(args, flags) {
   const node = id ? g.nodes[id] : null;
   const neighbors = neighborsOf(g, id);
   const trail = (g.cursorTrail || []).filter((c) => c.agentId === agentId).slice(-10);
-  if (flags.json) return out(flags, { agentId, cursor: id, node, neighbors, trail });
+  if (flags.json) return out(flags, { agentId, cursor: id, node, neighbors, trail }, OUTPUTS.here);
   if (!node) return console.log(C.dim('当前游标未设置。'));
   console.log(`${C.bold('当前')} ${nodeLine(node)}`);
   if (neighbors.length) {
@@ -996,7 +1056,7 @@ function cmdActivity(args, flags) {
   if (sub === 'show') {
     if (!args[1]) fail('用法: blackboard activity show <id>');
     const a = g.activities[refOrFail(g.activities, args[1], 'activity')];
-    if (flags.json) return out(flags, a);
+    if (flags.json) return out(flags, a, OUTPUTS['activity show']);
     console.log(activityLine(a));
     if (a.input) console.log(`\n输入\n${a.input}`);
     if (a.output) console.log(`\n输出\n${a.output}`);
@@ -1007,7 +1067,7 @@ function cmdActivity(args, flags) {
   const activities = Object.values(g.activities)
     .sort((a, b) => (a.at || 0) - (b.at || 0))
     .slice(-limit);
-  if (flags.json) return out(flags, activities);
+  if (flags.json) return out(flags, activities, OUTPUTS.activity);
   if (!activities.length) return console.log(C.dim('（活动层为空）'));
   for (const a of activities) console.log(activityLine(a));
 }
@@ -1037,7 +1097,7 @@ function cmdPromote(args, flags) {
     ...(flags['no-truncate'] ? { rejectTruncation: true } : {}),
   }, cwd());
   warnTruncated(result);
-  if (flags.json) return out(flags, result);
+  if (flags.json) return out(flags, result, OUTPUTS.promote);
   console.log(`${C.grn('提升 →')} ${nodeLine(result.node)}`);
 }
 
@@ -1047,7 +1107,7 @@ function cmdState(cmd, args, flags) {
   if (!id) fail(`用法: blackboard ${cmd} <id>`);
   const map = { done: 'done', block: 'blocked', revive: 'open' };
   const n = patchNode(id, { status: map[cmd] }, cwd(), { by: agentOf(flags), requestId: flags['request-id'] });
-  if (flags.json) return out(flags, n);
+  if (flags.json) return out(flags, n, OUTPUTS[cmd]);
   if (!process.env.BLACKBOARD_QUIET) console.log(`${C.grn('✓')} ${nodeLine(n)}`);
 }
 
@@ -1065,7 +1125,7 @@ function cmdEdit(args, flags) {
   if (!Object.keys(set).length) fail('没有要修改的字段');
   const n = patchNode(id, set, cwd(), { by: agentOf(flags), requestId: flags['request-id'], ...(flags['no-truncate'] ? { rejectTruncation: true } : {}) });
   warnTruncated(n);
-  if (flags.json) return out(flags, n);
+  if (flags.json) return out(flags, n, OUTPUTS.edit);
   if (!process.env.BLACKBOARD_QUIET) console.log(`${C.grn('✓')} ${nodeLine(n)}`);
 }
 
@@ -1076,7 +1136,7 @@ function cmdLink(args, flags) {
   const kind = flags.rel || flags.kind || 'related-to';
   const edge = addEdge({ from, to, kind, label: flags.label || '', author: agentOf(flags), requestId: flags['request-id'], ...(flags['no-truncate'] ? { rejectTruncation: true } : {}) }, cwd());
   warnTruncated(edge);
-  if (flags.json) return out(flags, edge);
+  if (flags.json) return out(flags, edge, OUTPUTS.link);
   if (!process.env.BLACKBOARD_QUIET) {
     console.log(`${C.grn('+')} ${edge.from} ${C.dim(EDGE_LABEL[edge.kind] || edge.kind)} ${edge.to}`);
   }
@@ -1089,7 +1149,7 @@ function cmdUnlink(args, flags) {
   let edge;
   try { edge = removeEdge({ from, to, kind: flags.rel || flags.kind || null }, { by: agentOf(flags), requestId: flags['request-id'] }, cwd()); }
   catch (e) { return fail(e.message); }
-  if (flags.json) return out(flags, edge);
+  if (flags.json) return out(flags, edge, OUTPUTS.unlink);
   if (!process.env.BLACKBOARD_QUIET) {
     console.log(`${C.grn('−')} ${edge.from} ${C.dim(EDGE_LABEL[edge.kind] || edge.kind)} ${edge.to}`);
   }
@@ -1101,7 +1161,7 @@ function cmdRemove(args, flags) {
   let result;
   try { result = removeNode(args[0], { by: agentOf(flags), reason: flags.reason || '', requestId: flags['request-id'] }, cwd()); }
   catch (e) { return fail(e.message); }
-  if (flags.json) return out(flags, result);
+  if (flags.json) return out(flags, result, OUTPUTS.remove);
   if (!process.env.BLACKBOARD_QUIET) {
     console.log(`${C.grn('−')} ${result.id}${result.edges.length ? C.dim(`（连带 ${result.edges.length} 条关系）`) : ''}`);
   }
@@ -1114,7 +1174,7 @@ function cmdReset(args, flags) {
   refuseMissingBoard();
   ensure(cwd());
   const result = reset(cwd(), { by: agentOf(flags), requestId: flags['request-id'] });
-  if (flags.json) return out(flags, result);
+  if (flags.json) return out(flags, result, OUTPUTS.reset);
   console.log(C.grn('已重置'));
 }
 

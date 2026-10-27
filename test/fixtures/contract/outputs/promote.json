@@ -16,6 +16,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node-add.v1",
         "node": {
           "id": "o1",
           "type": "observation",

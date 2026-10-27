@@ -18,6 +18,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node-add.v1",
         "node": {
           "id": "n1",
           "type": "note",
@@ -71,6 +72,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node-add.v1",
         "node": {
           "id": "n1",
           "type": "experiment",
@@ -149,6 +151,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node-add.v1",
         "node": {
           "id": "s1",
           "type": "start",
@@ -189,6 +192,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node-add.v1",
         "node": {
           "id": "g2",
           "type": "goal",
@@ -230,6 +234,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node-add.v1",
         "node": {
           "id": "i2",
           "type": "intent",
@@ -294,6 +299,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node-add.v1",
         "node": {
           "id": "f5",
           "type": "fact",
@@ -346,6 +352,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node-add.v1",
         "node": {
           "id": "v2",
           "type": "vuln",
@@ -410,6 +417,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node-add.v1",
         "node": {
           "id": "h2",
           "type": "hint",
@@ -450,6 +458,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node-add.v1",
         "node": {
           "id": "f5",
           "type": "fact",

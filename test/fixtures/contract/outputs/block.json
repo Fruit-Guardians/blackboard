@@ -12,6 +12,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node.v1",
         "id": "h1",
         "type": "hint",
         "title": "Check whether logout rotates the id",

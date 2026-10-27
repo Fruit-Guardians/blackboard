@@ -11,6 +11,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.tail.v1",
         "tail": "8节点 · 7关系 · 开放 1 · 活动 1 · 当前 v1"
       }
     }

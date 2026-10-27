@@ -13,6 +13,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.init.v1",
         "cwd": "<root>/board",
         "board": "<root>/board/.blackboard",
         "title": "New board",

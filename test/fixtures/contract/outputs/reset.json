@@ -12,6 +12,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.reset.v1",
         "session": "<session-id>",
         "title": "",
         "started": "<now-iso>",

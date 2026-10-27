@@ -12,6 +12,7 @@
       ],
       "exitCode": 0,
       "output": {
+        "schema": "blackboard.node.v1",
         "id": "i1",
         "type": "intent",
         "title": "Read the login handler first",
