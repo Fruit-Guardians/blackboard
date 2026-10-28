@@ -315,6 +315,8 @@ blackboard promote act1 --kind observation --title "值得保留的观察"
 
 **服务在线，但 Agent 没有继续写？** 服务只负责读写和展示，不会驱动 Agent。可明确说“用 blackboard 记录这次研究”，再用 `digest` 核对实际内容。
 
+**保存后提示服务响应损坏？** HTTP 成功状态不足以确认保存结果；响应无法读取或不是有效 JSON 对象时，页面会保留草稿并提示结果不确定。先核对节点或历史记录，再决定是否重试；页面不会自动重新提交。
+
 
 **如何停用？** 前台 `serve` 用 `Ctrl+C` 停止。用下面的命令移除所用范围的 Hook，再手动移除对应的 Skill 目录；不必删除黑板数据：
 
@@ -339,6 +341,8 @@ blackboard service uninstall      # 停止任务并删除本工具受管 plist
 ## 版本与升级
 
 
+`0.8.2` 拆分存储文件 I/O 与 HTTP 请求/写入职责，修复日志短读、文件描述符及失败锁写入的清理，损坏的成功响应会保留页面草稿并提示结果不确定；增加离线文档链接、图片和锚点检查。CLI / JSON schema 与事件格式延续 `0.8.0`。
+
 `0.8.1` 整理内部 CLI、共享快照、前端工作台和开发验证脚本边界，并重组文档；这是兼容性维护版本，CLI / JSON schema 与事件格式延续 `0.8.0`，不增加新的导出参数。实时与离线快照统一忽略指向不存在节点的缓存焦点，修复离线曾保留失效 ID 的差异；离线 HTML 继续省略原始活动 input/output/summary 和可写标记。验证入口与覆盖限制见 [贡献指南](../CONTRIBUTING.md)和 [CI 说明](ci.md)，版本说明本身不代表本轮检查已执行。
 
 `0.8.0` 统一节点 JSON 的三个可空维度，将受影响的输出 schema 升为 v2，并增加 Markdown、Mermaid、SARIF 导出；包含可导航的 Markdown 报告、Mermaid 默认消费端限额，以及浏览器渲染和官方 SARIF schema 的持续回归。前端与 DSH 适配同步切换；事件格式仍为 v1，旧安装可保留用于回滚。`0.7.0` 的字段筛选、完整分组统计和 `ls --all` 继续可用。
@@ -349,7 +353,8 @@ blackboard service uninstall      # 停止任务并删除本工具受管 plist
 ~/.local/share/blackboard/
 ├── versions/0.8.0/    已安装版本，安装后不再改动
 ├── versions/0.8.1/
-└── current -> versions/0.8.1
+├── versions/0.8.2/
+└── current -> versions/0.8.2
 ```
 
 ```bash

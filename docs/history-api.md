@@ -97,3 +97,5 @@ A pending receipt additionally reports `recoverable`. Missing/empty ID returns `
 ## Local Postman CLI contract check
 
 `npm run verify:api` starts a disposable real loopback server, checks history, checkpoint changes, duplicate writes and receipt lookup with 15 assertions across 5 Postman requests. It verifies event hashes around reads and retries, then cleans the synthetic board. Postman CLI must be installed; this optional developer check adds no runtime dependency and uses `--no-report-events` (no workspace publication).
+
+Each Postman process has a 30-second hard deadline, including when it ignores graceful termination. The verifier drains subprocess output before reporting completion and cleans its disposable board on failure.

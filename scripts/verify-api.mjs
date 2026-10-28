@@ -13,12 +13,19 @@ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'blackboard-postman-'));
 const sha=()=>crypto.createHash('sha256').update(fs.readFileSync(paths(dir).events)).digest('hex');
 let server;
 function run(args) {
-  return new Promise((resolve,reject)=>{
-    const child=spawn(process.env.POSTMAN_BINARY || 'postman',['request',...args,'--no-report-events','--timeout','10000'],{stdio:['ignore','pipe','pipe']});
-    let stdout='',stderr=''; const timer=setTimeout(()=>child.kill('SIGTERM'),30000);
-    child.stdout.on('data',(chunk)=>stdout+=chunk);child.stderr.on('data',(chunk)=>stderr+=chunk);
-    child.once('error',(error)=>{clearTimeout(timer);reject(error);});
-    child.once('exit',(code)=>{clearTimeout(timer);process.stdout.write(stdout);process.stderr.write(stderr);code===0?resolve():reject(new Error(`Postman exited ${code}`));});
+  return new Promise((resolve, reject) => {
+    // A hard deadline also bounds tools that ignore SIGTERM.
+    const child = spawn(process.env.POSTMAN_BINARY || 'postman', [
+      'request', ...args, '--no-report-events', '--timeout', '10000',
+    ], { stdio: ['ignore', 'pipe', 'pipe'], timeout: 30000, killSignal: 'SIGKILL' });
+    child.stdout.pipe(process.stdout, { end: false });
+    child.stderr.pipe(process.stderr, { end: false });
+    child.once('error', reject);
+    // close follows stream completion; exit alone can lose the last assertions.
+    child.once('close', (code, signal) => {
+      if (code === 0) resolve();
+      else reject(new Error(signal ? `Postman terminated (${signal})` : `Postman exited ${code}`));
+    });
   });
 }
 try {

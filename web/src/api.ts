@@ -18,15 +18,25 @@ async function send<T>(method: string, url: string, body?: unknown): Promise<T> 
   } catch {
     throw new Error(t('api.noResponse'));
   }
-  const data = await response.json().catch(() => ({}));
+  let data: unknown;
+  try { data = await response.json(); }
+  catch { /* An unreadable error body still has a useful HTTP status. */ }
+  const envelope = data !== null && typeof data === 'object' && !Array.isArray(data) ? data as Record<string, unknown> : null;
   if (!response.ok) {
-    if (response.status === 409 && data.error === 'node_conflict') throw new NodeConflict(Array.isArray(data.fields) ? data.fields : []);
-    if (data.code === 'input_too_long' || data.error === 'input_too_long') {
-      const labels: Record<string, string> = { title: t('edit.title'), detail: t('edit.detail') };
-      const fields = Array.isArray(data.fields) ? data.fields.filter((field: unknown): field is string => typeof field === 'string').map((field: string) => labels[field] || field).join(', ') : '';
-      throw new Error(t('api.inputTooLong', { fields }));
+    if (response.status === 409 && envelope?.error === 'node_conflict') {
+      throw new NodeConflict(Array.isArray(envelope.fields) ? envelope.fields.filter((field): field is string => typeof field === 'string') : []);
     }
-    throw new Error(data.error === 'read_only' ? t('api.readOnly') : data.error || t('api.failed', { status: response.status }));
+    if (envelope?.code === 'input_too_long' || envelope?.error === 'input_too_long') {
+      const labels: Record<string, string> = { title: t('edit.title'), detail: t('edit.detail') };
+      const fields = Array.isArray(envelope.fields) ? envelope.fields.filter((field): field is string => typeof field === 'string').map((field) => Object.hasOwn(labels, field) ? labels[field] : field).join(', ') : '';
+      throw Object.assign(new Error(t('api.inputTooLong', { fields })), { status: response.status });
+    }
+    const message = envelope?.error === 'read_only' ? t('api.readOnly')
+      : typeof envelope?.error === 'string' && envelope.error ? envelope.error : t('api.failed', { status: response.status });
+    throw Object.assign(new Error(message), { status: response.status });
+  }
+  if (!envelope) {
+    throw Object.assign(new Error(t('api.invalidResponse', { status: response.status })), { code: 'invalid_response', status: response.status });
   }
   return data as T;
 }

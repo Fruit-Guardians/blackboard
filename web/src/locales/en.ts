@@ -58,6 +58,7 @@ export const en: Messages = {
   'api.noResponse': 'The blackboard service is not responding',
   'api.readOnly': 'The blackboard is running read-only',
   'api.failed': 'Request failed ({status})',
+  'api.invalidResponse': 'The service response could not be read ({status}); the request outcome cannot be confirmed. Changes may have been saved. Check the blackboard before deciding whether to retry.',
   'api.inputTooLong': 'Not saved: {fields} exceeds the length limit. Shorten or split it; your draft is preserved.',
 
   'topbar.connecting': 'Connecting', 'topbar.live': 'Synced', 'topbar.offline': 'Reconnecting', 'topbar.static': 'Offline snapshot',

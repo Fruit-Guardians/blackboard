@@ -56,6 +56,7 @@ export const zhCN = {
   'api.noResponse': '黑板服务没有响应',
   'api.readOnly': '黑板以只读方式运行',
   'api.failed': '请求失败（{status}）',
+  'api.invalidResponse': '无法读取服务响应（{status}），无法确认请求结果。更改可能已保存；请查看黑板后再决定是否重试。',
   'api.inputTooLong': '未保存：{fields} 超出长度上限。请缩写或拆分；当前草稿仍保留。',
 
   'topbar.connecting': '连接中', 'topbar.live': '已同步', 'topbar.offline': '重连中', 'topbar.static': '离线快照',

@@ -57,6 +57,7 @@ export const ja: Messages = {
   'api.noResponse': 'blackboard サービスが応答しません',
   'api.readOnly': 'blackboard は読み取り専用で動作しています',
   'api.failed': 'リクエストに失敗しました（{status}）',
+  'api.invalidResponse': 'サービスの応答を読み取れないため（{status}）、リクエストの結果を確認できません。変更は保存されている可能性があります。再試行する前に blackboard を確認してください。',
   'api.inputTooLong': '保存されませんでした：{fields} が文字数の上限を超えています。短くするか分割してください。下書きは保持されています。',
 
   'topbar.connecting': '接続中', 'topbar.live': '同期済み', 'topbar.offline': '再接続中', 'topbar.static': 'オフラインのスナップショット',

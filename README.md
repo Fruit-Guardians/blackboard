@@ -170,7 +170,7 @@ blackboard export --out blackboard.html
 
 ## 版本与升级
 
-`0.8.1` 是兼容性维护版本，整理代码边界与文档；CLI / JSON schema 和事件格式延续 `0.8.0`。安装、切换与回滚见[版本管理](docs/USAGE.md#release)，验证范围见 [CI 说明](docs/ci.md)。
+`0.8.2` 继续整理存储 I/O 与 HTTP 边界，修复异常清理、日志短读及损坏响应误判，并加入离线文档检查；CLI / JSON schema 和事件格式延续 `0.8.0`。安装、切换与回滚见[版本管理](docs/USAGE.md#release)，验证范围见 [CI 说明](docs/ci.md)。
 
 <a id="upgrade"></a>
 

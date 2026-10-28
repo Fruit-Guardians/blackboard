@@ -1,6 +1,6 @@
 # blackboard 发展方向
 
-> 更新：2026-10-28 · 当前维护版本：`0.8.1`；最初方向基线：`main` 8c9a52c（0.6.1）。
+> 更新：2026-10-28 · 当前维护版本：`0.8.2`；最初方向基线：`main` 8c9a52c（0.6.1）。
 > 本文是方向建议，不是承诺清单；每一阶段以“完成标准”收口，再决定下一步。
 > 上一版（2026-10-23，基线 8ccc06d）的 5 个方向已并入下面的阶段，进展见“已完成”。
 
@@ -33,6 +33,7 @@
 - 节点 JSON 与报告（0.8.0）：公开节点维度固定输出字符串或 null，只改读取投影，事件与回执原文不变；前端和 DSH 适配迁到对应 v2 schema。export 新增 Markdown、Mermaid、SARIF，共用完整筛选与排序；保留显式证据/反证，对图上限与无代码位置的省略给出说明。时间点读取与脱敏仍按阶段 9 单独推进。
 - 导出消费端回归（0.8.0）：Markdown 使用可导航标题与显式锚点；Mermaid 在默认边数与文本限额内导出；官方 SARIF schema 校验、Chromium 中的实际 Markdown/Mermaid 渲染及干净安装包的三格式检查接入 CI。GitHub code scanning 和 IDE 的实际导入仍需对应环境验证。
 - 兼容维护（0.8.1）：CLI 参数、帮助和终端格式移入 `lib/cli/`，共享输出与写入目标常量集中到 `lib/contracts.js`；实时与离线图快照共用 `lib/snapshot.js`，修复缓存焦点指向不存在节点时实时为 null、离线却保留失效 ID 的差异，离线仍省略活动 input/output/summary 与可写标记。前端派生数据与 URL 状态移入 `web/src/workspace/`；`scripts/lib/environment.mjs` 共用验证环境隔离，`scripts/lib/sarif-validator.mjs` 共用开发期官方 schema 校验，不进入运行时依赖。首页缩为入口，详细使用参考、架构与贡献规则分别归位。公开 CLI / JSON schema 与事件格式延续 0.8.0；验证命令与未覆盖范围见[贡献指南](../CONTRIBUTING.md)和 [CI](ci.md)，此项不预先声明本轮检查通过。
+- 兼容维护（0.8.2）：存储文件锁与事件字节读取移入 `lib/storage/`，修复读取异常时的描述符泄漏、短读遗漏和失败锁写入的残留；请求防护、JSON body 和显式写入移入 `lib/http/`。页面将损坏的成功响应视为结果不确定并保留草稿；Postman 验证脚本增加硬超时并等待输出排空。离线文档路径、图片与锚点检查加入本地 `check` 和 CI，公开 CLI / JSON schema 与事件格式保持不变。
 
 ### exp1 告诉了我们什么
 

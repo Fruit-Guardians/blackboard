@@ -57,6 +57,7 @@ export const zhHK: Messages = {
   'api.noResponse': '黑板服務沒有回應',
   'api.readOnly': '黑板以唯讀模式執行',
   'api.failed': '請求失敗（{status}）',
+  'api.invalidResponse': '無法讀取服務回應（{status}），無法確認請求結果。變更可能已儲存；請查看黑板後再決定是否重試。',
   'api.inputTooLong': '未儲存：{fields} 超出長度上限。請縮寫或拆分；目前草稿仍保留。',
 
   'topbar.connecting': '連線中', 'topbar.live': '已同步', 'topbar.offline': '重新連線中', 'topbar.static': '離線快照',

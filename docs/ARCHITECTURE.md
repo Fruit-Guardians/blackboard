@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [贡献指南](../CONTRIBUTING.md) · [工程原则](../AGENT.md) · [公开契约](CONTRACT.md)
 
-本文描述 `0.8.1` 的源码组织。它是兼容性维护版本：拆开 CLI 支持代码、统一实时与离线图快照、提取前端派生数据与 URL 状态，并共享开发验证脚本的辅助实现。模块路径是实现细节，宿主与脚本依赖的稳定接口只由[公开契约](CONTRACT.md)定义。
+本文描述 `0.8.2` 的源码组织：CLI 支持代码、实时与离线图快照、前端派生状态、存储文件 I/O 和 HTTP 写入各有明确边界，开发验证脚本复用公共辅助实现。模块路径是实现细节，宿主与脚本依赖的稳定接口只由[公开契约](CONTRACT.md)定义。
 
 ## 数据如何流动
 
@@ -33,10 +33,12 @@ flowchart TD
 | `lib/cli/format.js` | 终端颜色与人类可读的行格式；不决定 JSON schema |
 | `lib/contracts.js` | 纯常量：`OUTPUTS`、`WRITE_TARGETS`、`GRAPH_SCHEMA`；CLI 与投影共用，保持浏览器可用 |
 | `lib/model.js`、`lib/semantics.js` | CLI、服务、浏览器共用的回放与语义；不引入 Node-only API |
-| `lib/store.js` | 项目板发现、事件追加、写锁、缓存、游标与检查点；不认识宿主 |
+| `lib/store.js` | 项目板发现、事件追加、缓存、游标与检查点；在写锁内校验事件版本，不认识宿主 |
+| `lib/storage/` | `file-lock.js` 管理跨进程锁、文件身份核对与异常清理；`event-file.js` 管理完整字节读取、短读和断尾修复；不决定事件语义 |
 | `lib/context.js`、`lib/digest.js`、`lib/search.js`、`lib/history.js`、`lib/lint.js` | 由已记录的内容生成上下文、摘要、查询、追溯与提示；省略明确报告，不推断缺省维度 |
 | `lib/snapshot.js` | Node 运行时中的 `buildGraphSnapshot`；实时 HTTP / SSE 与离线 HTML 共用图、身份与有效焦点投影，通过选项保留各自的可写性和活动详情边界 |
-| `lib/server.js`、`lib/service.js` | loopback HTTP / SSE、写接口防护、服务端口与身份探测 |
+| `lib/server.js`、`lib/service.js` | loopback HTTP / SSE、读取路由、静态资产、服务端口与身份探测 |
+| `lib/http/` | `request.js` 统一请求防护、JSON body 与错误响应；`write.js` 处理显式写入、署名、冲突与回执，不管理服务生命周期 |
 | `lib/export*.js` | 离线 HTML、文本报告、筛选数据与格式序列化；不新增事实源 |
 | `lib/backup.js`、`lib/receipts.js` | 可校验备份恢复、从事件投影的写入回执 |
 | `lib/setup.js`、`lib/hooks.js`、`lib/release.js` | 接入安装、可选 Claude Hook、稳定版本与 current 切换；开发仓库不直接替代日常安装 |
@@ -86,7 +88,7 @@ DSH 的 CLI 桥每次显式传 `--cwd`、`--agent`，写入另加 `--no-init`；
 | 变更范围 | 主要行为证据 |
 | --- | --- |
 | CLI 参数、输出与 schema | `test/blackboard.test.js`、`test/contract-output.test.js`、`test/write-contract.test.js`、`test/node-json.test.js`；固定输出与 capabilities 同步 |
-| 事件、写锁、身份、恢复 | `test/recovery.test.js`、`test/receipts.test.js`、`test/backup.test.js`、`test/iteration.test.js` 及领域测试 |
+| 事件、写锁、身份、恢复 | `test/store-io.test.js` 的异常、短读与所有权回归，及 `test/recovery.test.js`、`test/receipts.test.js`、`test/backup.test.js`、`test/iteration.test.js` |
 | 上下文预算与历史 | `test/context-*.test.js`、`test/history.test.js`；`npm run evaluate:recovery` 验证合成投影，不替代真实模型恢复试验 |
 | 服务写入、历史与回执 | `test/api-receipts.test.js`、`test/input-integrity-api.test.js`；可选 `npm run verify:api` 需要 Postman CLI |
 | 视角、筛选、显示与图布局 | `test/frontend.test.js`、`test/canvas.test.js`、`test/web-completeness.test.js`；纯模块测试不等于完整浏览器交互验收 |
@@ -94,6 +96,7 @@ DSH 的 CLI 桥每次显式传 `--cwd`、`--agent`，写入另加 `--no-init`；
 | HTML、Markdown、Mermaid、SARIF | `test/export*.test.js`，再用 `npm run verify:exports` 做 Chromium 消费端与官方 SARIF schema 验证 |
 | 包边界与 Node 运行时 | `test/packaging.test.js`、`npm run verify:package`；真实 tarball 的干净消费者安装 |
 | Skill、可选方法、公开内容 | `test/skill.test.js`、`test/methods.test.js`、`test/publication.test.js`、`npm run check:publish` |
+| 文档路径、图片与锚点 | `test/docs.test.js`、`npm run check:docs`；本地解析公开 Markdown，不探测外部站点 |
 | DSH 插件 | 插件自己的 `test/` 与 `npm run check`；真实 Host、设置页、profile 与模型检查按[插件文档](../plugins/dsh-blackboard/README.md#测试)分别执行 |
 
 这些是验证入口与职责，不是本次执行记录。跨平台与运行时矩阵的覆盖、实际命令和未覆盖环境见 [CI 说明](ci.md)；性能测量见[性能基线](performance.md)。

@@ -49,7 +49,7 @@ npm run evaluate:recovery
 npm run verify:package
 ```
 
-`npm run check` 依次执行 `check:types` 和 `check:publish`；需要定位问题时可单独调用。提交与推送前仍应重新运行 publication 检查，覆盖最终公开内容。
+`npm run check` 依次执行 `check:types`、`check:docs` 和 `check:publish`；需要定位问题时可单独调用。文档检查在本地解析 Markdown / HTML 的相对路径、图片和标题锚点，不依赖网络。提交与推送前仍应重新运行 publication 检查，覆盖最终公开内容。
 
 `npm test` 使用 Node 内置 test runner，覆盖根包行为和固定契约；部分前端纯模块测试会用本地 TypeScript 编译器，因此需要开发依赖。`evaluate:recovery` 只测合成投影的确定性正确性，模型恢复效果仍需单独试验。`verify:package` 打包当前源码并在隔离的临时消费者安装，检查完整 Skill、静态资产和实际 CLI；它不启动服务、不安装真实接入、不切换 `current`。
 
@@ -74,7 +74,7 @@ npm run verify:exports
 - `lib/contracts.js` 集中声明输出、写入目标和图 schema。新增公开能力必须与 `capabilities`、固定输出和契约文档一致；适配器按能力声明检测，不解析版本号或内核文件名。
 - `status`、`severity`、`confidence` 保持独立的字符串或 null，不由类型推断；`receipt.result` 保留写入时原样结果。
 - 事件兼容纪律与 schema 兼容纪律分开处理：兼容新增不提高 `EVENT_VERSION`；只有旧逻辑会回放出错误投影时才提高。完整规则见契约，不创建第二份格式说明。
-- 根包版本与 lockfile、固定能力输出中的版本一致；可选插件独立版本。`0.8.1` 是延续 `0.8.0` CLI / JSON / 事件契约的内部整理，不为文件移动提高 schema 版本。
+- 根包版本与 lockfile、固定能力输出中的版本一致；可选插件独立版本。`0.8.1`、`0.8.2` 延续 `0.8.0` 的 CLI / JSON / 事件契约，不为内部文件移动或健壮性修复提高 schema 版本。
 
 ## 隐私与公开内容
 

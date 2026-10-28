@@ -118,10 +118,67 @@ test('history reads encode exact identities and only perform same-origin GET req
     assert.ok(calls.every(({ init }) => init.method === 'GET' && init.body === undefined));
   } finally { globalThis.fetch = previous; }
 });
-test('API conflicts preserve the conflicting fields instead of treating the write as success', async () => {
+test('API conflicts preserve structured conflicting fields instead of treating the write as success', async () => {
   const previous = globalThis.fetch;
-  globalThis.fetch = async () => ({ ok: false, status: 409, json: async () => ({ error: 'node_conflict', fields: ['severity'] }) });
-  try { await assert.rejects(api.patchNode('n', { severity: 'low', expected: { severity: 'high' } }), (error) => error instanceof api.NodeConflict && error.fields[0] === 'severity'); }
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: 'node_conflict', fields: ['severity', null, 7] }), { status: 409 });
+  try {
+    await assert.rejects(api.patchNode('n', { severity: 'low', expected: { severity: 'high' } }), (error) => {
+      assert.ok(error instanceof api.NodeConflict);
+      assert.deepEqual(error.fields, ['severity']);
+      return true;
+    });
+  } finally { globalThis.fetch = previous; }
+});
+
+test('invalid successful API responses reject with their HTTP status and an unconfirmed-outcome code', async () => {
+  const previous = globalThis.fetch;
+  const responses = [
+    new Response('{', { status: 200 }),
+    new Response('', { status: 201 }),
+    new Response('null', { status: 200 }),
+    new Response('[]', { status: 200 }),
+    new Response('true', { status: 200 }),
+    new Response(new ReadableStream({ start(controller) { controller.error(new Error('Interrupted body')); } }), { status: 200 }),
+  ];
+  let requests = 0;
+  try {
+    for (const response of responses) {
+      globalThis.fetch = async () => { requests++; return response; };
+      await assert.rejects(api.patchNode('n', { title: 'Draft title' }), (error) => {
+        assert.ok(error instanceof Error);
+        assert.equal(error.code, 'invalid_response');
+        assert.equal(error.status, response.status);
+        assert.ok(error.message.length > 0);
+        assert.ok(error.message.includes(String(response.status)), 'the displayed diagnostic includes the HTTP status');
+        return true;
+      });
+    }
+    assert.equal(requests, responses.length, 'an uncertain write must not be retried automatically');
+  } finally { globalThis.fetch = previous; }
+});
+
+test('unstructured HTTP failures retain their status without exposing parse or envelope errors', async () => {
+  const previous = globalThis.fetch;
+  const bodies = ['<html>Bad gateway</html>', 'null', '[]', '42', '{"error":{"message":"upstream failed"}}', '{"error":7}'];
+  try {
+    for (const body of bodies) {
+      globalThis.fetch = async () => new Response(body, { status: 502 });
+      await assert.rejects(api.patchNode('n', { title: 'Draft title' }), (error) => {
+        assert.ok(error instanceof Error);
+        assert.ok(!(error instanceof TypeError));
+        assert.equal(error.status, 502);
+        assert.ok(error.message.includes('502'));
+        assert.doesNotMatch(error.message, /\[object Object\]/);
+        return true;
+      });
+    }
+  } finally { globalThis.fetch = previous; }
+});
+
+test('well-formed API responses return their JSON result', async () => {
+  const previous = globalThis.fetch;
+  globalThis.fetch = async () => new Response('{"node":{"id":"created-node"}}', { status: 201 });
+  try { assert.deepEqual(await api.addNode({ type: 'note', title: 'A note' }), { node: { id: 'created-node' } }); }
   finally { globalThis.fetch = previous; }
 });
 
