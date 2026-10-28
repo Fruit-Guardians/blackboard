@@ -72,12 +72,32 @@ blackboard edit "<候选ID>" --confidence static-confirmed --detail "已核对�
 
 ## 短 ID 与查询
 
-使用 `node add` 返回的 ID，或用 `ls`/`show` 查询；允许足够长且唯一的 ID 前缀。前缀有歧义时，按 CLI 给出的候选选择完整 ID，不猜、不取列表第一项。
+使用 `node add` 返回的 ID，或用 `search` / `show` 查询；允许足够长且唯一的 ID 前缀。前缀有歧义时，按 CLI 给出的候选选择完整 ID，不猜、不取列表第一项。
 
 ```sh
-blackboard ls --cwd "/已确认项目"
+blackboard ls --all --cwd "/已确认项目"
 blackboard show "<节点ID或唯一前缀>" --cwd "/已确认项目"
 ```
+
+`ls` 默认只返回最近 30 条；截断会在 stderr 说明匹配、显示和省略数，JSON stdout 仍是数组。完整读取用 `--all`，与 `--limit` 互斥；`features.listAll` 声明此能力。程序需要总数时用下方 `search.total`，不解析提示文字。
+
+### 查询与统计
+
+```sh
+blackboard search "session cookie" --json --cwd "/已确认项目"
+blackboard search --type vuln --sev high --confidence reproduced --json --cwd "/已确认项目"
+blackboard search --tag site=alpha.example --tag auth --group-by severity,status --cwd "/已确认项目"
+blackboard search --type vuln --group-by tag:site,severity,status --limit 1 --json --cwd "/已确认项目"
+```
+
+- 关键词按字面量匹配；`--type`、`--status`、`--sev`、`--confidence`、可重复的 `--tag` 和 `--rel` / `--related-to` 可组合，取交集。未填状态不等于 `open`；只读查询不推断或更改节点。
+- `total` 是全部匹配数，`items` 是最多 `--limit` 条明细（默认 30，上限 1000），`truncated` 表示明细是否截断。不要根据 `items.length` 统计全部结果。
+- `--group-by` 支持 `severity`、`status`、`tag:<键>`，可用逗号组合。JSON 的 `groups` 每项为 `{values: {...}, count}`，覆盖全部匹配，不受 `--limit` 影响；缺省值独立列为 `null`。文本模式只列总数和全部分组。
+- 站点显式记录为 `--tag site=alpha.example`；`tag:site` 只读这个约定，不猜正文或裸域名标签。一个节点有多个站点标签时，每站各计一次，不代表多条独立发现。
+- 多标签用 `--tag auth --tag session`，不是 `--tag auth,session`；后者是一个字面量标签。重复同值标签不重复计数，不替旧数据改写标签。
+
+`features.searchFilters` 声明严重度/可信度筛选，`features.searchGrouping` 声明分组统计；新选项只用于声明了相应能力的 CLI。`BLACKBOARD_CWD` 可在同一终端一次设置，`--cwd` 优先；跨工具调用和子 Agent 仍应显式传项目路径。
+
 
 ## 游标与检查点
 

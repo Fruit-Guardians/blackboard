@@ -139,9 +139,12 @@ ${b('恢复与查看')}
     --focus <id> --depth <0-5> --budget <tokens> --since <checkpoint|timestamp>
     默认输出 JSON；--markdown 输出便于人读的摘要
   blackboard lint [--json]                   只读检查上下文质量，不修改也不拦截
-  blackboard ls [--type hypothesis] [--open] [-n 30]
+  blackboard ls [--type hypothesis] [--open] [--limit 30 | --all]
   blackboard show <id>
-  blackboard search "关键词" [--type … --tag … --rel … --related-to <id> --json]
+  blackboard search [关键词] [--type … --tag … --status … --sev … --confidence …]
+    --rel … --related-to <id> --limit <1-1000> --json
+    --group-by severity,status,tag:site       按全部匹配统计；未填写单列为 null
+    --tag site=example.test --tag auth        标签精确匹配，多个标签取交集
   blackboard history <id> [--json]           节点与关联变更历史（含已删除节点）
   blackboard changes --since <checkpoint> [--json]   交接后差异与事件过程
   blackboard backup --out <新备份目录> [--json]      原始事件＋校验清单
@@ -212,12 +215,12 @@ const COMMAND_FLAGS = {
   edit: `title detail status sev confidence tag ${WRITE_FLAGS} no-truncate json`,
   link: `rel kind label ${WRITE_FLAGS} no-truncate json`, unlink: `rel kind ${WRITE_FLAGS} json`,
   remove: `reason ${WRITE_FLAGS} json`, rm: `reason ${WRITE_FLAGS} json`,
-  ls: 'type open open-only limit cwd json', list: 'type open open-only limit cwd json',
+  ls: 'type open open-only limit all cwd json', list: 'type open open-only limit all cwd json',
   show: 'cwd json', tree: 'depth cwd', digest: 'agent write quiet cwd json',
   context: 'focus depth budget since limit agent markdown cwd json',
   lint: 'cwd json', tail: 'agent cwd json', serve: 'port open read-only cwd',
   export: 'out cwd json', reset: `yes ${WRITE_FLAGS} json`,
-  search: 'type tag status rel related-to limit cwd json', history: 'cwd json', changes: 'since cwd json',
+  search: 'type tag status sev confidence rel related-to group-by limit cwd json', history: 'cwd json', changes: 'since cwd json',
   backup: 'out cwd json', restore: 'into cwd json', receipt: 'cwd json', capabilities: 'json',
   hooks: 'write user project with-activity cwd json',
   skill: 'codex user project cwd json', launcher: 'user project json',
@@ -314,6 +317,7 @@ function parseArgs(argv, cmd = '') {
   for (const pair of [['user', 'project'], ['rel', 'kind'], ['markdown', 'json'],
     ['to', 'parent'], ['to', 'relate-here'],
     ...(cmd === 'promote' ? [['kind', 'type']] : []),
+    ...(['ls', 'list'].includes(cmd) ? [['all', 'limit']] : []),
     ...(['checkpoint', 'compact'].includes(cmd) ? [['summary', 'title']] : [])]) {
     if (pair.every((key) => flags[key] !== undefined)) fail(`选项 --${pair[0]} 与 --${pair[1]} 冲突`);
   }
@@ -500,8 +504,11 @@ function cmdList(args, flags) {
     nodes = nodes.filter((n) =>
       isOpenThread(n));
   }
-  const limit = Number(flags.limit || flags.n || 30);
-  nodes = nodes.slice(-limit);
+  const total = nodes.length;
+  if (!flags.all) nodes = nodes.slice(-Number(flags.limit || 30));
+  if (nodes.length < total) {
+    console.error(`blackboard ls：匹配 ${total} 条，显示最近 ${nodes.length} 条，已省略 ${total - nodes.length} 条；使用 --all 读取全部，或用 --limit 调整条数。`);
+  }
   if (flags.json) return out(flags, nodes, OUTPUTS.ls);
   if (!nodes.length) return console.log(C.dim('（空）'));
   for (const n of nodes) console.log(nodeLine(n));
@@ -637,9 +644,18 @@ function cmdSearch(args, flags) {
   const relatedTo = flags['related-to'] ? refOrFail(graph.nodes, flags['related-to']) : undefined;
   const result = searchGraph(graph, {
     query: args.join(' '), type: flags.type, tags: flags.tag, status: flags.status,
+    severity: flags.sev, confidence: flags.confidence, groupBy: flags['group-by'],
     relation: flags.rel, relatedTo, limit: flags.limit || 30,
   });
   if (flags.json) return out(flags, result, OUTPUTS.search);
+  if (result.groups) {
+    console.log(`${result.total} 条匹配 · 按 ${result.groupBy.join('、')} 统计全部匹配`);
+    for (const group of result.groups) {
+      const values = result.groupBy.map((field) => `${field}=${group.values[field] === null ? '未填写' : JSON.stringify(group.values[field])}`);
+      console.log(`${group.count}\t${values.join(' · ')}`);
+    }
+    return;
+  }
   console.log(`${result.total} 条匹配${result.truncated ? `（显示 ${result.items.length} 条）` : ''}`);
   for (const item of result.items) {
     console.log(nodeLine(item.node));
@@ -714,7 +730,8 @@ function cmdCapabilities(args, flags) {
     features: { context: true, incrementalContext: true, search: true, nodeHistory: true,
       checkpointChanges: true, backupRestore: true, requestReceipts: true,
       writeAttribution: true, cwdFlag: true, noInit: true,
-      rejectTruncation: true, inputTruncationMetadata: true, nodeEdgeLabel: true },
+      rejectTruncation: true, inputTruncationMetadata: true, nodeEdgeLabel: true,
+      searchFilters: true, searchGrouping: true, listAll: true },
     contextContract: { readOnly: true, prescriptive: false, nextStepSelection: 'agent-controlled' },
     limits: LIMITS,
     outputs: OUTPUTS,

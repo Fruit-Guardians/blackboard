@@ -220,6 +220,53 @@
           "author": "agent:primary"
         }
       ]
+    },
+    {
+      "board": "research",
+      "args": [
+        "ls",
+        "--all",
+        "--type",
+        "fact",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": [
+        {
+          "id": "f1",
+          "type": "fact",
+          "title": "Login posts to /api/session",
+          "ts": 1767225840000,
+          "session": "session_FIXTURE",
+          "detail": "Observed in the form markup.",
+          "author": "agent:primary",
+          "confidence": "confirmed"
+        },
+        {
+          "id": "f2",
+          "type": "fact",
+          "title": "Session cookie lacks SameSite",
+          "ts": 1767225900000,
+          "session": "session_FIXTURE",
+          "author": "agent:primary",
+          "confidence": "static-confirmed"
+        },
+        {
+          "id": "f3",
+          "type": "fact",
+          "title": "Server returns the same id after login",
+          "ts": 1767226740000,
+          "session": "session_FIXTURE",
+          "tags": [
+            "promoted",
+            "bash"
+          ],
+          "author": "agent:primary",
+          "activityId": "act1"
+        }
+      ]
     }
   ]
 }

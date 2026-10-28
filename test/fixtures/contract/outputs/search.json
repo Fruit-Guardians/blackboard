@@ -258,6 +258,221 @@
         ],
         "truncated": false
       }
+    },
+    {
+      "board": "research",
+      "args": [
+        "search",
+        "--type",
+        "vuln",
+        "--sev",
+        "high",
+        "--confidence",
+        "static-confirmed",
+        "--group-by",
+        "severity,status",
+        "--limit",
+        "1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.search.v1",
+        "readOnly": true,
+        "prescriptive": false,
+        "query": "",
+        "total": 1,
+        "items": [
+          {
+            "id": "v1",
+            "node": {
+              "id": "v1",
+              "type": "vuln",
+              "title": "Session fixation on login",
+              "ts": 1767225960000,
+              "session": "session_FIXTURE",
+              "detail": "The session id survives authentication; reproduced twice.",
+              "author": "agent:primary",
+              "severity": "high",
+              "confidence": "static-confirmed",
+              "updated": 1767226200000,
+              "updatedBy": "agent:primary"
+            },
+            "matches": [],
+            "relations": [
+              {
+                "id": "v1->f2:depends-on",
+                "from": "v1",
+                "to": "f2",
+                "kind": "depends-on",
+                "ts": 1767225960000,
+                "author": "agent:primary"
+              },
+              {
+                "id": "h1->v1:related-to",
+                "from": "h1",
+                "to": "v1",
+                "kind": "related-to",
+                "ts": 1767226020000,
+                "author": "agent:primary"
+              },
+              {
+                "id": "f3->v1:supports",
+                "from": "f3",
+                "to": "v1",
+                "kind": "supports",
+                "ts": 1767226740000,
+                "author": "agent:primary"
+              }
+            ]
+          }
+        ],
+        "truncated": false,
+        "groupBy": [
+          "severity",
+          "status"
+        ],
+        "groups": [
+          {
+            "values": {
+              "severity": "high",
+              "status": null
+            },
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "board": "research",
+      "args": [
+        "search",
+        "--group-by",
+        "tag:site,status",
+        "--limit",
+        "1",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.search.v1",
+        "readOnly": true,
+        "prescriptive": false,
+        "query": "",
+        "total": 8,
+        "items": [
+          {
+            "id": "g1",
+            "node": {
+              "id": "g1",
+              "type": "goal",
+              "title": "Map the login flow",
+              "ts": 1767225660000,
+              "session": "session_FIXTURE",
+              "detail": "Find every step between the form and the session cookie.",
+              "tags": [
+                "auth",
+                "web"
+              ],
+              "author": "agent:primary",
+              "status": "active",
+              "updated": 1767227040000,
+              "updatedBy": "agent:primary"
+            },
+            "matches": [],
+            "relations": [
+              {
+                "id": "i1->g1:supports",
+                "from": "i1",
+                "to": "g1",
+                "kind": "supports",
+                "ts": 1767225720000,
+                "author": "agent:primary"
+              },
+              {
+                "id": "f1->g1:supports",
+                "from": "f1",
+                "to": "g1",
+                "kind": "supports",
+                "ts": 1767225840000,
+                "author": "agent:primary"
+              },
+              {
+                "id": "f2->g1:related-to",
+                "from": "f2",
+                "to": "g1",
+                "kind": "related-to",
+                "ts": 1767225900000,
+                "author": "agent:primary"
+              }
+            ]
+          }
+        ],
+        "truncated": true,
+        "groupBy": [
+          "tag:site",
+          "status"
+        ],
+        "groups": [
+          {
+            "values": {
+              "tag:site": null,
+              "status": "active"
+            },
+            "count": 1
+          },
+          {
+            "values": {
+              "tag:site": null,
+              "status": "done"
+            },
+            "count": 1
+          },
+          {
+            "values": {
+              "tag:site": null,
+              "status": "open"
+            },
+            "count": 1
+          },
+          {
+            "values": {
+              "tag:site": null,
+              "status": null
+            },
+            "count": 5
+          }
+        ]
+      }
+    },
+    {
+      "board": "empty",
+      "args": [
+        "search",
+        "--group-by",
+        "severity",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.search.v1",
+        "readOnly": true,
+        "prescriptive": false,
+        "query": "",
+        "total": 0,
+        "items": [],
+        "truncated": false,
+        "groupBy": [
+          "severity"
+        ],
+        "groups": []
+      }
     }
   ]
 }

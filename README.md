@@ -42,7 +42,7 @@
 
 - **恢复口径**：未指定置信度不计为确认；已反驳/取代项独立呈现；未知类型可恢复或明确报告省略。JSON 与 Markdown 保留交接摘要、状态、置信度、来源与关系方向。
 - **变化追溯**：查看 checkpoint 后的节点/关系差异，以及节点字段和关联历史。界面历史只读，离线导出不请求本地服务。
-- **记录与检索**：关联两个已有节点；查看来源/标签；独立编辑严重度与置信度；CLI 确定性文本和字段检索。
+- **记录与检索**：关联已有节点；按关键词、类型、状态、严重度、可信度、标签和关系检索；按严重度、状态、站点标签统计全部匹配，未填值独立计数。
 - **长期可靠性**：原始事件备份/校验恢复，显式 request ID 去重与提交回执，打包验证、跨平台运行时 CI 和可复现性能基线。
 
 ```bash
@@ -322,6 +322,7 @@ blackboard digest --write
 | 要做的事 | 命令 |
 | --- | --- |
 | 看现状、列出记录 | `blackboard status` / `blackboard ls` / `blackboard show hy1` |
+| 筛选、统计记录 | `blackboard search --type vuln --sev high --confidence reproduced` / `blackboard search --type vuln --group-by severity,status` |
 | 新建、编辑节点 | `blackboard node add <类型> "标题" [--to hy1 --rel supports]` / `blackboard edit hy1 --status active` |
 | 声明、移除关系 | `blackboard link o1 hy1 --rel supports` / `blackboard unlink o1 hy1 --rel supports` |
 | 移动、清空游标 | `blackboard cursor hy1 --reason "继续验证"` / `blackboard cursor none` |
@@ -330,6 +331,25 @@ blackboard digest --write
 | 从图中移除节点 | `blackboard remove hy1 --reason "合并到其他结论"`，事件历史仍保留 |
 
 所有命令支持 `--help` / `-h`，查看帮助不会执行安装或启动服务。`init`、`setup`、`status`、`skill install`、`hooks install|uninstall`、`launcher`、`export` 支持单个 JSON 对象输出；节点写入与常用查询也可用 `--json`。
+
+### 查询、统计与完整列表
+
+```bash
+blackboard search "session cookie" --tag auth --json
+blackboard search --type vuln --sev high --confidence reproduced --json
+blackboard search --tag site=alpha.example --tag auth --group-by severity,status
+blackboard search --type vuln --group-by tag:site,severity,status --limit 1 --json
+blackboard ls --all --json
+```
+
+`search` 支持关键词、`--type`、`--status`、`--sev`、`--confidence`、可重复的 `--tag`，以及 `--rel` / `--related-to`。筛选取交集，不自动推断缺省字段。需要总数时读 JSON 的 `total`；`items` 默认最多 30 条，`--limit` 可设 1–1000，`truncated` 说明明细是否截断。
+
+`--group-by` 支持 `severity`、`status` 和 `tag:<键>` 的组合；统计始终覆盖全部匹配，与明细的 `--limit` 无关。JSON 增加 `groupBy` 与 `groups`，每项为 `{values: {...}, count}`；文本模式只列总数和分组。未填写单列为 `null`，不等同于 `open`；已复现也不隐含某个状态。
+
+站点用显式标签 `--tag site=alpha.example` 记录；`tag:site` 不从正文或裸域名猜测站点。一个节点可带多个站点标签，并在每个站点各计一次，所以跨站点分组的合计可能大于匹配节点数。多个标签请写 `--tag auth --tag session`；`--tag auth,session` 会保存或匹配一个带逗号的标签，不会拆分。
+
+`ls` 默认只列最近 30 条匹配记录，截断时在 stderr 说明匹配、显示和省略的数量；stdout 保持节点列表或 JSON 数组。`--all` 返回全部匹配，不能与 `--limit` 同用。项目路径仍可用 `--cwd`，或在同一终端设置 `BLACKBOARD_CWD`；跨工具与子 Agent 调用不要假设环境会自动继承。
+
 
 <details>
 <summary><strong>节点类型、短 ID 与常用参数</strong></summary>

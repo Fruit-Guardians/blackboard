@@ -83,7 +83,10 @@
           "noInit": true,
           "rejectTruncation": true,
           "inputTruncationMetadata": true,
-          "nodeEdgeLabel": true
+          "nodeEdgeLabel": true,
+          "searchFilters": true,
+          "searchGrouping": true,
+          "listAll": true
         },
         "contextContract": {
           "readOnly": true,

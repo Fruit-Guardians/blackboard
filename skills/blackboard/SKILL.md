@@ -51,6 +51,15 @@ blackboard context --budget 4000 --cwd "/已确认项目"
 blackboard status --cwd "/已确认项目"
 ```
 
+查找记录优先用 `search`，而不是导出列表再写临时过滤脚本；组合筛选、统计和完整列表见[查询用法](references/recording.md#查询与统计)：
+
+```sh
+blackboard search "关键词" --json --cwd "/已确认项目"
+blackboard search --type vuln --group-by severity,status --cwd "/已确认项目"
+```
+
+使用新筛选/分组前可读取 `capabilities --json` 的 `features.searchFilters` / `features.searchGrouping`；旧版本没有这些字段时不要使用新选项。读取 JSON 的 `total` 和 `truncated`，不要把返回的明细当作全部记录。
+
 关键猜测值得保留时，新建并显式进入；已知它服务于哪个目标时，用 `--to` 一并连上：
 
 ```sh
@@ -89,7 +98,7 @@ blackboard goal "审计 某库@1.2.3 的解析边界" --detail "源码：实际�
 只打开当前操作需要的参考，不一次加载全部：
 
 - [接入与打开](references/setup.md)：首次接入、其他宿主的通用安装、已有黑板、服务生命周期与 setup 副作用。
-- [记录语义](references/recording.md)：阈值、关系方向、可信度、短 ID、游标与检查点。
+- [记录语义](references/recording.md)：阈值、关系方向、可信度、查询筛选与统计、完整列表、游标与检查点。
 - [并行 Agent](references/parallel-agents.md)：每次显式项目/身份、Hook 继承边界、恢复与交接查询。
 - [可选的记录方法](methods/INDEX.md)：审计记录、研究记录方式、威胁建模等，每个一行说明。完全可选，用不用、用哪个由你决定，不用也是正常记录；只读你选中的那一个。
 

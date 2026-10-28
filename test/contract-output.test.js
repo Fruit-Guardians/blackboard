@@ -98,6 +98,7 @@ const CASES = {
     { board: 'research', args: ['ls', '--open-only', '--limit', '2'] },
     { board: 'empty', args: ['ls'] },
     { board: 'integrity', args: ['ls'] },
+    { board: 'research', args: ['ls', '--all', '--type', 'fact'] },
   ],
   show: [
     { board: 'research', args: ['show', 'v1'] },
@@ -125,6 +126,9 @@ const CASES = {
   search: [
     { board: 'research', args: ['search', 'session'] },
     { board: 'research', args: ['search', '--type', 'fact', '--rel', 'supports', '--related-to', 'v1'] },
+    { board: 'research', args: ['search', '--type', 'vuln', '--sev', 'high', '--confidence', 'static-confirmed', '--group-by', 'severity,status', '--limit', '1'] },
+    { board: 'research', args: ['search', '--group-by', 'tag:site,status', '--limit', '1'] },
+    { board: 'empty', args: ['search', '--group-by', 'severity'] },
   ],
   history: [
     { board: 'research', args: ['history', 'v1'] },

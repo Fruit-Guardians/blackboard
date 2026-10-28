@@ -52,7 +52,7 @@
 | `link` | — | `outputs/link.json` | `blackboard.edge.v1` | 关系记录 `{schema, id, from, to, kind, ts, author}`，可带 `label` |
 | `unlink` | — | `outputs/unlink.json` | `blackboard.edge.v1` | 被断开的关系记录 |
 | `remove` | `rm` | `outputs/remove.json` | `blackboard.remove.v1` | 对象 `{schema, id, edges}` |
-| `ls` | `list` | `outputs/ls.json` | `blackboard.node.v1` | 节点记录的数组，每项是 `blackboard.node.v1` |
+| `ls` | `list` | `outputs/ls.json` | `blackboard.node.v1` | 节点记录的数组；默认最近 30 条，`--all` 返回全部匹配，截断提示写到 stderr |
 | `show` | — | `outputs/show.json` | `blackboard.show.v1` | 对象 `{schema, node, parents, children}` |
 | `digest` | — | `outputs/digest.json` | `blackboard.digest.v1` | 对象 `{schema, digest}`，正文为 Markdown |
 | `context` | — | `outputs/context.json` | `blackboard.context.v1` | 恢复上下文，策略字段见下 |
@@ -60,7 +60,7 @@
 | `tail` | — | `outputs/tail.json` | `blackboard.tail.v1` | 对象 `{schema, tail}` |
 | `export` | — | `outputs/export.json` | `blackboard.export.v1` | 对象 `{schema, file}`，`file` 为绝对路径 |
 | `reset` | — | `outputs/reset.json` | `blackboard.reset.v1` | 重置后的状态对象（见“已知缺口”） |
-| `search` | — | `outputs/search.json` | `blackboard.search.v1` | 搜索结果 |
+| `search` | — | `outputs/search.json` | `blackboard.search.v1` | 搜索结果；`--group-by` 增加 `groupBy` 和覆盖全部匹配的 `groups` |
 | `history` | — | `outputs/history.json` | `blackboard.history.v1` | 单个节点的历史 |
 | `changes` | — | `outputs/changes.json` | `blackboard.changes.v1` | 某检查点以来的变化 |
 | `backup` | — | `outputs/backup.json` | `blackboard.backup-receipt.v1` | 备份回执 |
@@ -71,6 +71,23 @@
 写命令都接受 `--agent <名称>`、`--cwd <项目根>`、`--no-init`；`--request-id <稳定ID>` 用于可重试的写入，回执用 `receipt` 查询（见 [receipts.md](receipts.md)）。读命令接受 `--cwd`。项目根的优先级是 `--cwd` > `BLACKBOARD_CWD` > 当前目录向上最近的黑板。
 
 `context` 的返回包必须始终带 `readOnly: true`、`prescriptive: false`、`nextStepSelection: "agent-controlled"`（在 `policy` 里）。`search`、`history`、`changes` 同样带 `readOnly: true`、`prescriptive: false`。
+
+### 查询、统计与列表完整性
+
+`search [关键词]` 对关键词做大小写不敏感的字面量匹配，多词取交集。`--type`、`--status`、`--sev`、`--confidence` 按节点已记录的字段精确过滤，不从类型或其他字段推断；未填状态不等于 `open`，`refuted` 也不会因 confidence 已确认而自动排除。`--tag` 可重复，所有标签必须同时存在；`--tag auth --tag session` 是两个标签，`--tag auth,session` 是一个字面量标签。`--rel`、`--related-to` 仍按显式关系过滤。
+
+基础输出保持 `{schema, readOnly, prescriptive, query, total, items, truncated}`：`total` 是全部匹配节点数；`items` 默认最多 30 条，`--limit` 接受 1–1000；`truncated` 仅表示明细是否被截断。
+
+`--group-by <字段,...>` 接受 `severity`、`status` 和 `tag:<键>`，可组合，不接受空字段、重复字段或其他字段。指定时兼容地增加：
+
+- `groupBy`：按调用顺序列出的分组字段数组。
+- `groups`：`{values: {<字段>: <值或null>, ...}, count: <节点数>}` 数组。先应用全部筛选，再按全部匹配统计，不受 `--limit` 影响；没有匹配时为 `[]`。
+- `tag:site` 只读取显式的 `site=<值>` 标签，其他 `tag:<键>` 同理。不从标题、详情或裸域名标签猜测归属；缺少该键或只有空值标签时计入 `null`。
+- 一个节点对每种不同的标签值组合各计一次；重复标签值不重复计数。多站点或多值标签的节点可进入多个分组，所以分组数值之和可能超过 `total`。
+- 未填写的字段独立计为 `null`，不写回节点或事件。分组按声明字段依次比较，字符串字典序，`null` 排在最后。不带 `--json` 时，分组模式只打印总数和全部分组；JSON 仍保留受限的 `items`。
+
+`ls` / `list` 先应用类型和开放节点筛选，再按创建时间返回最近 30 条；`--limit` 调整条数，`--all` 返回全部匹配，两者互斥。截断时在 stderr 说明匹配数、返回数和省略数；stdout 仍只输出节点或 JSON 裸数组。stderr 是给人看的提示，不作为机器契约；程序需要总数时读取 `search.total`。
+
 
 ## 不在 v1 固定输出内的命令
 
