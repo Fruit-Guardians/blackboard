@@ -29,7 +29,7 @@
 - [方法框架](METHODS.md)（#18）：可选方法放进 `skills/blackboard/methods/`，目录由脚本生成，CI 做宪章检查；审计、研究、威胁建模都迁成方法包。
 - `show` 的文本输出显示关系名，并列出上游（#17）。
 - 查看器服务端与 CLI 一致，非空的未知关系原样保存；`node add` 接受 `--label`，`capabilities` 以 `nodeEdgeLabel` 声明（#19）。
-- 查询与统计：`search` 增加独立的严重度/可信度筛选和基于全部匹配的组合分组；`tag:site` 读取显式站点标签，缺省值单列为 `null`。`ls --all` 支持完整读取，截断在 stderr 说明数量；Skill 补齐查询与重复标签示例。
+- 查询与统计（0.7.0）：`search` 增加独立的严重度/可信度筛选和基于全部匹配的组合分组；`tag:site` 读取显式站点标签，缺省值单列为 `null`。`ls --all` 支持完整读取，截断在 stderr 说明数量；Skill 补齐查询与重复标签示例。
 
 ### exp1 告诉了我们什么
 

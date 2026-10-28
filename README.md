@@ -506,6 +506,8 @@ blackboard service uninstall      # 停止任务并删除本工具受管 plist
 
 ## 版本与升级
 
+`0.7.0` 增加严重度/可信度筛选、覆盖全部匹配的组合分组统计，以及 `ls --all` 和截断提示；同步更新查询 Skill。事件格式与现有 JSON schema 版本保持不变，旧安装可保留用于回滚。
+
 日常使用的 CLI、启动器、Skill、Hook 和常驻服务都指向 `~/.local/share/blackboard/current`（设置了 `XDG_DATA_HOME` 时位于其下），不指向开发仓库：
 
 ```text

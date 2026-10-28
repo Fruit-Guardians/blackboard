@@ -1,6 +1,6 @@
 {
   "name": "blackboard",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Agent 外置黑板：自由探索，持续记录逻辑节点、关系、当前游标与轨迹",
   "type": "module",
   "bin": {
