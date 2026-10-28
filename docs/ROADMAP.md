@@ -1,6 +1,6 @@
 # blackboard 发展方向
 
-> 更新：2026-10-28 · 当前维护版本：`0.8.2`；最初方向基线：`main` 8c9a52c（0.6.1）。
+> 更新：2026-10-28 · 当前维护版本：`0.8.3`；最初方向基线：`main` 8c9a52c（0.6.1）。
 > 本文是方向建议，不是承诺清单；每一阶段以“完成标准”收口，再决定下一步。
 > 上一版（2026-10-23，基线 8ccc06d）的 5 个方向已并入下面的阶段，进展见“已完成”。
 
@@ -34,6 +34,7 @@
 - 导出消费端回归（0.8.0）：Markdown 使用可导航标题与显式锚点；Mermaid 在默认边数与文本限额内导出；官方 SARIF schema 校验、Chromium 中的实际 Markdown/Mermaid 渲染及干净安装包的三格式检查接入 CI。GitHub code scanning 和 IDE 的实际导入仍需对应环境验证。
 - 兼容维护（0.8.1）：CLI 参数、帮助和终端格式移入 `lib/cli/`，共享输出与写入目标常量集中到 `lib/contracts.js`；实时与离线图快照共用 `lib/snapshot.js`，修复缓存焦点指向不存在节点时实时为 null、离线却保留失效 ID 的差异，离线仍省略活动 input/output/summary 与可写标记。前端派生数据与 URL 状态移入 `web/src/workspace/`；`scripts/lib/environment.mjs` 共用验证环境隔离，`scripts/lib/sarif-validator.mjs` 共用开发期官方 schema 校验，不进入运行时依赖。首页缩为入口，详细使用参考、架构与贡献规则分别归位。公开 CLI / JSON schema 与事件格式延续 0.8.0；验证命令与未覆盖范围见[贡献指南](../CONTRIBUTING.md)和 [CI](ci.md)，此项不预先声明本轮检查通过。
 - 兼容维护（0.8.2）：存储文件锁与事件字节读取移入 `lib/storage/`，修复读取异常时的描述符泄漏、短读遗漏和失败锁写入的残留；请求防护、JSON body 和显式写入移入 `lib/http/`。页面将损坏的成功响应视为结果不确定并保留草稿；Postman 验证脚本增加硬超时并等待输出排空。离线文档路径、图片与锚点检查加入本地 `check` 和 CI，公开 CLI / JSON schema 与事件格式保持不变。
+- 兼容维护（0.8.3）：版本包复制与发布移入 `lib/release/`，修复强制重装发布失败后旧版本滞留临时目录、current 失效的问题；回滚与清理失败均保留原错误并报告恢复路径。实时推送移入 `lib/http/graph-stream.js`，无订阅时不轮询日志，慢连接按背压合并为最新快照；前端订阅移入 `web/src/workspace/graph-stream.ts`，拒绝顶层结构无效的快照并保留上一份画面，释放时中止请求，连接建立不再提前显示已同步。公开 CLI / JSON schema 与事件格式保持不变。
 
 ### exp1 告诉了我们什么
 

@@ -132,7 +132,7 @@ blackboard 不是行动前置条件，不替 Agent 决定下一步。具体体�
 
 - 零运行时依赖，只需 Node ≥ 18；前端依赖全部是 devDependencies，`public/` 带构建产物，CLI 即装即用。
 - `lib/model.js` 必须保持无 Node-only API：被 CLI、server 和浏览器共用。
-- `lib/contracts.js` 是 CLI、服务和导出的共享契约常量；`lib/cli/` 只放参数解析、帮助和终端格式，命令调度仍在唯一入口。实时与离线图快照共用 `lib/snapshot.js`；前端工作台派生数据与 URL 状态在 `web/src/workspace/`。这些是内部路径，不向适配器承诺稳定性。
+- `lib/contracts.js` 是 CLI、服务和导出的共享契约常量；`lib/cli/` 只放参数解析、帮助和终端格式，命令调度仍在唯一入口。实时与离线图快照共用 `lib/snapshot.js`，实时推送在 `lib/http/graph-stream.js`；版本包发布在 `lib/release/`。前端工作台派生数据、URL 状态与实时订阅在 `web/src/workspace/`。这些是内部路径，不向适配器承诺稳定性。
 - `scripts/lib/` 只共享开发验证辅助实现；运行时 `lib/` / `bin/` 不依赖 `scripts/`、`test/` 或插件。开发与测试职责见 [架构说明](docs/ARCHITECTURE.md)，具体命令与生成产物规则见 [贡献指南](CONTRIBUTING.md)。
 - 命名已完成 breaking cutover：唯一 CLI 是 `blackboard`（`bin/blackboard.js`），环境变量只用 `BLACKBOARD_*`，数据目录只用 `.blackboard/`。不保留 `flow` 入口、`FLOW_*` 读取或 `.flow/` 回退，不新增自动迁移/别名；其他项目按 README 手动重命名目录、重装 Skill/Hook，事件原文不改写。
 - Skill 的唯一源是完整的 `skills/blackboard/` 包：`SKILL.md` 保持聚焦，参考资料按需加载，`agents/openai.yaml` 与 `assets/` 承载展示信息。安装和发布必须包含完整目录，不恢复内嵌副本，也不只复制入口而遗漏资源。

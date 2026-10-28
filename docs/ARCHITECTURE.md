@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [贡献指南](../CONTRIBUTING.md) · [工程原则](../AGENT.md) · [公开契约](CONTRACT.md)
 
-本文描述 `0.8.2` 的源码组织：CLI 支持代码、实时与离线图快照、前端派生状态、存储文件 I/O 和 HTTP 写入各有明确边界，开发验证脚本复用公共辅助实现。模块路径是实现细节，宿主与脚本依赖的稳定接口只由[公开契约](CONTRACT.md)定义。
+本文描述 `0.8.3` 的源码组织：CLI 支持代码、实时与离线图快照、实时推送与前端订阅、存储文件 I/O、HTTP 写入和版本包发布各有明确边界，开发验证脚本复用公共辅助实现。模块路径是实现细节，宿主与脚本依赖的稳定接口只由[公开契约](CONTRACT.md)定义。
 
 ## 数据如何流动
 
@@ -38,10 +38,11 @@ flowchart TD
 | `lib/context.js`、`lib/digest.js`、`lib/search.js`、`lib/history.js`、`lib/lint.js` | 由已记录的内容生成上下文、摘要、查询、追溯与提示；省略明确报告，不推断缺省维度 |
 | `lib/snapshot.js` | Node 运行时中的 `buildGraphSnapshot`；实时 HTTP / SSE 与离线 HTML 共用图、身份与有效焦点投影，通过选项保留各自的可写性和活动详情边界 |
 | `lib/server.js`、`lib/service.js` | loopback HTTP / SSE、读取路由、静态资产、服务端口与身份探测 |
-| `lib/http/` | `request.js` 统一请求防护、JSON body 与错误响应；`write.js` 处理显式写入、署名、冲突与回执，不管理服务生命周期 |
+| `lib/http/` | `request.js` 统一请求防护、JSON body 与错误响应；`write.js` 处理显式写入、署名、冲突与回执；`graph-stream.js` 只在有订阅者时轮询日志并推送完整快照，慢连接按 `drain` 只保留最新一份待发快照；均不管理服务生命周期 |
 | `lib/export*.js` | 离线 HTML、文本报告、筛选数据与格式序列化；不新增事实源 |
 | `lib/backup.js`、`lib/receipts.js` | 可校验备份恢复、从事件投影的写入回执 |
 | `lib/setup.js`、`lib/hooks.js`、`lib/release.js` | 接入安装、可选 Claude Hook、稳定版本与 current 切换；开发仓库不直接替代日常安装 |
+| `lib/release/` | `publication.js` 复制包文件、发布版本目录与 current 链接；强制替换失败时恢复原版本，回滚或清理失败时保留旧字节并报告恢复路径 |
 | `skills/blackboard/` | 完整 Skill 的唯一发布源：入口、参考、方法、图标和宿主展示元信息一起分发 |
 | `web/src/` | React 工作台，读取 API / SSE 或离线快照，保留显式编辑、冲突草稿和 Agent 阅读视角 |
 | `public/` | Vite 从 `web/` 生成的分发资产，随根包提供给服务与离线导出 |
@@ -67,8 +68,9 @@ flowchart TD
 - `selectors.ts`：纯快照索引、侧栏分组与筛选统计、Agent 阅读视角。
 - `use-workspace-data.ts`：派生数据和画布投影的 React memo 边界。
 - `use-workspace-location.ts`：读取 URL 初始值，并同步 Agent / view / node 地址；不承担依赖快照的节点选择与布局恢复。
+- `graph-stream.ts`：实时订阅控制器，管理 `/api/graph` 读取、`/events` 流、按请求开始排序和释放时中止请求；只接受顶层结构有效的图快照，无效数据保留上一份快照并显示离线，连接建立本身不算已同步。`use-graph-stream.ts` 只把它接入 React 状态。
 
-现有 `graph.ts` 负责图投影，`presentation.ts` 负责记录的显示语义，`api.ts` / `use-graph-stream.ts` 负责请求和实时快照，`panels/` 负责面板。浏览器共享模型不得通过新的间接 import 引入文件系统、进程或开发脚本。界面风格见[界面规范](../design/UI_SYSTEM.md)。
+现有 `graph.ts` 负责图投影，`presentation.ts` 负责记录的显示语义，`api.ts` 负责写请求，`panels/` 负责面板。浏览器共享模型不得通过新的间接 import 引入文件系统、进程或开发脚本。界面风格见[界面规范](../design/UI_SYSTEM.md)。
 
 切换 Agent 只切换阅读视角。写请求仍由用户明确发起，只提交实际变更字段和对应基准；冲突保留草稿。实时工作台与离线 HTML 使用相同的图 schema 和身份语义，离线页面保留上述字段裁减，也不访问远端历史接口。
 
@@ -93,8 +95,9 @@ DSH 的 CLI 桥每次显式传 `--cwd`、`--agent`，写入另加 `--no-init`；
 | 服务写入、历史与回执 | `test/api-receipts.test.js`、`test/input-integrity-api.test.js`；可选 `npm run verify:api` 需要 Postman CLI |
 | 视角、筛选、显示与图布局 | `test/frontend.test.js`、`test/canvas.test.js`、`test/web-completeness.test.js`；纯模块测试不等于完整浏览器交互验收 |
 | 实时 / 离线图快照一致性 | `test/snapshot.test.js`：通过真实 HTTP 与导出的 HTML 检查失效缓存焦点处理，并保留离线活动详情与可写标记的裁减边界 |
+| 实时推送与订阅 | `test/graph-stream-delivery.test.js` 覆盖慢连接合并、空闲后加入和已断开读者；`test/graph-stream.test.js` 覆盖前端排序、无效快照保留、释放中止和离线导出不发请求 |
 | HTML、Markdown、Mermaid、SARIF | `test/export*.test.js`，再用 `npm run verify:exports` 做 Chromium 消费端与官方 SARIF schema 验证 |
-| 包边界与 Node 运行时 | `test/packaging.test.js`、`npm run verify:package`；真实 tarball 的干净消费者安装 |
+| 包边界、版本发布与 Node 运行时 | `test/packaging.test.js`、`test/release.test.js` 的发布失败回滚与清理、`npm run verify:package`；真实 tarball 的干净消费者安装 |
 | Skill、可选方法、公开内容 | `test/skill.test.js`、`test/methods.test.js`、`test/publication.test.js`、`npm run check:publish` |
 | 文档路径、图片与锚点 | `test/docs.test.js`、`npm run check:docs`；本地解析公开 Markdown，不探测外部站点 |
 | DSH 插件 | 插件自己的 `test/` 与 `npm run check`；真实 Host、设置页、profile 与模型检查按[插件文档](../plugins/dsh-blackboard/README.md#测试)分别执行 |
