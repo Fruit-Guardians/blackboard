@@ -11,7 +11,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.context.v1",
+        "schema": "blackboard.context.v2",
         "policy": {
           "readOnly": true,
           "prescriptive": false,
@@ -75,6 +75,7 @@
           "id": "v1",
           "type": "vuln",
           "title": "Session fixation on login",
+          "status": null,
           "severity": "high",
           "confidence": "static-confirmed",
           "detail": "The session id survives authentication; reproduced twice.",
@@ -88,6 +89,8 @@
             "type": "goal",
             "title": "Map the login flow",
             "status": "active",
+            "severity": null,
+            "confidence": null,
             "tags": [
               "auth",
               "web"
@@ -107,6 +110,8 @@
               "id": "f2",
               "type": "fact",
               "title": "Session cookie lacks SameSite",
+              "status": null,
+              "severity": null,
               "confidence": "static-confirmed",
               "author": "agent:primary",
               "at": 1767225900000
@@ -120,6 +125,9 @@
               "id": "h1",
               "type": "hint",
               "title": "Check whether logout rotates the id",
+              "status": null,
+              "severity": null,
+              "confidence": null,
               "author": "agent:primary",
               "at": 1767226020000
             }
@@ -132,6 +140,9 @@
               "id": "f3",
               "type": "fact",
               "title": "Server returns the same id after login",
+              "status": null,
+              "severity": null,
+              "confidence": null,
               "tags": [
                 "promoted",
                 "bash"
@@ -149,6 +160,8 @@
               "type": "goal",
               "title": "Map the login flow",
               "status": "active",
+              "severity": null,
+              "confidence": null,
               "tags": [
                 "auth",
                 "web"
@@ -167,6 +180,8 @@
               "id": "f1",
               "type": "fact",
               "title": "Login posts to /api/session",
+              "status": null,
+              "severity": null,
               "confidence": "confirmed",
               "detail": "Observed in the form markup.",
               "author": "agent:primary",
@@ -180,6 +195,8 @@
             "type": "question",
             "title": "Does SSO share the same handler?",
             "status": "open",
+            "severity": null,
+            "confidence": null,
             "tags": [
               "sso"
             ],
@@ -193,6 +210,7 @@
             "id": "v1",
             "type": "vuln",
             "title": "Session fixation on login",
+            "status": null,
             "severity": "high",
             "confidence": "static-confirmed",
             "detail": "The session id survives authentication; reproduced twice.",
@@ -206,6 +224,8 @@
             "id": "f2",
             "type": "fact",
             "title": "Session cookie lacks SameSite",
+            "status": null,
+            "severity": null,
             "confidence": "static-confirmed",
             "author": "agent:primary",
             "at": 1767225900000
@@ -214,6 +234,8 @@
             "id": "f1",
             "type": "fact",
             "title": "Login posts to /api/session",
+            "status": null,
+            "severity": null,
             "confidence": "confirmed",
             "detail": "Observed in the form markup.",
             "author": "agent:primary",
@@ -226,6 +248,9 @@
             "id": "h1",
             "type": "hint",
             "title": "Check whether logout rotates the id",
+            "status": null,
+            "severity": null,
+            "confidence": null,
             "author": "agent:primary",
             "at": 1767226020000
           }
@@ -235,6 +260,9 @@
             "id": "f3",
             "type": "fact",
             "title": "Server returns the same id after login",
+            "status": null,
+            "severity": null,
+            "confidence": null,
             "tags": [
               "promoted",
               "bash"
@@ -247,6 +275,8 @@
             "type": "intent",
             "title": "Read the login handler first",
             "status": "done",
+            "severity": null,
+            "confidence": null,
             "author": "agent:primary",
             "updatedBy": "agent:primary",
             "at": 1767226440000
@@ -328,7 +358,7 @@
         ],
         "omitted": {},
         "truncated": false,
-        "estimatedTokens": 1160
+        "estimatedTokens": 1279
       }
     },
     {
@@ -343,7 +373,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.context.v1",
+        "schema": "blackboard.context.v2",
         "policy": {
           "readOnly": true,
           "prescriptive": false,
@@ -407,6 +437,7 @@
           "id": "v1",
           "type": "vuln",
           "title": "Session fixation on login",
+          "status": null,
           "severity": "high",
           "confidence": "static-confirmed",
           "detail": "The session id survives authentication; reproduced twice.",
@@ -420,6 +451,8 @@
             "type": "goal",
             "title": "Map the login flow",
             "status": "active",
+            "severity": null,
+            "confidence": null,
             "tags": [
               "auth",
               "web"
@@ -439,6 +472,8 @@
               "id": "f2",
               "type": "fact",
               "title": "Session cookie lacks SameSite",
+              "status": null,
+              "severity": null,
               "confidence": "static-confirmed",
               "author": "agent:primary",
               "at": 1767225900000
@@ -452,6 +487,9 @@
               "id": "h1",
               "type": "hint",
               "title": "Check whether logout rotates the id",
+              "status": null,
+              "severity": null,
+              "confidence": null,
               "author": "agent:primary",
               "at": 1767226020000
             }
@@ -464,6 +502,9 @@
               "id": "f3",
               "type": "fact",
               "title": "Server returns the same id after login",
+              "status": null,
+              "severity": null,
+              "confidence": null,
               "tags": [
                 "promoted",
                 "bash"
@@ -481,6 +522,8 @@
               "type": "goal",
               "title": "Map the login flow",
               "status": "active",
+              "severity": null,
+              "confidence": null,
               "tags": [
                 "auth",
                 "web"
@@ -499,6 +542,8 @@
               "id": "f1",
               "type": "fact",
               "title": "Login posts to /api/session",
+              "status": null,
+              "severity": null,
               "confidence": "confirmed",
               "detail": "Observed in the form markup.",
               "author": "agent:primary",
@@ -512,6 +557,8 @@
             "type": "question",
             "title": "Does SSO share the same handler?",
             "status": "open",
+            "severity": null,
+            "confidence": null,
             "tags": [
               "sso"
             ],
@@ -525,6 +572,7 @@
             "id": "v1",
             "type": "vuln",
             "title": "Session fixation on login",
+            "status": null,
             "severity": "high",
             "confidence": "static-confirmed",
             "detail": "The session id survives authentication; reproduced twice.",
@@ -538,6 +586,8 @@
             "id": "f2",
             "type": "fact",
             "title": "Session cookie lacks SameSite",
+            "status": null,
+            "severity": null,
             "confidence": "static-confirmed",
             "author": "agent:primary",
             "at": 1767225900000
@@ -546,6 +596,8 @@
             "id": "f1",
             "type": "fact",
             "title": "Login posts to /api/session",
+            "status": null,
+            "severity": null,
             "confidence": "confirmed",
             "detail": "Observed in the form markup.",
             "author": "agent:primary",
@@ -558,6 +610,9 @@
             "id": "h1",
             "type": "hint",
             "title": "Check whether logout rotates the id",
+            "status": null,
+            "severity": null,
+            "confidence": null,
             "author": "agent:primary",
             "at": 1767226020000
           }
@@ -567,6 +622,9 @@
             "id": "f3",
             "type": "fact",
             "title": "Server returns the same id after login",
+            "status": null,
+            "severity": null,
+            "confidence": null,
             "tags": [
               "promoted",
               "bash"
@@ -579,6 +637,8 @@
             "type": "intent",
             "title": "Read the login handler first",
             "status": "done",
+            "severity": null,
+            "confidence": null,
             "author": "agent:primary",
             "updatedBy": "agent:primary",
             "at": 1767226440000
@@ -590,6 +650,8 @@
             "type": "goal",
             "title": "Map the login flow",
             "status": "active",
+            "severity": null,
+            "confidence": null,
             "tags": [
               "auth",
               "web"
@@ -603,6 +665,9 @@
             "id": "f3",
             "type": "fact",
             "title": "Server returns the same id after login",
+            "status": null,
+            "severity": null,
+            "confidence": null,
             "tags": [
               "promoted",
               "bash"
@@ -615,6 +680,8 @@
             "type": "question",
             "title": "Does SSO share the same handler?",
             "status": "open",
+            "severity": null,
+            "confidence": null,
             "tags": [
               "sso"
             ],
@@ -627,6 +694,8 @@
             "type": "intent",
             "title": "Read the login handler first",
             "status": "done",
+            "severity": null,
+            "confidence": null,
             "author": "agent:primary",
             "updatedBy": "agent:primary",
             "at": 1767226440000
@@ -635,6 +704,7 @@
             "id": "v1",
             "type": "vuln",
             "title": "Session fixation on login",
+            "status": null,
             "severity": "high",
             "confidence": "static-confirmed",
             "detail": "The session id survives authentication; reproduced twice.",
@@ -774,7 +844,7 @@
         ],
         "omitted": {},
         "truncated": false,
-        "estimatedTokens": 1631
+        "estimatedTokens": 1791
       }
     },
     {
@@ -793,7 +863,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.context.v1",
+        "schema": "blackboard.context.v2",
         "policy": {
           "readOnly": true,
           "prescriptive": false,
@@ -857,6 +927,7 @@
           "id": "v1",
           "type": "vuln",
           "title": "Session fixation on login",
+          "status": null,
           "severity": "high",
           "confidence": "static-confirmed",
           "detail": "The session id survives authentication; reproduced twice.",
@@ -870,6 +941,8 @@
             "type": "goal",
             "title": "Map the login flow",
             "status": "active",
+            "severity": null,
+            "confidence": null,
             "tags": [
               "auth",
               "web"
@@ -889,6 +962,8 @@
               "id": "f2",
               "type": "fact",
               "title": "Session cookie lacks SameSite",
+              "status": null,
+              "severity": null,
               "confidence": "static-confirmed",
               "author": "agent:primary",
               "at": 1767225900000
@@ -902,24 +977,11 @@
               "id": "h1",
               "type": "hint",
               "title": "Check whether logout rotates the id",
+              "status": null,
+              "severity": null,
+              "confidence": null,
               "author": "agent:primary",
               "at": 1767226020000
-            }
-          },
-          {
-            "depth": 1,
-            "direction": "in",
-            "relation": "supports",
-            "node": {
-              "id": "f3",
-              "type": "fact",
-              "title": "Server returns the same id after login",
-              "tags": [
-                "promoted",
-                "bash"
-              ],
-              "author": "agent:primary",
-              "at": 1767226740000
             }
           }
         ],
@@ -941,18 +1003,27 @@
           }
         ],
         "recentActivity": [],
-        "relations": [],
+        "relations": [
+          {
+            "id": "h1->v1:related-to",
+            "from": "h1",
+            "to": "v1",
+            "kind": "related-to",
+            "label": null
+          }
+        ],
         "omitted": {
           "confirmedFacts": 2,
           "otherNodes": 2,
-          "relations": 7,
+          "relations": 6,
+          "neighborhood": 1,
           "openThreads": 1,
           "findings": 1,
           "notes": 1,
           "recentActivity": 1
         },
         "truncated": true,
-        "estimatedTokens": 594
+        "estimatedTokens": 599
       }
     },
     {
@@ -965,7 +1036,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.context.v1",
+        "schema": "blackboard.context.v2",
         "policy": {
           "readOnly": true,
           "prescriptive": false,

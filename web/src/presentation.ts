@@ -4,9 +4,9 @@ import { sourceLocation } from './research-state';
 
 /** Stored values outside the known vocabulary are shown as they are. */
 export const typeLabel = (type: string) => tOptional(`type.${type}`) || type;
-export const statusLabel = (status?: string) => status ? tOptional(`status.${status}`) || status : t('status.unset');
-export const severityLabel = (severity?: string) => severity ? tOptional(`severity.${severity}`) || severity : t('severity.unset');
-export const confidenceLabel = (confidence?: string) => confidence ? tOptional(`confidence.${confidence}`) || confidence : t('confidence.unset');
+export const statusLabel = (status?: string | null) => status ? tOptional(`status.${status}`) || status : t('status.unset');
+export const severityLabel = (severity?: string | null) => severity ? tOptional(`severity.${severity}`) || severity : t('severity.unset');
+export const confidenceLabel = (confidence?: string | null) => confidence ? tOptional(`confidence.${confidence}`) || confidence : t('confidence.unset');
 
 /** All stored dimensions survive display; confidence never replaces a recorded status. */
 export function nodeStateSummary(node: Pick<BoardNode, 'status' | 'severity' | 'confidence'>) {

@@ -102,7 +102,8 @@ for (const [label, declared, gap] of [
   ['another capabilities schema', capabilities({ schema: 'blackboard.capabilities.v2' }), /schema blackboard\.capabilities\.v1/],
   ['a missing feature', capabilities({ features: { writeAttribution: true, cwdFlag: true } }), /feature noInit/],
   ['no features at all', withoutFeatures, /feature writeAttribution/],
-  ['a changed output schema', capabilities({ outputs: { ...capabilities().outputs, context: { shape: 'object', schema: 'blackboard.context.v2' } } }), /output blackboard\.context\.v1/],
+  ['a changed output schema', capabilities({ outputs: { ...capabilities().outputs, context: { shape: 'object', schema: 'blackboard.context.v3' } } }), /output blackboard\.context\.v2/],
+  ['an old optional-node schema', capabilities({ outputs: { ...capabilities().outputs, context: { shape: 'object', schema: 'blackboard.context.v1' } } }), /output blackboard\.context\.v2/],
   ['a missing command', capabilities({ commands: ['status'] }), /command context/],
   ['no write targets', capabilities({ writeTargets: undefined }), /writeTargets/],
 ]) {

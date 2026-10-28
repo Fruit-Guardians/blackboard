@@ -1,6 +1,6 @@
 {
   "name": "dsh-blackboard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "External blackboard for DeepSeek Harness: preserve reasoning, evidence and handoffs across sessions without choosing your next step.",
   "icon": "./assets/blackboard-icon.svg",
   "homepage": "https://github.com/Fruit-Guardians/blackboard#readme",

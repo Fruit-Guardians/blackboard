@@ -4,13 +4,13 @@
 
 ## 流程
 
-1. **构建一次**：Ubuntu / Node 24 执行 `npm ci`、测试及前端 build，收集 quick 合成性能报告，再 `npm pack --ignore-scripts`。
+1. **构建一次**：Ubuntu / Node 24 执行 `npm ci`、测试及前端 build；安装 Playwright Chromium 后，用真实 CLI 生成合成报告，在浏览器中渲染 Markdown/Mermaid，并用随库固定的 OASIS schema 校验 SARIF；收集 quick 合成性能报告，再 `npm pack --ignore-scripts`。
 2. **同包多运行时验证**：将同一个 tarball 交给 Linux、macOS、Windows 的 Node 18 / 22 / 24 矩阵；不执行源码目录的 `npm ci`。
 3. **插件独立验证**：DSH 单元测试与静态 manifest/syntax 检查单独运行在插件声明支持的 Node 22.19 / 24；不把 Host SDK 加到根包，不假装这就是实际 DSH 端到端运行。
 
 Vite 8 的构建依赖要求 Node `^20.19.0 || >=22.12.0`。核心运行时仍是 Node ≥18；Node 18 只消费已构建的 public 产物，不承担前端构建。
 
-`blackboard-release-candidate` artifact 保存 tarball、npm pack 清单和带机器信息的 quick 基线，保留 14 天。性能报告是观测，不是跨共享 runner 的毫秒级门禁。任何完整性断言失败仍会使任务失败。
+`blackboard-release-candidate` artifact 保存 tarball、npm pack 清单、合成导出的渲染截图与带机器信息的 quick 基线，保留 14 天。性能报告是观测，不是跨共享 runner 的毫秒级门禁。任何完整性断言失败仍会使任务失败。
 
 ## tarball smoke 的实际覆盖
 
@@ -31,11 +31,25 @@ node scripts/verify-package.mjs --source /absolute/path/to/baseline
 - runtime 包不包含 plugins、web 源码、test、node_modules 或黑板数据；
 - 完整单源 Skill 的目录与文件字节一致，不只是入口文件；
 - public 的 JS / CSS 存在，HTML 引用的本地资源实际存在；
-- **安装后的 CLI** 能显示版本、初始化、写节点、输出 JSON / Markdown context、只报告 lint、导出离线 HTML；
+- **安装后的 CLI** 能显示版本、初始化、写节点、输出 JSON / Markdown context、只报告 lint，导出离线 HTML、Markdown、Mermaid 和带代码位置的 SARIF；运行时不依赖导出验证所需的开发依赖。
 - context 保持只读 / non-prescriptive / Agent 决定下一步的契约；
 - context、lint、export 前后事件日志字节不变。
 
 它不启动服务，不修改真实项目，不执行 release install/setup/hooks，不验证 OS 专属常驻服务。矩阵通过也不应被描述成所有平台服务功能都已测过。
+
+## 导出消费端回归
+
+```sh
+npm ci
+npx playwright install chromium
+npm run verify:exports
+# 需要保留合成报告的视觉证据时：
+npm run verify:exports:text -- --out-dir /tmp/blackboard-export-consumers
+```
+
+验证器只创建临时合成黑板。Markdown 检查浏览器中显示的作者原文、章节与关系链接，并检查恶意输入没有生成可执行元素；Mermaid 使用本地官方 bundle 在 Chromium 中生成 SVG，覆盖普通图、长标题、特殊字符、分组和空图。SARIF 使用固定的官方 2.1.0 schema 校验真实 CLI 的结果，并检查有位置、缺位置和重复导出的身份语义。验证前后检查事件日志不变；不写真实项目，不依赖网络或模型账号。
+
+这些检查不宣称已经通过 GitHub code scanning 上传或特定 IDE 的导入验收。实际平台的权限、路径解析和告警生命周期仍需在对应环境验证。
 
 ## DSH 真实 Host 与付费模型检查
 

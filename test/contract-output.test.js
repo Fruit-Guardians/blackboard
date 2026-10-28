@@ -121,7 +121,12 @@ const CASES = {
     { board: 'integrity', args: ['lint'] },
   ],
   tail: [{ board: 'research', args: ['tail'] }],
-  export: [{ board: 'research', args: ['export', '--out', '<root>/out.html'] }],
+  export: [
+    { board: 'research', args: ['export', '--out', '<root>/out.html'] },
+    { board: 'research', args: ['export', '--format', 'markdown', '--type', 'vuln', '--group-by', 'status', '--out', '<root>/out.md'] },
+    { board: 'research', args: ['export', '--format', 'mermaid', '--max-nodes', '3', '--out', '<root>/out.mmd'] },
+    { board: 'research', args: ['export', '--format', 'sarif', '--out', '<root>/out.sarif'] },
+  ],
   reset: [{ board: 'research', args: ['reset', '--yes'] }],
   search: [
     { board: 'research', args: ['search', 'session'] },

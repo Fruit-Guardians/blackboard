@@ -31,6 +31,12 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: Install Chromium for export consumer checks
+        run: npx playwright install --with-deps chromium
+      - name: Render Markdown and Mermaid in Chromium
+        run: npm run verify:exports:text -- --out-dir dist/export-consumers
+      - name: Validate actual CLI SARIF exports against the official schema
+        run: npm run verify:exports:sarif
       - name: Collect a synthetic performance baseline (not a latency gate)
         run: |
           mkdir -p dist
@@ -47,6 +53,7 @@ jobs:
             dist/${{ steps.pack.outputs.tarball }}
             dist/pack.json
             dist/benchmark-quick.json
+            dist/export-consumers/
           retention-days: 14
 
   runtime:

@@ -12,7 +12,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.history.v1",
+        "schema": "blackboard.history.v2",
         "readOnly": true,
         "prescriptive": false,
         "nodeId": "v1",
@@ -36,7 +36,8 @@
                   "detail": "The session id survives authentication.",
                   "author": "agent:primary",
                   "severity": "high",
-                  "confidence": "suspected"
+                  "confidence": "suspected",
+                  "status": null
                 }
               }
             },
@@ -161,7 +162,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.history.v1",
+        "schema": "blackboard.history.v2",
         "readOnly": true,
         "prescriptive": false,
         "nodeId": "f4",
@@ -183,7 +184,10 @@
                   "ts": 1767226800000,
                   "session": "session_FIXTURE",
                   "detail": "Recorded by mistake.",
-                  "author": "agent:primary"
+                  "author": "agent:primary",
+                  "status": null,
+                  "severity": null,
+                  "confidence": null
                 }
               }
             },
@@ -208,7 +212,10 @@
                   "ts": 1767226800000,
                   "session": "session_FIXTURE",
                   "detail": "Recorded by mistake.",
-                  "author": "agent:primary"
+                  "author": "agent:primary",
+                  "status": null,
+                  "severity": null,
+                  "confidence": null
                 },
                 "after": null
               }
@@ -238,7 +245,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.history.v1",
+        "schema": "blackboard.history.v2",
         "readOnly": true,
         "prescriptive": false,
         "nodeId": "n1",
@@ -259,7 +266,10 @@
                   "title": "Kept note",
                   "ts": 1767225660000,
                   "session": "session_FIXTURE",
-                  "author": "agent:primary"
+                  "author": "agent:primary",
+                  "status": null,
+                  "severity": null,
+                  "confidence": null
                 }
               }
             },

@@ -125,7 +125,7 @@ bundle 默认 `projects: []`，安装本身不启用任何项目。DSH 替换整
 
 `blackboard_diagnose` 单独返回 `blackboard.diagnostics.v1`：`readOnly: true`、`runtimeCli`、可为空的 `sessionWorkspace`/`boardRoot`/`agentId`、`readyToRead`、`readyToWrite` 和 `checks`（id/status/code/message/remedy）。预期的未接入或只读状态作为诊断数据返回；取消和卸载仍是工具执行错误。可写结论只是调用时的宿主策略检查，真正写入仍会重新授权。
 
-data 是 CLI 的原始结构化结果，diagnostics 保留 stderr 提示（包括字段截断）。context 强制核对 `blackboard.context.v1` 及 policy 中的 readOnly=true、prescriptive=false、nextStepSelection=agent-controlled。
+data 是 CLI 的原始结构化结果，diagnostics 保留 stderr 提示（包括字段截断）。context 强制核对 `blackboard.context.v2` 及 policy 中的 readOnly=true、prescriptive=false、nextStepSelection=agent-controlled。节点公开 JSON 的 status/severity/confidence 为字符串或 null；当前适配要求节点输出 v2，与该版内核一同升级。
 
 失败通过 DSH 标准错误结果呈现，消息携带错误代码：NOT_ENABLED、BOARD_NOT_INITIALIZED、SESSION_REQUIRED、WORKSPACE_MISSING、AMBIGUOUS_PROJECT、RUNTIME_MISSING、RUNTIME_INCOMPATIBLE、SPAWN_FAILED、CLI_FAILED、INVALID_JSON、CONTEXT_CONTRACT、POLICY_REQUIRED、WRITE_POLICY、TIMEOUT、ABORTED、OUTPUT_LIMIT 或 DISPOSED。模型参数不开放任意命令、shell 或目标目录。
 

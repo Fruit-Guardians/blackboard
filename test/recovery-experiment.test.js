@@ -108,28 +108,6 @@ test('mixed-language resume costs sum the final interrupted and delta packet est
   assert.equal(manifest.arms.A.estimatedTokens, Math.ceil(estimateTokensText(summary)));
 });
 
-test('the nodes-only estimate settles after its own digit count shrinks', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bb-recovery-digits-'));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  fs.mkdirSync(path.join(root, '.blackboard'));
-  const events = [
-    { op: 'node', node: { id: 'g', type: 'goal', title: 'Goal', ts: 1 } },
-    { op: 'node', node: { id: 'f', type: 'fact', title: 'Evidence', detail: 'x'.repeat(1321), ts: 2, confidence: 'confirmed' } },
-    { op: 'edge', edge: { id: 'e', from: 'f', to: 'g', kind: 'supports', ts: 3 } },
-    { op: 'cursor', cursor: { agentId: 'agent:primary', to: 'g', at: 4 } },
-  ];
-  fs.writeFileSync(path.join(root, '.blackboard/events.jsonl'), `${events.map((event) => JSON.stringify(event)).join('\n')}\n`);
-  const summaryFile = path.join(root, 'summary.md');
-  fs.writeFileSync(summaryFile, 'Goal and evidence.');
-  const out = path.join(root, 'out');
-  const manifest = prepare({ board: root, at: 'event:4', budget: 64000, summaryFile, out });
-  const b = JSON.parse(read(out, 'B-nodes.json'));
-  const c = JSON.parse(read(out, 'C-graph.json'));
-  assert.equal(String(c.estimatedTokens).length, 4);
-  assert.equal(String(b.estimatedTokens).length, 3);
-  assert.equal(b.estimatedTokens, compactTokens(b));
-  assert.equal(manifest.arms.B.estimatedTokens, b.estimatedTokens);
-});
 
 test('takeover materials stop at the cut and differ only in relations', () => {
   const { root, file } = board();

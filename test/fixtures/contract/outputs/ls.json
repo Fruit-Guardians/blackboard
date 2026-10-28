@@ -25,7 +25,9 @@
           "author": "agent:primary",
           "status": "active",
           "updated": 1767227040000,
-          "updatedBy": "agent:primary"
+          "updatedBy": "agent:primary",
+          "severity": null,
+          "confidence": null
         },
         {
           "id": "i1",
@@ -36,7 +38,9 @@
           "author": "agent:primary",
           "status": "done",
           "updated": 1767226440000,
-          "updatedBy": "agent:primary"
+          "updatedBy": "agent:primary",
+          "severity": null,
+          "confidence": null
         },
         {
           "id": "f1",
@@ -46,7 +50,9 @@
           "session": "session_FIXTURE",
           "detail": "Observed in the form markup.",
           "author": "agent:primary",
-          "confidence": "confirmed"
+          "confidence": "confirmed",
+          "status": null,
+          "severity": null
         },
         {
           "id": "f2",
@@ -55,7 +61,9 @@
           "ts": 1767225900000,
           "session": "session_FIXTURE",
           "author": "agent:primary",
-          "confidence": "static-confirmed"
+          "confidence": "static-confirmed",
+          "status": null,
+          "severity": null
         },
         {
           "id": "v1",
@@ -68,7 +76,8 @@
           "severity": "high",
           "confidence": "static-confirmed",
           "updated": 1767226200000,
-          "updatedBy": "agent:primary"
+          "updatedBy": "agent:primary",
+          "status": null
         },
         {
           "id": "h1",
@@ -76,7 +85,10 @@
           "title": "Check whether logout rotates the id",
           "ts": 1767226020000,
           "session": "session_FIXTURE",
-          "author": "agent:primary"
+          "author": "agent:primary",
+          "status": null,
+          "severity": null,
+          "confidence": null
         },
         {
           "id": "q1",
@@ -90,7 +102,9 @@
           "author": "agent:primary",
           "status": "open",
           "updated": 1767226560000,
-          "updatedBy": "agent:primary"
+          "updatedBy": "agent:primary",
+          "severity": null,
+          "confidence": null
         },
         {
           "id": "f3",
@@ -103,7 +117,10 @@
             "bash"
           ],
           "author": "agent:primary",
-          "activityId": "act1"
+          "activityId": "act1",
+          "status": null,
+          "severity": null,
+          "confidence": null
         }
       ]
     },
@@ -127,7 +144,9 @@
           "session": "session_FIXTURE",
           "detail": "Observed in the form markup.",
           "author": "agent:primary",
-          "confidence": "confirmed"
+          "confidence": "confirmed",
+          "status": null,
+          "severity": null
         },
         {
           "id": "f2",
@@ -136,7 +155,9 @@
           "ts": 1767225900000,
           "session": "session_FIXTURE",
           "author": "agent:primary",
-          "confidence": "static-confirmed"
+          "confidence": "static-confirmed",
+          "status": null,
+          "severity": null
         },
         {
           "id": "f3",
@@ -149,7 +170,10 @@
             "bash"
           ],
           "author": "agent:primary",
-          "activityId": "act1"
+          "activityId": "act1",
+          "status": null,
+          "severity": null,
+          "confidence": null
         }
       ]
     },
@@ -178,7 +202,9 @@
           "author": "agent:primary",
           "status": "open",
           "updated": 1767226560000,
-          "updatedBy": "agent:primary"
+          "updatedBy": "agent:primary",
+          "severity": null,
+          "confidence": null
         }
       ]
     },
@@ -209,7 +235,10 @@
           "title": "Kept note",
           "ts": 1767225660000,
           "session": "session_FIXTURE",
-          "author": "agent:primary"
+          "author": "agent:primary",
+          "status": null,
+          "severity": null,
+          "confidence": null
         },
         {
           "id": "x1",
@@ -217,7 +246,10 @@
           "title": "Unknown type is kept",
           "ts": 1767225780000,
           "session": "session_FIXTURE",
-          "author": "agent:primary"
+          "author": "agent:primary",
+          "status": null,
+          "severity": null,
+          "confidence": null
         }
       ]
     },
@@ -242,7 +274,9 @@
           "session": "session_FIXTURE",
           "detail": "Observed in the form markup.",
           "author": "agent:primary",
-          "confidence": "confirmed"
+          "confidence": "confirmed",
+          "status": null,
+          "severity": null
         },
         {
           "id": "f2",
@@ -251,7 +285,9 @@
           "ts": 1767225900000,
           "session": "session_FIXTURE",
           "author": "agent:primary",
-          "confidence": "static-confirmed"
+          "confidence": "static-confirmed",
+          "status": null,
+          "severity": null
         },
         {
           "id": "f3",
@@ -264,7 +300,10 @@
             "bash"
           ],
           "author": "agent:primary",
-          "activityId": "act1"
+          "activityId": "act1",
+          "status": null,
+          "severity": null,
+          "confidence": null
         }
       ]
     }

@@ -12,7 +12,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.search.v1",
+        "schema": "blackboard.search.v2",
         "readOnly": true,
         "prescriptive": false,
         "query": "session",
@@ -34,7 +34,9 @@
               "author": "agent:primary",
               "status": "active",
               "updated": 1767227040000,
-              "updatedBy": "agent:primary"
+              "updatedBy": "agent:primary",
+              "severity": null,
+              "confidence": null
             },
             "matches": [
               {
@@ -82,7 +84,8 @@
               "severity": "high",
               "confidence": "static-confirmed",
               "updated": 1767226200000,
-              "updatedBy": "agent:primary"
+              "updatedBy": "agent:primary",
+              "status": null
             },
             "matches": [
               {
@@ -130,7 +133,9 @@
               "ts": 1767225900000,
               "session": "session_FIXTURE",
               "author": "agent:primary",
-              "confidence": "static-confirmed"
+              "confidence": "static-confirmed",
+              "status": null,
+              "severity": null
             },
             "matches": [
               {
@@ -175,7 +180,9 @@
               "session": "session_FIXTURE",
               "detail": "Observed in the form markup.",
               "author": "agent:primary",
-              "confidence": "confirmed"
+              "confidence": "confirmed",
+              "status": null,
+              "severity": null
             },
             "matches": [
               {
@@ -222,7 +229,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.search.v1",
+        "schema": "blackboard.search.v2",
         "readOnly": true,
         "prescriptive": false,
         "query": "",
@@ -241,7 +248,10 @@
                 "bash"
               ],
               "author": "agent:primary",
-              "activityId": "act1"
+              "activityId": "act1",
+              "status": null,
+              "severity": null,
+              "confidence": null
             },
             "matches": [],
             "relations": [
@@ -279,7 +289,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.search.v1",
+        "schema": "blackboard.search.v2",
         "readOnly": true,
         "prescriptive": false,
         "query": "",
@@ -298,7 +308,8 @@
               "severity": "high",
               "confidence": "static-confirmed",
               "updated": 1767226200000,
-              "updatedBy": "agent:primary"
+              "updatedBy": "agent:primary",
+              "status": null
             },
             "matches": [],
             "relations": [
@@ -359,7 +370,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.search.v1",
+        "schema": "blackboard.search.v2",
         "readOnly": true,
         "prescriptive": false,
         "query": "",
@@ -381,7 +392,9 @@
               "author": "agent:primary",
               "status": "active",
               "updated": 1767227040000,
-              "updatedBy": "agent:primary"
+              "updatedBy": "agent:primary",
+              "severity": null,
+              "confidence": null
             },
             "matches": [],
             "relations": [
@@ -461,7 +474,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.search.v1",
+        "schema": "blackboard.search.v2",
         "readOnly": true,
         "prescriptive": false,
         "query": "",

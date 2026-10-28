@@ -1,6 +1,6 @@
 {
   "name": "blackboard",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Agent 外置黑板：自由探索，持续记录逻辑节点、关系、当前游标与轨迹",
   "type": "module",
   "bin": {
@@ -28,7 +28,10 @@
     "benchmark": "node scripts/benchmark.mjs",
     "benchmark:full": "node scripts/benchmark.mjs --full",
     "verify:package": "node scripts/verify-package.mjs",
-    "verify:api": "node scripts/verify-api.mjs"
+    "verify:api": "node scripts/verify-api.mjs",
+    "verify:exports:text": "node scripts/verify-text-exports.mjs",
+    "verify:exports:sarif": "node scripts/verify-sarif.mjs",
+    "verify:exports": "npm run verify:exports:text && npm run verify:exports:sarif"
   },
   "license": "MIT",
   "devDependencies": {
@@ -37,12 +40,17 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "@xyflow/react": "^12.12.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "elkjs": "^0.12.0",
     "html-to-image": "^1.11.13",
     "lucide-react": "^1.60.0",
+    "markdown-it": "15.0.3",
+    "mermaid": "11.12.0",
+    "playwright": "1.64.1",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

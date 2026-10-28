@@ -11,7 +11,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.here.v1",
+        "schema": "blackboard.here.v2",
         "agentId": "agent:primary",
         "cursor": "v1",
         "node": {
@@ -25,7 +25,8 @@
           "severity": "high",
           "confidence": "static-confirmed",
           "updated": 1767226200000,
-          "updatedBy": "agent:primary"
+          "updatedBy": "agent:primary",
+          "status": null
         },
         "neighbors": [
           {
@@ -45,7 +46,9 @@
               "ts": 1767225900000,
               "session": "session_FIXTURE",
               "author": "agent:primary",
-              "confidence": "static-confirmed"
+              "confidence": "static-confirmed",
+              "status": null,
+              "severity": null
             }
           },
           {
@@ -64,7 +67,10 @@
               "title": "Check whether logout rotates the id",
               "ts": 1767226020000,
               "session": "session_FIXTURE",
-              "author": "agent:primary"
+              "author": "agent:primary",
+              "status": null,
+              "severity": null,
+              "confidence": null
             }
           },
           {
@@ -88,7 +94,10 @@
                 "bash"
               ],
               "author": "agent:primary",
-              "activityId": "act1"
+              "activityId": "act1",
+              "status": null,
+              "severity": null,
+              "confidence": null
             }
           }
         ],
@@ -126,7 +135,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.here.v1",
+        "schema": "blackboard.here.v2",
         "agentId": "agent:reviewer",
         "cursor": null,
         "node": null,

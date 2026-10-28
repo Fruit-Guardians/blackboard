@@ -14,7 +14,7 @@ function assertBudget(packet, budget) {
   assert.ok(packet.estimatedTokens <= budget, `${packet.estimatedTokens}/${budget}`);
   assert.equal(packet.estimatedTokens, Math.ceil(estimateTokensText(JSON.stringify(packet))));
   assert.equal(packet.truncated, Object.keys(packet.omitted).length > 0);
-  assert.equal(packet.schema, 'blackboard.context.v1');
+  assert.equal(packet.schema, 'blackboard.context.v2');
   assert.deepEqual(packet.policy, POLICY);
 }
 

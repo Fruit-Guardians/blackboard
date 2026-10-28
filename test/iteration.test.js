@@ -30,14 +30,14 @@ test('CLI handoff end-to-end: explicit writes, retry, changes, retrieval, histor
   const counter=json('node','add','observation','Counter evidence','--confidence','reproduced','--to',hyp.id,'--rel','contradicts','--request-id','counter-1').node;
   const beforeRead=sha(ev);
   const changes=json('changes','--since',cp.id);
-  assert.equal(changes.schema,'blackboard.changes.v1');
+  assert.equal(changes.schema,'blackboard.changes.v2');
   assert.ok(changes.nodes.updated.some((n)=>n.id===hyp.id && n.fields.includes('status')));
   assert.ok(changes.edges.removed.some((e)=>e.kind==='supports'));
   assert.ok(changes.edges.added.some((e)=>e.kind==='contradicts'));
   const history=json('history',hyp.id);
-  assert.equal(history.schema,'blackboard.history.v1');
+  assert.equal(history.schema,'blackboard.history.v2');
   assert.ok(history.entries.some((e)=>e.changes.status?.after==='refuted'));
-  const found=json('search','auth','--tag','auth');assert.equal(found.schema,'blackboard.search.v1');
+  const found=json('search','auth','--tag','auth');assert.equal(found.schema,'blackboard.search.v2');
   assert.equal(found.items[0].id,hyp.id);
   const context=json('context','--agent','agent:a','--since',cp.id,'--budget','16000');
   assert.equal(context.policy.readOnly,true);assert.equal(context.policy.prescriptive,false);assert.equal(context.policy.nextStepSelection,'agent-controlled');

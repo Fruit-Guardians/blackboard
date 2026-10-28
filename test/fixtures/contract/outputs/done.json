@@ -12,7 +12,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.node.v1",
+        "schema": "blackboard.node.v2",
         "id": "q1",
         "type": "question",
         "title": "Does SSO share the same handler?",
@@ -24,7 +24,9 @@
         "author": "agent:primary",
         "status": "done",
         "updated": "<now>",
-        "updatedBy": "agent:primary"
+        "updatedBy": "agent:primary",
+        "severity": null,
+        "confidence": null
       },
       "events": [
         {

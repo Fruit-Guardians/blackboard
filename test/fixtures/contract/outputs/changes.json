@@ -13,7 +13,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.changes.v1",
+        "schema": "blackboard.changes.v2",
         "readOnly": true,
         "prescriptive": false,
         "since": {
@@ -35,7 +35,10 @@
                 "bash"
               ],
               "author": "agent:primary",
-              "activityId": "act1"
+              "activityId": "act1",
+              "status": null,
+              "severity": null,
+              "confidence": null
             }
           ],
           "updated": [
@@ -52,7 +55,10 @@
                   "auth",
                   "web"
                 ],
-                "author": "agent:primary"
+                "author": "agent:primary",
+                "status": null,
+                "severity": null,
+                "confidence": null
               },
               "after": {
                 "id": "g1",
@@ -68,7 +74,9 @@
                 "author": "agent:primary",
                 "status": "active",
                 "updated": 1767227040000,
-                "updatedBy": "agent:primary"
+                "updatedBy": "agent:primary",
+                "severity": null,
+                "confidence": null
               },
               "fields": [
                 "status",
@@ -85,7 +93,9 @@
                 "ts": 1767225720000,
                 "session": "session_FIXTURE",
                 "author": "agent:primary",
-                "status": "open"
+                "status": "open",
+                "severity": null,
+                "confidence": null
               },
               "after": {
                 "id": "i1",
@@ -96,7 +106,9 @@
                 "author": "agent:primary",
                 "status": "done",
                 "updated": 1767226440000,
-                "updatedBy": "agent:primary"
+                "updatedBy": "agent:primary",
+                "severity": null,
+                "confidence": null
               },
               "fields": [
                 "status",
@@ -115,7 +127,8 @@
                 "detail": "The session id survives authentication.",
                 "author": "agent:primary",
                 "severity": "high",
-                "confidence": "suspected"
+                "confidence": "suspected",
+                "status": null
               },
               "after": {
                 "id": "v1",
@@ -128,7 +141,8 @@
                 "severity": "high",
                 "confidence": "static-confirmed",
                 "updated": 1767226200000,
-                "updatedBy": "agent:primary"
+                "updatedBy": "agent:primary",
+                "status": null
               },
               "fields": [
                 "confidence",
@@ -149,7 +163,9 @@
                   "sso"
                 ],
                 "author": "agent:primary",
-                "status": "open"
+                "status": "open",
+                "severity": null,
+                "confidence": null
               },
               "after": {
                 "id": "q1",
@@ -163,7 +179,9 @@
                 "author": "agent:primary",
                 "status": "open",
                 "updated": 1767226560000,
-                "updatedBy": "agent:primary"
+                "updatedBy": "agent:primary",
+                "severity": null,
+                "confidence": null
               },
               "fields": [
                 "updated",
@@ -216,7 +234,8 @@
                     "detail": "The session id survives authentication.",
                     "author": "agent:primary",
                     "severity": "high",
-                    "confidence": "suspected"
+                    "confidence": "suspected",
+                    "status": null
                   },
                   "after": {
                     "id": "v1",
@@ -229,7 +248,8 @@
                     "severity": "high",
                     "confidence": "static-confirmed",
                     "updated": 1767226200000,
-                    "updatedBy": "agent:primary"
+                    "updatedBy": "agent:primary",
+                    "status": null
                   },
                   "fields": [
                     "confidence",
@@ -344,7 +364,9 @@
                     "ts": 1767225720000,
                     "session": "session_FIXTURE",
                     "author": "agent:primary",
-                    "status": "open"
+                    "status": "open",
+                    "severity": null,
+                    "confidence": null
                   },
                   "after": {
                     "id": "i1",
@@ -355,7 +377,9 @@
                     "author": "agent:primary",
                     "status": "done",
                     "updated": 1767226440000,
-                    "updatedBy": "agent:primary"
+                    "updatedBy": "agent:primary",
+                    "severity": null,
+                    "confidence": null
                   },
                   "fields": [
                     "status",
@@ -393,7 +417,9 @@
                       "sso"
                     ],
                     "author": "agent:primary",
-                    "status": "open"
+                    "status": "open",
+                    "severity": null,
+                    "confidence": null
                   },
                   "after": {
                     "id": "q1",
@@ -407,7 +433,9 @@
                     "author": "agent:primary",
                     "status": "blocked",
                     "updated": 1767226500000,
-                    "updatedBy": "agent:reviewer"
+                    "updatedBy": "agent:reviewer",
+                    "severity": null,
+                    "confidence": null
                   },
                   "fields": [
                     "status",
@@ -447,7 +475,9 @@
                     "author": "agent:primary",
                     "status": "blocked",
                     "updated": 1767226500000,
-                    "updatedBy": "agent:reviewer"
+                    "updatedBy": "agent:reviewer",
+                    "severity": null,
+                    "confidence": null
                   },
                   "after": {
                     "id": "q1",
@@ -461,7 +491,9 @@
                     "author": "agent:primary",
                     "status": "open",
                     "updated": 1767226560000,
-                    "updatedBy": "agent:primary"
+                    "updatedBy": "agent:primary",
+                    "severity": null,
+                    "confidence": null
                   },
                   "fields": [
                     "status",
@@ -497,7 +529,10 @@
                     "bash"
                   ],
                   "author": "agent:primary",
-                  "activityId": "act1"
+                  "activityId": "act1",
+                  "status": null,
+                  "severity": null,
+                  "confidence": null
                 }
               ],
               "updated": [],
@@ -550,7 +585,10 @@
                   "ts": 1767226800000,
                   "session": "session_FIXTURE",
                   "detail": "Recorded by mistake.",
-                  "author": "agent:primary"
+                  "author": "agent:primary",
+                  "status": null,
+                  "severity": null,
+                  "confidence": null
                 }
               ],
               "updated": [],
@@ -579,7 +617,10 @@
                   "ts": 1767226800000,
                   "session": "session_FIXTURE",
                   "detail": "Recorded by mistake.",
-                  "author": "agent:primary"
+                  "author": "agent:primary",
+                  "status": null,
+                  "severity": null,
+                  "confidence": null
                 }
               ]
             },
@@ -664,7 +705,10 @@
                       "auth",
                       "web"
                     ],
-                    "author": "agent:primary"
+                    "author": "agent:primary",
+                    "status": null,
+                    "severity": null,
+                    "confidence": null
                   },
                   "after": {
                     "id": "g1",
@@ -680,7 +724,9 @@
                     "author": "agent:primary",
                     "status": "active",
                     "updated": 1767227040000,
-                    "updatedBy": "agent:primary"
+                    "updatedBy": "agent:primary",
+                    "severity": null,
+                    "confidence": null
                   },
                   "fields": [
                     "status",
@@ -717,7 +763,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.changes.v1",
+        "schema": "blackboard.changes.v2",
         "readOnly": true,
         "prescriptive": false,
         "since": {

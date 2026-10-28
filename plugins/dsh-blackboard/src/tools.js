@@ -49,7 +49,7 @@ const operations = [
       return ['context', ...(args.budget === undefined ? [] : [`--budget=${args.budget}`]), ...options(args, { focus: 'focus', since: 'since' })];
     },
     validate(data) {
-      if (data.schema !== 'blackboard.context.v1' || data.policy?.readOnly !== true
+      if (data.schema !== 'blackboard.context.v2' || data.policy?.readOnly !== true
         || data.policy?.prescriptive !== false || data.policy?.nextStepSelection !== 'agent-controlled') {
         throw new BlackboardError('CONTEXT_CONTRACT', 'CLI context does not preserve the read-only non-prescriptive contract.');
       }

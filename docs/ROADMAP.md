@@ -13,7 +13,7 @@
 | 层 | 状态 | 依据 |
 | --- | --- | --- |
 | 内核 | 稳定 | 事件日志是唯一事实源，CLI 是唯一写入路径；每次写入记录作者；Linux、macOS、Windows × Node 18/22/24 的 CI 全部通过 |
-| 契约 | 已成文 | [公开契约](CONTRACT.md) v1：30 个命令的 `--json` 输出都声明了 schema，固定输出测试守着；`capabilities` 列出每个输出的 schema 和内核会写的文件 |
+| 契约 | 已成文 | [公开契约](CONTRACT.md) v2：节点公开投影固定三个可空维度；受影响输出声明 v2，其他输出维持原版本；固定输出测试守着，capabilities 声明 schema、导出格式与写入路径 |
 | 适配 | 只依赖契约 | DSH 插件显式传 `--cwd`/`--agent`/`--no-init`，用 `capabilities` 做特性检测，写入授权读 `writeTargets`；Skill 仍按发布包结构定位，DSH 第二阶段未做 |
 | 证据 | 一块黑板 | exp1：黑板记录答对 13/14，检查点摘要 4–5/14；但只有一个任务、每组一次、非盲评 |
 
@@ -30,6 +30,8 @@
 - `show` 的文本输出显示关系名，并列出上游（#17）。
 - 查看器服务端与 CLI 一致，非空的未知关系原样保存；`node add` 接受 `--label`，`capabilities` 以 `nodeEdgeLabel` 声明（#19）。
 - 查询与统计（0.7.0）：`search` 增加独立的严重度/可信度筛选和基于全部匹配的组合分组；`tag:site` 读取显式站点标签，缺省值单列为 `null`。`ls --all` 支持完整读取，截断在 stderr 说明数量；Skill 补齐查询与重复标签示例。
+- 节点 JSON 与报告（0.8.0）：公开节点维度固定输出字符串或 null，只改读取投影，事件与回执原文不变；前端和 DSH 适配迁到对应 v2 schema。export 新增 Markdown、Mermaid、SARIF，共用完整筛选与排序；保留显式证据/反证，对图上限与无代码位置的省略给出说明。时间点读取与脱敏仍按阶段 9 单独推进。
+- 导出消费端回归（0.8.0）：Markdown 使用可导航标题与显式锚点；Mermaid 在默认边数与文本限额内导出；官方 SARIF schema 校验、Chromium 中的实际 Markdown/Mermaid 渲染及干净安装包的三格式检查接入 CI。GitHub code scanning 和 IDE 的实际导入仍需对应环境验证。
 
 ### exp1 告诉了我们什么
 

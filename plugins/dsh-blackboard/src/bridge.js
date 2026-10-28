@@ -8,8 +8,8 @@ export const REQUIRED = Object.freeze({
   schema: 'blackboard.capabilities.v1',
   features: Object.freeze(['writeAttribution', 'cwdFlag', 'noInit']),
   outputs: Object.freeze({
-    status: 'blackboard.status.v1', context: 'blackboard.context.v1', show: 'blackboard.show.v1',
-    node: 'blackboard.node-add.v1', edit: 'blackboard.node.v1', link: 'blackboard.edge.v1',
+    status: 'blackboard.status.v2', context: 'blackboard.context.v2', show: 'blackboard.show.v2',
+    node: 'blackboard.node-add.v2', edit: 'blackboard.node.v2', link: 'blackboard.edge.v1',
     cursor: 'blackboard.cursor.v1', checkpoint: 'blackboard.checkpoint.v1',
   }),
 });

@@ -29,7 +29,7 @@ test('context retains authored node text, formatting, tags and independent field
   graph.nodes.v1 = node;
   const before = JSON.stringify(graph);
   const packet = buildAgentContext(graph, { focus: 'v1', budgetTokens: 64000 });
-  assert.equal(packet.schema, 'blackboard.context.v1');
+  assert.equal(packet.schema, 'blackboard.context.v2');
   assert.deepEqual(packet.policy, POLICY);
   assert.equal(packet.truncated, false);
   for (const projected of bodyNodes(packet)) {

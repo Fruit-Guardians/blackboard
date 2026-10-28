@@ -1,4 +1,4 @@
-# 公开契约 v1
+# 公开契约 v2
 
 适配层、Skill 和脚本只能依赖这份文档列出的东西。这里没列的（内部文件名、模块路径、给人看的文案）随时可能变。
 
@@ -24,7 +24,7 @@
 - 事件格式同理：新字段、新操作不改 `EVENT_VERSION`；只有旧版本按旧逻辑回放会得到错误投影时才升。
 - 给人读的文字不是契约，即使出现在 JSON 里：`lint` 的 `issues[].message`、`digest.digest`、`tail.tail` 的正文。它们的字段名和类型是契约，文字不是。`digest` 正文里的时间按本机时区显示（`MM-DD HH:mm`），同一块黑板在不同时区的机器上文字不同；需要准确时间请读 `context`、`history` 等输出里的毫秒时间戳。测试把 `lint` 的 `message` 换成占位符；`digest`、`tail` 的正文仍然存档，改文字时更新存档即可，不升版本。
 
-## v1 的四个决定
+## 从 v1 保留的四个决定
 
 1. **冻结现有输出形状。** 裸数组输出（`ls`/`list`、`activity`）保持数组，不包成对象；它们的 schema 只在 `capabilities.outputs` 里声明。
 2. **顶层是对象的输出都带 `schema` 字段**，放在第一个，包括直接返回节点、关系、检查点、活动记录的命令。`schema` 只出现在顶层：嵌在别的输出里的记录（如 `node` 输出里的 `node`、`ls` 数组里的每一项）不带。`schema` 在打印时加上，所以用 `--request-id` 重试时重放的旧结果也带它；`receipt` 输出里的 `result` 是写入时存下的原样结果，不带。
@@ -33,36 +33,36 @@
 
 ## 命令与固定输出
 
-每行一条命令，别名与它共用一份存档，存档里至少有一个用例调用每个别名。“schema”列是顶层对象的 `schema` 字段，或数组每一项的 schema；“输出”列描述 `--json` 的顶层形状。同形的输出共用一个 schema，例如修改节点的四条命令都返回 `blackboard.node.v1`。
+每行一条命令，别名与它共用一份存档，存档里至少有一个用例调用每个别名。“schema”列是顶层对象的 `schema` 字段，或数组每一项的 schema；“输出”列描述 `--json` 的顶层形状。同形的输出共用一个 schema，例如修改节点的四条命令都返回 `blackboard.node.v2`。
 
 | 命令 | 别名 | 存档 | schema | 输出 |
 | --- | --- | --- | --- | --- |
 | `init` | — | `outputs/init.json` | `blackboard.init.v1` | 对象 `{schema, cwd, board, title, session}` |
-| `status` | — | `outputs/status.json` | `blackboard.status.v1` | 对象 `{schema, stats, cursor, cursors, title, session, cwd, agentId, viewer, integration, latestNode}` |
-| `node` | `start` `goal` `intent` `fact` `vuln` `hint` | `outputs/node.json` | `blackboard.node-add.v1` | 对象 `{schema, node, edge, cursor}`；`edge`、`cursor` 未发生时为 `null`；给了 `--label` 时 `edge` 带 `label`（`features.nodeEdgeLabel`） |
+| `status` | — | `outputs/status.json` | `blackboard.status.v2` | 对象 `{schema, stats, cursor, cursors, title, session, cwd, agentId, viewer, integration, latestNode}` |
+| `node` | `start` `goal` `intent` `fact` `vuln` `hint` | `outputs/node.json` | `blackboard.node-add.v2` | 对象 `{schema, node, edge, cursor}`；`edge`、`cursor` 未发生时为 `null`；给了 `--label` 时 `edge` 带 `label`（`features.nodeEdgeLabel`） |
 | `checkpoint` | `compact` | `outputs/checkpoint.json` | `blackboard.checkpoint.v1` | 检查点记录 `{schema, id, agentId, at, sessionId, cursorNodeId, summary, trigger}` |
 | `cursor` | `focus` | `outputs/cursor.json` | `blackboard.cursor.v1` | 对象 `{schema, cursor}`；不带参数时另有 `agentId` |
-| `here` | — | `outputs/here.json` | `blackboard.here.v1` | 对象 `{schema, agentId, cursor, node, neighbors, trail}` |
+| `here` | — | `outputs/here.json` | `blackboard.here.v2` | 对象 `{schema, agentId, cursor, node, neighbors, trail}` |
 | `activity` | — | `outputs/activity.json` | `blackboard.activity.v1` | 不带子命令：活动记录的数组，每项是 `blackboard.activity.v1`；`show`：单个活动记录 |
-| `promote` | — | `outputs/promote.json` | `blackboard.node-add.v1` | 同 `node` |
-| `done` | — | `outputs/done.json` | `blackboard.node.v1` | 修改后的节点记录 |
-| `block` | — | `outputs/block.json` | `blackboard.node.v1` | 修改后的节点记录 |
-| `revive` | — | `outputs/revive.json` | `blackboard.node.v1` | 修改后的节点记录 |
-| `edit` | — | `outputs/edit.json` | `blackboard.node.v1` | 修改后的节点记录 |
+| `promote` | — | `outputs/promote.json` | `blackboard.node-add.v2` | 同 `node` |
+| `done` | — | `outputs/done.json` | `blackboard.node.v2` | 修改后的节点记录 |
+| `block` | — | `outputs/block.json` | `blackboard.node.v2` | 修改后的节点记录 |
+| `revive` | — | `outputs/revive.json` | `blackboard.node.v2` | 修改后的节点记录 |
+| `edit` | — | `outputs/edit.json` | `blackboard.node.v2` | 修改后的节点记录 |
 | `link` | — | `outputs/link.json` | `blackboard.edge.v1` | 关系记录 `{schema, id, from, to, kind, ts, author}`，可带 `label` |
 | `unlink` | — | `outputs/unlink.json` | `blackboard.edge.v1` | 被断开的关系记录 |
 | `remove` | `rm` | `outputs/remove.json` | `blackboard.remove.v1` | 对象 `{schema, id, edges}` |
-| `ls` | `list` | `outputs/ls.json` | `blackboard.node.v1` | 节点记录的数组；默认最近 30 条，`--all` 返回全部匹配，截断提示写到 stderr |
-| `show` | — | `outputs/show.json` | `blackboard.show.v1` | 对象 `{schema, node, parents, children}` |
+| `ls` | `list` | `outputs/ls.json` | `blackboard.node.v2` | 节点记录的数组；默认最近 30 条，`--all` 返回全部匹配，截断提示写到 stderr |
+| `show` | — | `outputs/show.json` | `blackboard.show.v2` | 对象 `{schema, node, parents, children}` |
 | `digest` | — | `outputs/digest.json` | `blackboard.digest.v1` | 对象 `{schema, digest}`，正文为 Markdown |
-| `context` | — | `outputs/context.json` | `blackboard.context.v1` | 恢复上下文，策略字段见下 |
+| `context` | — | `outputs/context.json` | `blackboard.context.v2` | 恢复上下文，策略字段见下 |
 | `lint` | — | `outputs/lint.json` | `blackboard.lint.v1` | 对象 `{schema, summary, issues}`；退出码恒为 0 |
 | `tail` | — | `outputs/tail.json` | `blackboard.tail.v1` | 对象 `{schema, tail}` |
-| `export` | — | `outputs/export.json` | `blackboard.export.v1` | 对象 `{schema, file}`，`file` 为绝对路径 |
+| `export` | — | `outputs/export.json` | `blackboard.export.v1` | 对象 `{schema, file, format}`；导出物的格式见下 |
 | `reset` | — | `outputs/reset.json` | `blackboard.reset.v1` | 重置后的状态对象（见“已知缺口”） |
-| `search` | — | `outputs/search.json` | `blackboard.search.v1` | 搜索结果；`--group-by` 增加 `groupBy` 和覆盖全部匹配的 `groups` |
-| `history` | — | `outputs/history.json` | `blackboard.history.v1` | 单个节点的历史 |
-| `changes` | — | `outputs/changes.json` | `blackboard.changes.v1` | 某检查点以来的变化 |
+| `search` | — | `outputs/search.json` | `blackboard.search.v2` | 搜索结果；`--group-by` 增加 `groupBy` 和覆盖全部匹配的 `groups` |
+| `history` | — | `outputs/history.json` | `blackboard.history.v2` | 单个节点的历史 |
+| `changes` | — | `outputs/changes.json` | `blackboard.changes.v2` | 某检查点以来的变化 |
 | `backup` | — | `outputs/backup.json` | `blackboard.backup-receipt.v1` | 备份回执 |
 | `restore` | — | `outputs/restore.json` | `blackboard.restore-receipt.v1` | 恢复回执 |
 | `receipt` | — | `outputs/receipt.json` | `blackboard.receipt.v1` | 写入回执 |
@@ -71,6 +71,30 @@
 写命令都接受 `--agent <名称>`、`--cwd <项目根>`、`--no-init`；`--request-id <稳定ID>` 用于可重试的写入，回执用 `receipt` 查询（见 [receipts.md](receipts.md)）。读命令接受 `--cwd`。项目根的优先级是 `--cwd` > `BLACKBOARD_CWD` > 当前目录向上最近的黑板。
 
 `context` 的返回包必须始终带 `readOnly: true`、`prescriptive: false`、`nextStepSelection: "agent-controlled"`（在 `policy` 里）。`search`、`history`、`changes` 同样带 `readOnly: true`、`prescriptive: false`。
+
+### 节点 JSON 的缺省维度（v2）
+
+公开节点投影始终包含 `status`、`severity`、`confidence`，类型为记录的字符串或 `null`；只有未记录/值为 null 时输出 `null`，不按类型或其他字段推断。完整节点、邻域节点、历史前后值、context 中的压缩节点均遵守此规则；context 继续保留自己的 `location`/`at` 命名和预算约束。
+
+可选字符串扩展为可空字段，因此 `node`、`node-add`、`status`、`here`、`show`、`context`、`search`、`history`、`changes` 升为对应 `.v2`；`ls` 仍为裸数组，项版本由 capabilities 声明。`/api/graph`、SSE 和离线 HTML 的快照增加 `blackboard.graph.v2`；HTTP 节点创建/修改响应声明对应的 node-add/node v2。DSH 适配和前端随此版本切换，没有旧 schema 输出模式。
+
+只规范化输出，不改写事件、回放图、请求指纹或缓存。`receipt.result` 是当时保存的原始写入结果，保持 v1 原样，可能没有这三个字段，也不补 schema；不能用它的原始结构与 v2 写响应做逐字段相等比较。字段级历史仍报告实际变化，不因补 null 生成虚假变更；节点不存在时仍为整体 `null`。
+
+### 导出格式
+
+`export [关键词] --format html|markdown|mermaid|sarif --out <文件>` 默认 `html`；默认文件分别为 `blackboard.html`、`blackboard.md`、`blackboard.mmd`、`blackboard.sarif`。成功的 `--json` 仅返回 `{schema, file, format}`，导出内容写入文件。已有黑板才可导出，不自动初始化；拒绝输出到黑板数据目录或当前黑板数据文件的硬链接。
+
+三个报告格式复用 search 的关键词、类型、状态、严重度、可信度、重复标签、关系和关联节点筛选，读取**全部**匹配，没有 search 的明细上限。`--sort severity|time|id` 默认 severity（critical、high、medium、low、info，其余最后），同严重度按 ID 字典序；time 按更新时间/创建时间倒序，再按 ID。不会按置信度、节点类型或状态推定风险，也不自动排除 refuted/superseded。
+
+Markdown/Mermaid 支持 `--group-by severity,status,tag:<键>` 的组合，含义与 search 相同。选中节点和一跳关联上下文分开呈现；证据、反证和未知关系按原方向保留，不递归补全关系。多组共享节点只展示一次，其余组保留引用或注释。原始工具活动不进入报告；标题/详情不被缩写或改写，已有输入截断标记照实呈现。
+
+- **html**：保持完整、只读、自包含快照，不接受报告筛选、排序或分组，避免把未过滤的摘要误当筛选结果。快照中的原始活动输入/输出/摘要仍排除。
+- **markdown**：完整的节点原文、三个独立维度、标签、作者/位置及显式关系；关联上下文包含支持/反驳节点的原文。记录标题进入章节标题，显式锚点供跨记录引用；作者文本经转义或安全代码块显示，不生成未记录的 POC、修复建议或裁定。
+- **mermaid**：flowchart 源码；节点使用独立生成的安全标识，原 ID/标题保留在标签中，`related-to` 用带方向的虚线，其他关系为有向实线。`--max-nodes` 默认 200、接受正整数，先选中节点后上下文；超限在注释中列出省略节点/边数，不生成悬空边。多重组归属用注释保留。为匹配默认 Mermaid 消费端，显示边数超过 500 或源码长度超过 50,000 字符时失败，提示减少选中内容；不自动提高消费端限制、不截短原文或额外隐藏边。
+- **sarif**：SARIF 2.1.0，仅将带有效已记录 `loc` 的 finding/vuln 转为结果；缺位置和不支持的类型逐项记入 `runs[].properties.skippedNodes`，`coverage` 报告选中/结果/省略数。无有效位置时是结果为空且省略原因可见的日志，不伪造代码位置。原始节点、证据/反证关系保存在 result properties，指纹基于节点 ID。消息文本按 SARIF 规则转义字面量花括号；`properties.node` 保持原始作者文本。代码路径按 URI 编码；只有正整数行/列才生成 region。`--group-by` 不用于 SARIF，`--max-nodes` 仅用于 Mermaid。
+
+SARIF `level` 只映射记录的 severity：critical/high → error，medium → warning，low/info → note；缺省或未知 → none（kind=review）。status/confidence 原样独立保留。官方 schema 为 <https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json>。未来路线图里的 `--as-of`、`--redact` 不属于本次导出参数，不宣称已实现。
+
 
 ### 查询、统计与列表完整性
 
@@ -133,6 +157,8 @@
 - `version`：CLI 版本，与 `package.json` 一致。
 - `eventVersion`：当前写入的事件版本。
 - `runtime`、`commands`、`features`、`contextContract`、`limits`。
+- `features.nodeJsonDefaults`：节点公开投影包含三个可空维度；具体版本仍以 `outputs` 为准。
+- `exportFormats`：当前支持 `html`、`markdown`、`mermaid`、`sarif`。
 - `outputs`：每个契约输出的形状，以命令为键（`activity show` 单列）。对象输出是 `{shape: "object", schema}`，数组输出是 `{shape: "array", items}`。输出里的 `schema` 与这张表来自同一处，测试逐个用例核对。
 - `writeTargets`：命令在项目根下会写的全部文件，每项是 `{path, role}`，`path` 相对项目根、用 `/` 分隔：
 

@@ -161,10 +161,23 @@ blackboard lint            # 只报告上下文质量，不阻断工作
 
 ```bash
 blackboard export -o blackboard.html   # 单文件离线快照
+blackboard export --format markdown --type vuln --confidence reproduced -o report.md
+blackboard export --format mermaid --group-by tag:site --max-nodes 200 -o graph.mmd
+blackboard export --format sarif --type finding -o findings.sarif
 blackboard serve --read-only          # 关闭页面写入
 ```
 
 工作台也可导出画布 PNG。**离线快照始终只读**；导出会排除原始活动的输入、输出和摘要，但逻辑节点仍可能包含敏感内容，分享前请检查。
+
+Markdown、Mermaid、SARIF 复用 `search` 的关键词、`--type`、`--status`、`--sev`、`--confidence`、重复 `--tag`、`--rel` 和 `--related-to`，覆盖全部匹配记录，没有查询明细条数上限。默认按记录的严重度、再按 ID 排序，亦可用 `--sort time` 或 `--sort id`。未填写状态不等于 `open`；已被反驳的记录也不会因可信度高而自动排除。
+
+Markdown/Mermaid 可用 `--group-by tag:site,severity,status` 分组；报告将选中节点与一跳关联上下文分开，保留证据、反证、关系方向、作者和缺省维度。Markdown 使用记录标题作为章节标题，并提供显式锚点和关系链接；完整原文仍安全保留。HTML 保持完整快照，不接受报告筛选、排序或分组。
+
+Mermaid 的 `related-to` 为有向虚线，其余关系为有向实线。超出节点上限时在注释中说明省略数，不画悬空边；若显示的边超过 500 条或源码超过 50,000 字符，则明确拒绝导出，提示缩小筛选或降低 `--max-nodes`，避免生成超过默认渲染限额的图。不会为满足限额悄悄截短标题或丢弃边。
+
+SARIF 为 2.1.0，仅导出带已记录代码位置 `loc` 的 finding/vuln。严重度映射为 critical/high→error、medium→warning、low/info→note，未知→none；状态、可信度独立保留。未记录位置的节点不伪造位置，逐项列入 `runs[].properties.skippedNodes`，`coverage` 区分选中数、结果数和省略数。没有位置时，结果为空不等于没有发现。`--group-by` 不用于 SARIF，`--max-nodes` 仅用于 Mermaid。
+
+开发验证入口为 `npm run verify:exports`：在 Chromium 中实际渲染 Markdown/Mermaid，并用固定的 OASIS 官方 schema 校验真实 CLI 的 SARIF 导出。CI 和干净安装后的包均覆盖三种格式；验证依赖只用于开发，不进入运行时。覆盖范围与本地命令见 [导出消费端回归](docs/ci.md#导出消费端回归)。GitHub code scanning 与特定 IDE 的实际导入不属于已完成的验证。
 
 <a id="agent-integration"></a>
 
@@ -350,6 +363,8 @@ blackboard ls --all --json
 
 `ls` 默认只列最近 30 条匹配记录，截断时在 stderr 说明匹配、显示和省略的数量；stdout 保持节点列表或 JSON 数组。`--all` 返回全部匹配，不能与 `--limit` 同用。项目路径仍可用 `--cwd`，或在同一终端设置 `BLACKBOARD_CWD`；跨工具与子 Agent 调用不要假设环境会自动继承。
 
+节点公开 JSON 始终含 `status`、`severity`、`confidence`，未记录时为 `null`。相应 node/node-add/status/here/show/context/search/history/changes 输出使用 v2 schema；`ls` 保持数组形状，项版本见 `capabilities.outputs`。API、SSE 与离线快照同样保留三个可空维度。事件日志与请求指纹不变；`receipt.result` 保留原始写入结果，不补 null，因此可能与当前写命令的 JSON 投影形状不同。
+
 
 <details>
 <summary><strong>节点类型、短 ID 与常用参数</strong></summary>
@@ -506,7 +521,7 @@ blackboard service uninstall      # 停止任务并删除本工具受管 plist
 
 ## 版本与升级
 
-`0.7.0` 增加严重度/可信度筛选、覆盖全部匹配的组合分组统计，以及 `ls --all` 和截断提示；同步更新查询 Skill。事件格式与现有 JSON schema 版本保持不变，旧安装可保留用于回滚。
+`0.8.0` 统一节点 JSON 的三个可空维度，将受影响的输出 schema 升为 v2，并增加 Markdown、Mermaid、SARIF 导出；包含可导航的 Markdown 报告、Mermaid 默认消费端限额，以及浏览器渲染和官方 SARIF schema 的持续回归。前端与 DSH 适配同步切换；事件格式仍为 v1，旧安装可保留用于回滚。`0.7.0` 的字段筛选、完整分组统计和 `ls --all` 继续可用。
 
 日常使用的 CLI、启动器、Skill、Hook 和常驻服务都指向 `~/.local/share/blackboard/current`（设置了 `XDG_DATA_HOME` 时位于其下），不指向开发仓库：
 

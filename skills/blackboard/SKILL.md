@@ -60,6 +60,8 @@ blackboard search --type vuln --group-by severity,status --cwd "/已确认项目
 
 使用新筛选/分组前可读取 `capabilities --json` 的 `features.searchFilters` / `features.searchGrouping`；旧版本没有这些字段时不要使用新选项。读取 JSON 的 `total` 和 `truncated`，不要把返回的明细当作全部记录。
 
+节点 JSON 的 status/severity/confidence 未记录时为 `null`，不能解释成 open 或已确认。`features.nodeJsonDefaults` 声明此能力，具体 schema 读 `capabilities.outputs`；`receipt.result` 保留原始写入形状。需要交付记录时，按 `capabilities.exportFormats` 选择 Markdown、Mermaid 或 SARIF，见[报告导出](references/recording.md#报告导出)，不凭空补证据或位置。
+
 关键猜测值得保留时，新建并显式进入；已知它服务于哪个目标时，用 `--to` 一并连上：
 
 ```sh

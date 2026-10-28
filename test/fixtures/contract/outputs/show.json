@@ -12,7 +12,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.show.v1",
+        "schema": "blackboard.show.v2",
         "node": {
           "id": "v1",
           "type": "vuln",
@@ -24,7 +24,8 @@
           "severity": "high",
           "confidence": "static-confirmed",
           "updated": 1767226200000,
-          "updatedBy": "agent:primary"
+          "updatedBy": "agent:primary",
+          "status": null
         },
         "parents": [
           {
@@ -34,7 +35,10 @@
             "ts": 1767226020000,
             "session": "session_FIXTURE",
             "author": "agent:primary",
-            "edge": "related-to"
+            "edge": "related-to",
+            "status": null,
+            "severity": null,
+            "confidence": null
           },
           {
             "id": "f3",
@@ -48,7 +52,10 @@
             ],
             "author": "agent:primary",
             "activityId": "act1",
-            "edge": "supports"
+            "edge": "supports",
+            "status": null,
+            "severity": null,
+            "confidence": null
           }
         ],
         "children": [
@@ -60,7 +67,9 @@
             "session": "session_FIXTURE",
             "author": "agent:primary",
             "confidence": "static-confirmed",
-            "edge": "depends-on"
+            "edge": "depends-on",
+            "status": null,
+            "severity": null
           }
         ]
       }
@@ -76,14 +85,17 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.show.v1",
+        "schema": "blackboard.show.v2",
         "node": {
           "id": "x1",
           "type": "experiment",
           "title": "Unknown type is kept",
           "ts": 1767225780000,
           "session": "session_FIXTURE",
-          "author": "agent:primary"
+          "author": "agent:primary",
+          "status": null,
+          "severity": null,
+          "confidence": null
         },
         "parents": [],
         "children": [
@@ -94,7 +106,10 @@
             "ts": 1767225660000,
             "session": "session_FIXTURE",
             "author": "agent:primary",
-            "edge": "inspired-by"
+            "edge": "inspired-by",
+            "status": null,
+            "severity": null,
+            "confidence": null
           }
         ]
       }

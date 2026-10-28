@@ -1,0 +1,10 @@
+{
+  "title": "Static Analysis Results Format (SARIF) Version 2.1.0 JSON Schema",
+  "source": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "specification": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html",
+  "publisher": "OASIS Open",
+  "version": "2.1.0",
+  "retrieved": "2026-10-28",
+  "sha256": "ad6db49878699b091f3eeb765b6e29e92a34bad4da88664d000c923b549c3a25",
+  "note": "Complete official OASIS Standard schema, vendored verbatim for offline validation. The schema is not a locally maintained subset."
+}

@@ -222,7 +222,7 @@ test('Agent context is read-only, bounded, and follows only explicit relations',
 
   const packet = buildAgentContext(replay(dir), { depth: 1, budgetTokens: 4000 });
 
-  assert.equal(packet.schema, 'blackboard.context.v1');
+  assert.equal(packet.schema, 'blackboard.context.v2');
   assert.equal(packet.policy.readOnly, true);
   assert.equal(packet.policy.prescriptive, false);
   assert.equal(packet.policy.nextStepSelection, 'agent-controlled');

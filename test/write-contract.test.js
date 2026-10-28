@@ -102,7 +102,7 @@ test('--cwd beats BLACKBOARD_CWD and the process directory, for writes and reads
   const listed = ok(t, ['ls', '--cwd', b, '--json'], { cwd: a, env: { BLACKBOARD_CWD: a } });
   assert.deepEqual(listed.map((n) => n.title), ['in B']);
   const context = ok(t, ['context', '--cwd', b, '--json'], { cwd: a });
-  assert.equal(context.schema, 'blackboard.context.v1');
+  assert.equal(context.schema, 'blackboard.context.v2');
 
   // A relative --cwd resolves against the process directory, like any path argument.
   ok(t, ['goal', 'relative', '--cwd', path.relative(a, b)], { cwd: a });

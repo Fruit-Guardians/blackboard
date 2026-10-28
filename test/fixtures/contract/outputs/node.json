@@ -18,7 +18,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.node-add.v1",
+        "schema": "blackboard.node-add.v2",
         "node": {
           "id": "n1",
           "type": "note",
@@ -29,7 +29,10 @@
           "tags": [
             "x"
           ],
-          "author": "agent:primary"
+          "author": "agent:primary",
+          "status": null,
+          "severity": null,
+          "confidence": null
         },
         "edge": null,
         "cursor": null
@@ -72,14 +75,17 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.node-add.v1",
+        "schema": "blackboard.node-add.v2",
         "node": {
           "id": "n1",
           "type": "experiment",
           "title": "Unknown type",
           "ts": "<now>",
           "session": "<session-id>",
-          "author": "agent:primary"
+          "author": "agent:primary",
+          "status": null,
+          "severity": null,
+          "confidence": null
         },
         "edge": {
           "id": "n1->g1:inspired-by",
@@ -151,14 +157,17 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.node-add.v1",
+        "schema": "blackboard.node-add.v2",
         "node": {
           "id": "s1",
           "type": "start",
           "title": "Start here",
           "ts": "<now>",
           "session": "<session-id>",
-          "author": "agent:primary"
+          "author": "agent:primary",
+          "status": null,
+          "severity": null,
+          "confidence": null
         },
         "edge": null,
         "cursor": null
@@ -192,7 +201,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.node-add.v1",
+        "schema": "blackboard.node-add.v2",
         "node": {
           "id": "g2",
           "type": "goal",
@@ -200,7 +209,9 @@
           "ts": "<now>",
           "session": "<session-id>",
           "author": "agent:primary",
-          "status": "active"
+          "status": "active",
+          "severity": null,
+          "confidence": null
         },
         "edge": null,
         "cursor": null
@@ -234,7 +245,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.node-add.v1",
+        "schema": "blackboard.node-add.v2",
         "node": {
           "id": "i2",
           "type": "intent",
@@ -242,7 +253,9 @@
           "ts": "<now>",
           "session": "<session-id>",
           "author": "agent:primary",
-          "status": "open"
+          "status": "open",
+          "severity": null,
+          "confidence": null
         },
         "edge": {
           "id": "v1->i2:related-to",
@@ -299,7 +312,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.node-add.v1",
+        "schema": "blackboard.node-add.v2",
         "node": {
           "id": "f5",
           "type": "fact",
@@ -311,7 +324,9 @@
           "loc": {
             "path": "src/auth.js",
             "line": 42
-          }
+          },
+          "status": null,
+          "severity": null
         },
         "edge": null,
         "cursor": null
@@ -352,7 +367,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.node-add.v1",
+        "schema": "blackboard.node-add.v2",
         "node": {
           "id": "v2",
           "type": "vuln",
@@ -361,7 +376,9 @@
           "session": "<session-id>",
           "author": "agent:primary",
           "severity": "medium",
-          "parent": "f2"
+          "parent": "f2",
+          "status": null,
+          "confidence": null
         },
         "edge": {
           "id": "f2->v2:related-to",
@@ -417,14 +434,17 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.node-add.v1",
+        "schema": "blackboard.node-add.v2",
         "node": {
           "id": "h2",
           "type": "hint",
           "title": "Compare with the SSO handler",
           "ts": "<now>",
           "session": "<session-id>",
-          "author": "agent:reviewer"
+          "author": "agent:reviewer",
+          "status": null,
+          "severity": null,
+          "confidence": null
         },
         "edge": null,
         "cursor": null
@@ -458,14 +478,17 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.node-add.v1",
+        "schema": "blackboard.node-add.v2",
         "node": {
           "id": "f5",
           "type": "fact",
           "title": "x",
           "ts": "<now>",
           "session": "<session-id>",
-          "author": "agent:primary"
+          "author": "agent:primary",
+          "status": null,
+          "severity": null,
+          "confidence": null
         },
         "edge": null,
         "cursor": null

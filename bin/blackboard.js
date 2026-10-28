@@ -17,6 +17,7 @@ import {
   CONFIDENCE_LABEL,
   currentCursor,
   resolveRef,
+  projectNode,
 } from '../lib/model.js';
 import {
   paths,
@@ -154,7 +155,11 @@ ${b('恢复与查看')}
   blackboard tree [-d 4]
   blackboard tail
   blackboard serve [--port ${DEFAULT_PORT}] [--open] [--read-only]   前台查看器；--read-only 关闭页面编辑
-  blackboard export [-o blackboard.html]
+  blackboard export [关键词] [--format html|markdown|mermaid|sarif] [-o 文件]
+    报告筛选: --type … --status … --sev … --confidence … --tag … --rel … --related-to …
+    --sort severity|time|id                 报告默认按严重度、再按 ID 排序
+    --group-by tag:site,severity,status     Markdown/Mermaid 分组
+    --max-nodes <数量>                       Mermaid 节点上限，默认 200，明确报告省略
   blackboard reset --yes
 
 ${b('宿主接入与服务')}
@@ -219,7 +224,7 @@ const COMMAND_FLAGS = {
   show: 'cwd json', tree: 'depth cwd', digest: 'agent write quiet cwd json',
   context: 'focus depth budget since limit agent markdown cwd json',
   lint: 'cwd json', tail: 'agent cwd json', serve: 'port open read-only cwd',
-  export: 'out cwd json', reset: `yes ${WRITE_FLAGS} json`,
+  export: 'out format type status sev confidence tag rel related-to sort group-by max-nodes cwd json', reset: `yes ${WRITE_FLAGS} json`,
   search: 'type tag status sev confidence rel related-to group-by limit cwd json', history: 'cwd json', changes: 'since cwd json',
   backup: 'out cwd json', restore: 'into cwd json', receipt: 'cwd json', capabilities: 'json',
   hooks: 'write user project with-activity cwd json',
@@ -232,33 +237,33 @@ const COMMAND_FLAGS = {
 // and is described here only. capabilities --json publishes this table.
 const object = (schema) => ({ shape: 'object', schema });
 const array = (items) => ({ shape: 'array', items });
-const NODE = 'blackboard.node.v1';
+const NODE = 'blackboard.node.v2';
 const EDGE = 'blackboard.edge.v1';
 const ACTIVITY = 'blackboard.activity.v1';
 const OUTPUTS = {
   init: object('blackboard.init.v1'),
-  status: object('blackboard.status.v1'),
-  node: object('blackboard.node-add.v1'),
+  status: object('blackboard.status.v2'),
+  node: object('blackboard.node-add.v2'),
   checkpoint: object('blackboard.checkpoint.v1'),
   cursor: object('blackboard.cursor.v1'),
-  here: object('blackboard.here.v1'),
+  here: object('blackboard.here.v2'),
   activity: array(ACTIVITY),
   'activity show': object(ACTIVITY),
-  promote: object('blackboard.node-add.v1'),
+  promote: object('blackboard.node-add.v2'),
   done: object(NODE), block: object(NODE), revive: object(NODE), edit: object(NODE),
   link: object(EDGE), unlink: object(EDGE),
   remove: object('blackboard.remove.v1'),
   ls: array(NODE),
-  show: object('blackboard.show.v1'),
+  show: object('blackboard.show.v2'),
   digest: object('blackboard.digest.v1'),
-  context: object('blackboard.context.v1'),
+  context: object('blackboard.context.v2'),
   lint: object('blackboard.lint.v1'),
   tail: object('blackboard.tail.v1'),
   export: object('blackboard.export.v1'),
   reset: object('blackboard.reset.v1'),
-  search: object('blackboard.search.v1'),
-  history: object('blackboard.history.v1'),
-  changes: object('blackboard.changes.v1'),
+  search: object('blackboard.search.v2'),
+  history: object('blackboard.history.v2'),
+  changes: object('blackboard.changes.v2'),
   backup: object('blackboard.backup-receipt.v1'),
   restore: object('blackboard.restore-receipt.v1'),
   receipt: object('blackboard.receipt.v1'),
@@ -325,6 +330,7 @@ function parseArgs(argv, cmd = '') {
     ['port', cmd === 'serve' ? 0 : 1, 65535],
     ['depth', 0, cmd === 'context' ? 5 : Number.MAX_SAFE_INTEGER],
     ['budget', 1, Number.MAX_SAFE_INTEGER], ['limit', 1, Number.MAX_SAFE_INTEGER],
+    ['max-nodes', 1, Number.MAX_SAFE_INTEGER],
   ]) {
     if (flags[key] !== undefined && (!/^\d+$/.test(flags[key])
       || !Number.isSafeInteger(Number(flags[key])) || Number(flags[key]) < min || Number(flags[key]) > max)) {
@@ -430,13 +436,33 @@ async function cmdServe(args, flags) {
 }
 
 async function cmdExport(args, flags) {
-  needInit();
+  needInitRead();
   const { renderExport } = await import('../lib/export.js');
-  const file = flags.out || flags.o || 'blackboard.html';
-  const abs = path.resolve(cwd(), file);
-  fs.writeFileSync(abs, renderExport({ cwd: cwd() }));
-  if (flags.json) return out(flags, { file: abs }, OUTPUTS.export);
-  console.log(`${C.grn('已导出')} ${abs}`);
+  const format = flags.format || 'html';
+  const extension = { html: 'html', markdown: 'md', mermaid: 'mmd', sarif: 'sarif' }[format];
+  if (!extension) fail('--format 只能是 html|markdown|mermaid|sarif');
+  const abs = path.resolve(cwd(), flags.out || `blackboard.${extension}`);
+  const board = paths(cwd());
+  let actual = abs, target;
+  try { actual = fs.realpathSync(abs); target = fs.statSync(abs); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if ([abs, actual].some((file) => file.split(path.sep).includes(path.basename(board.root)))) fail('导出文件不能写入黑板数据目录');
+  if (target) {
+    for (const file of [board.events, board.state, board.config, board.digest]) {
+      if (!fs.existsSync(file)) continue;
+      const source = fs.statSync(file);
+      if (target.dev === source.dev && target.ino === source.ino) fail('导出文件不能覆盖黑板数据或其文件别名');
+    }
+  }
+  const relatedTo = flags['related-to'] ? refOrFail(replay(cwd()).nodes, flags['related-to']) : undefined;
+  const content = renderExport({
+    cwd: cwd(), format, version: VERSION, query: args.join(' '),
+    type: flags.type, status: flags.status, severity: flags.sev, confidence: flags.confidence,
+    tags: flags.tag, relation: flags.rel, relatedTo, sort: flags.sort, groupBy: flags['group-by'],
+    maxNodes: flags['max-nodes'] === undefined ? undefined : Number(flags['max-nodes']),
+  });
+  fs.writeFileSync(abs, content);
+  if (flags.json) return out(flags, { file: abs, format }, OUTPUTS.export);
+  console.log(`${C.grn('已导出')} ${format} · ${abs}`);
 }
 
 async function cmdStatus(args, flags) {
@@ -455,7 +481,7 @@ async function cmdStatus(args, flags) {
     !latest || (node.updated || node.ts || 0) > (latest.updated || latest.ts || 0) ? node : latest, null);
   if (flags.json) return out(flags, {
     stats: s, cursor, cursors: g.cursors, title: g.meta.title || state.title, session: state.session,
-    cwd: p.cwd, agentId, viewer, integration, latestNode,
+    cwd: p.cwd, agentId, viewer, integration, latestNode: projectNode(latestNode),
   }, OUTPUTS.status);
 
   console.log(
@@ -509,7 +535,7 @@ function cmdList(args, flags) {
   if (nodes.length < total) {
     console.error(`blackboard ls：匹配 ${total} 条，显示最近 ${nodes.length} 条，已省略 ${total - nodes.length} 条；使用 --all 读取全部，或用 --limit 调整条数。`);
   }
-  if (flags.json) return out(flags, nodes, OUTPUTS.ls);
+  if (flags.json) return out(flags, nodes.map(projectNode), OUTPUTS.ls);
   if (!nodes.length) return console.log(C.dim('（空）'));
   for (const n of nodes) console.log(nodeLine(n));
 }
@@ -521,7 +547,7 @@ function cmdShow(args, flags) {
   const g = replay(cwd());
   const nodeId = refOrFail(g.nodes, id);
   const n = g.nodes[nodeId];
-  if (flags.json) return out(flags, { node: n, parents: parentsOf(g, nodeId), children: childrenOf(g, nodeId) }, OUTPUTS.show);
+  if (flags.json) return out(flags, { node: projectNode(n), parents: parentsOf(g, nodeId).map(projectNode), children: childrenOf(g, nodeId).map(projectNode) }, OUTPUTS.show);
   const chain = [];
   let cur = n;
   const seen = new Set();
@@ -731,7 +757,8 @@ function cmdCapabilities(args, flags) {
       checkpointChanges: true, backupRestore: true, requestReceipts: true,
       writeAttribution: true, cwdFlag: true, noInit: true,
       rejectTruncation: true, inputTruncationMetadata: true, nodeEdgeLabel: true,
-      searchFilters: true, searchGrouping: true, listAll: true },
+      searchFilters: true, searchGrouping: true, listAll: true, nodeJsonDefaults: true },
+    exportFormats: ['html', 'markdown', 'mermaid', 'sarif'],
     contextContract: { readOnly: true, prescriptive: false, nextStepSelection: 'agent-controlled' },
     limits: LIMITS,
     outputs: OUTPUTS,
@@ -978,7 +1005,7 @@ function addSimple(type, args, flags) {
     cwd(),
   );
   warnTruncated(result);
-  if (flags.json) return out(flags, result, OUTPUTS.node);
+  if (flags.json) return out(flags, { ...result, node: projectNode(result.node) }, OUTPUTS.node);
   if (!process.env.BLACKBOARD_QUIET) {
     const { edge } = result;
     const via = !edge ? '' : (edge.from === result.node.id
@@ -1052,7 +1079,7 @@ function cmdHere(args, flags) {
   const node = id ? g.nodes[id] : null;
   const neighbors = neighborsOf(g, id);
   const trail = (g.cursorTrail || []).filter((c) => c.agentId === agentId).slice(-10);
-  if (flags.json) return out(flags, { agentId, cursor: id, node, neighbors, trail }, OUTPUTS.here);
+  if (flags.json) return out(flags, { agentId, cursor: id, node: projectNode(node), neighbors: neighbors.map((item) => ({ ...item, node: projectNode(item.node) })), trail }, OUTPUTS.here);
   if (!node) return console.log(C.dim('当前游标未设置。'));
   console.log(`${C.bold('当前')} ${nodeLine(node)}`);
   if (neighbors.length) {
@@ -1124,7 +1151,7 @@ function cmdPromote(args, flags) {
     ...(flags['no-truncate'] ? { rejectTruncation: true } : {}),
   }, cwd());
   warnTruncated(result);
-  if (flags.json) return out(flags, result, OUTPUTS.promote);
+  if (flags.json) return out(flags, { ...result, node: projectNode(result.node) }, OUTPUTS.promote);
   console.log(`${C.grn('提升 →')} ${nodeLine(result.node)}`);
 }
 
@@ -1134,7 +1161,7 @@ function cmdState(cmd, args, flags) {
   if (!id) fail(`用法: blackboard ${cmd} <id>`);
   const map = { done: 'done', block: 'blocked', revive: 'open' };
   const n = patchNode(id, { status: map[cmd] }, cwd(), { by: agentOf(flags), requestId: flags['request-id'] });
-  if (flags.json) return out(flags, n, OUTPUTS[cmd]);
+  if (flags.json) return out(flags, projectNode(n), OUTPUTS[cmd]);
   if (!process.env.BLACKBOARD_QUIET) console.log(`${C.grn('✓')} ${nodeLine(n)}`);
 }
 
@@ -1152,7 +1179,7 @@ function cmdEdit(args, flags) {
   if (!Object.keys(set).length) fail('没有要修改的字段');
   const n = patchNode(id, set, cwd(), { by: agentOf(flags), requestId: flags['request-id'], ...(flags['no-truncate'] ? { rejectTruncation: true } : {}) });
   warnTruncated(n);
-  if (flags.json) return out(flags, n, OUTPUTS.edit);
+  if (flags.json) return out(flags, projectNode(n), OUTPUTS.edit);
   if (!process.env.BLACKBOARD_QUIET) console.log(`${C.grn('✓')} ${nodeLine(n)}`);
 }
 

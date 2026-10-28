@@ -98,6 +98,24 @@ blackboard search --type vuln --group-by tag:site,severity,status --limit 1 --js
 
 `features.searchFilters` 声明严重度/可信度筛选，`features.searchGrouping` 声明分组统计；新选项只用于声明了相应能力的 CLI。`BLACKBOARD_CWD` 可在同一终端一次设置，`--cwd` 优先；跨工具调用和子 Agent 仍应显式传项目路径。
 
+节点公开投影的 `status`、`severity`、`confidence` 始终存在，缺省为 `null`；`features.nodeJsonDefaults` 和 `capabilities.outputs` 声明能力与 schema。NULL 不是 open，不按其他维度补默认裁定；`receipt.result` 是原始写入结果，不规范化为当前读取形状。
+
+### 报告导出
+
+先读取 `capabilities.exportFormats`；仅调用已支持的格式：
+
+```sh
+blackboard export --format markdown --type vuln --confidence reproduced --sort severity --out report.md --cwd "/已确认项目"
+blackboard export --format markdown --tag site=alpha.example --group-by severity,status --out site.md --cwd "/已确认项目"
+blackboard export --format mermaid --group-by tag:site --max-nodes 200 --out graph.mmd --cwd "/已确认项目"
+blackboard export --format sarif --type finding --out findings.sarif --cwd "/已确认项目"
+```
+
+三个报告格式复用 search 的筛选，读取全部匹配；默认按记录的严重度、再按 ID 排序。Markdown/Mermaid 支持分组，并保留一跳的证据/反证上下文；相关节点可能不满足主筛选，但会标为上下文，不假装新增发现。Markdown 使用记录标题和显式锚点导航，保留完整原文和输入截断标记；Mermaid 有向虚线表示 related-to，节点上限省略量写在注释里。显示边超过 500 条或图源码超过 50,000 字符时会拒绝导出；用更精确的筛选或更低的 `--max-nodes` 缩小图，不截短原文或猜测该丢弃哪些关系。
+
+SARIF 仅将带已记录 `loc` 的 finding/vuln 转为结果；不从正文或站点标签伪造代码位置。检查 `runs[].properties.coverage` 和 `skippedNodes`：无位置导致零结果不等于没有发现。`--group-by` 不用于 SARIF，`--max-nodes` 仅用于 Mermaid。HTML 仍是完整快照，不接受报告筛选。导出不改事件；输出文件不能放入黑板数据目录。任何格式的逻辑记录都可能含敏感正文，交付前仍需核对实际内容。
+
+
 
 ## 游标与检查点
 

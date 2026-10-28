@@ -12,7 +12,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.node.v1",
+        "schema": "blackboard.node.v2",
         "id": "i1",
         "type": "intent",
         "title": "Read the login handler first",
@@ -21,7 +21,9 @@
         "author": "agent:primary",
         "status": "open",
         "updated": "<now>",
-        "updatedBy": "agent:primary"
+        "updatedBy": "agent:primary",
+        "severity": null,
+        "confidence": null
       },
       "events": [
         {

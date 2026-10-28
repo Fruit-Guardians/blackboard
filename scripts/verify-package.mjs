@@ -108,6 +108,7 @@ export function verifyPackage(options = {}) {
     assert.ok(init);
     command('node', 'add', 'hypothesis', 'Packed hypothesis', '--status', 'open');
     command('node', 'add', 'observation', 'Packed evidence', '--confidence', 'reproduced', '--at', 'fixture.js:12');
+    command('node', 'add', 'finding', 'Packed code finding', '--at', 'fixture.js:24', '--sev', 'high');
     const eventsFile = path.join(board, '.blackboard', 'events.jsonl');
     const beforeRead = fs.readFileSync(eventsFile);
     const packet = JSON.parse(command('context'));
@@ -119,11 +120,24 @@ export function verifyPackage(options = {}) {
     assert.ok(lint);
     command('export', '-o', path.join(board, 'offline.html'));
     assert.match(fs.readFileSync(path.join(board, 'offline.html'), 'utf8'), /Packed hypothesis/);
+    for (const [format, extension] of [['markdown', 'md'], ['mermaid', 'mmd'], ['sarif', 'sarif']]) {
+      const output = path.join(board, `report.${extension}`);
+      const exported = JSON.parse(command('export', '--format', format, '--type', 'finding', '--out', output, '--json'));
+      assert.equal(exported.format, format);
+      const content = fs.readFileSync(output, 'utf8');
+      if (format === 'sarif') {
+        const results = JSON.parse(content).runs[0].results;
+        assert.equal(results.length, 1);
+        assert.equal(results[0].message.text, 'Packed code finding');
+        assert.equal(results[0].level, 'error');
+        assert.equal(results[0].locations[0].physicalLocation.region.startLine, 24);
+      } else assert.ok(content.includes('Packed code finding'), `${format} retains the authored finding title`);
+    }
     assert.ok(fs.readFileSync(eventsFile).equals(beforeRead), 'recovery, lint and export must not write events');
     // Source and installed runtime are deliberately separate. No global installation/setup runs.
     return { result: 'PASS', package: `${pkg.name}@${pkg.version}`, node: process.version, platform: process.platform, arch: process.arch,
       tarball: options.tarball ? tarball : '(temporary npm pack artifact; removed)', packedFiles: files.length, skillFiles: skillFiles.length,
-      checks: ['zero-runtime-dependencies', 'complete-skill', 'built-assets-resolve', 'clean-install', 'cli-init-create', 'json-markdown-context', 'nonblocking-lint', 'offline-export', 'read-only-event-integrity'] };
+      checks: ['zero-runtime-dependencies', 'complete-skill', 'built-assets-resolve', 'clean-install', 'cli-init-create', 'json-markdown-context', 'nonblocking-lint', 'offline-export', 'markdown-mermaid-sarif-exports', 'read-only-event-integrity'] };
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 }
 

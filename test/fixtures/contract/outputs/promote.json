@@ -16,7 +16,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.node-add.v1",
+        "schema": "blackboard.node-add.v2",
         "node": {
           "id": "o1",
           "type": "observation",
@@ -28,7 +28,10 @@
             "bash"
           ],
           "author": "agent:primary",
-          "activityId": "act1"
+          "activityId": "act1",
+          "status": null,
+          "severity": null,
+          "confidence": null
         },
         "edge": null,
         "cursor": null

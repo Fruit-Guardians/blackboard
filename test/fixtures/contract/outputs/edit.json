@@ -18,7 +18,7 @@
       ],
       "exitCode": 0,
       "output": {
-        "schema": "blackboard.node.v1",
+        "schema": "blackboard.node.v2",
         "id": "v1",
         "type": "vuln",
         "title": "Session fixation",
@@ -32,7 +32,8 @@
         "updatedBy": "agent:primary",
         "tags": [
           "auth"
-        ]
+        ],
+        "status": null
       },
       "events": [
         {

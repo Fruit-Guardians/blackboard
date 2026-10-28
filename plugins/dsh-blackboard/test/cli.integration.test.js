@@ -49,5 +49,5 @@ test('real blackboard CLI: all tools, two boards/identities, replay, read-only c
   await call('cursor', { id: 'none' }); assert.equal((await call('context', {})).data.currentFocus, null);
   const provider = skillProvider(bridge, 600), [candidate] = await provider.list(), skill = await provider.get(candidate);
   assert.match(skill.content, /blackboard/); assert.ok(!skill.content.includes('__BLACKBOARD_CLI__'));
-  for (const rel of [...skill.content.matchAll(/\]\((references\/[^)]+)\)/g)].map((m) => m[1])) await fs.access(path.join(candidate.resourceBase.path, rel));
+  for (const rel of [...skill.content.matchAll(/\]\((references\/[^)]+)\)/g)].map((m) => m[1])) await fs.access(path.join(candidate.resourceBase.path, rel.split('#')[0]));
 });

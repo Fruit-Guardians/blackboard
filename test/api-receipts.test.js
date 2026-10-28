@@ -57,7 +57,6 @@ test('real HTTP mutation routes explicitly deduplicate creates, patches and remo
     assert.equal(receipt.body.readOnly, true);
     assert.equal(receipt.body.prescriptive, false);
     assert.equal(receipt.body.receipt.status, 'committed');
-    assert.deepEqual(receipt.body.receipt.result, first.body);
     assert.equal('_events' in receipt.body.receipt, false);
     assert.equal(count(cwd), events, 'receipt lookup appends no events');
     return first.body;
@@ -100,7 +99,10 @@ test('a lost HTTP response can be resolved by receipt and retried without a dupl
   const receipt = await request('GET', '/api/receipt?requestId=lost-response');
   assert.equal(receipt.status, 200);
   const retry = await request('POST', '/api/nodes', { title: 'Committed before response loss' }, 'lost-response');
-  assert.deepEqual(retry.body, receipt.body.receipt.result);
+  assert.equal(retry.body.node.id, receipt.body.receipt.result.node.id);
+  assert.equal(retry.body.node.title, 'Committed before response loss');
+  assert.equal(retry.body.node.confidence, null);
+  assert.equal(Object.hasOwn(receipt.body.receipt.result.node, 'confidence'), false);
   assert.equal(count(cwd), events);
   assert.equal(readEvents(cwd).events.filter((ev) => ev.op === 'node').length, 1);
 });

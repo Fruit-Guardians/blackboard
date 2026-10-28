@@ -86,8 +86,15 @@
           "nodeEdgeLabel": true,
           "searchFilters": true,
           "searchGrouping": true,
-          "listAll": true
+          "listAll": true,
+          "nodeJsonDefaults": true
         },
+        "exportFormats": [
+          "html",
+          "markdown",
+          "mermaid",
+          "sarif"
+        ],
         "contextContract": {
           "readOnly": true,
           "prescriptive": false,
@@ -106,11 +113,11 @@
           },
           "status": {
             "shape": "object",
-            "schema": "blackboard.status.v1"
+            "schema": "blackboard.status.v2"
           },
           "node": {
             "shape": "object",
-            "schema": "blackboard.node-add.v1"
+            "schema": "blackboard.node-add.v2"
           },
           "checkpoint": {
             "shape": "object",
@@ -122,7 +129,7 @@
           },
           "here": {
             "shape": "object",
-            "schema": "blackboard.here.v1"
+            "schema": "blackboard.here.v2"
           },
           "activity": {
             "shape": "array",
@@ -134,23 +141,23 @@
           },
           "promote": {
             "shape": "object",
-            "schema": "blackboard.node-add.v1"
+            "schema": "blackboard.node-add.v2"
           },
           "done": {
             "shape": "object",
-            "schema": "blackboard.node.v1"
+            "schema": "blackboard.node.v2"
           },
           "block": {
             "shape": "object",
-            "schema": "blackboard.node.v1"
+            "schema": "blackboard.node.v2"
           },
           "revive": {
             "shape": "object",
-            "schema": "blackboard.node.v1"
+            "schema": "blackboard.node.v2"
           },
           "edit": {
             "shape": "object",
-            "schema": "blackboard.node.v1"
+            "schema": "blackboard.node.v2"
           },
           "link": {
             "shape": "object",
@@ -166,11 +173,11 @@
           },
           "ls": {
             "shape": "array",
-            "items": "blackboard.node.v1"
+            "items": "blackboard.node.v2"
           },
           "show": {
             "shape": "object",
-            "schema": "blackboard.show.v1"
+            "schema": "blackboard.show.v2"
           },
           "digest": {
             "shape": "object",
@@ -178,7 +185,7 @@
           },
           "context": {
             "shape": "object",
-            "schema": "blackboard.context.v1"
+            "schema": "blackboard.context.v2"
           },
           "lint": {
             "shape": "object",
@@ -198,15 +205,15 @@
           },
           "search": {
             "shape": "object",
-            "schema": "blackboard.search.v1"
+            "schema": "blackboard.search.v2"
           },
           "history": {
             "shape": "object",
-            "schema": "blackboard.history.v1"
+            "schema": "blackboard.history.v2"
           },
           "changes": {
             "shape": "object",
-            "schema": "blackboard.changes.v1"
+            "schema": "blackboard.changes.v2"
           },
           "backup": {
             "shape": "object",

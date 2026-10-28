@@ -81,7 +81,7 @@ function contextIds(snapshot: GraphSnapshot, nodes: BoardNode[], edges: BoardEdg
   nodes.forEach((node) => {
     if (node.type === 'goal') ids.add(node.id);
     if (['intent', 'hypothesis', 'question'].includes(node.type) &&
-      ['open', 'active', 'blocked', undefined].includes(node.status)) ids.add(node.id);
+      ['open', 'active', 'blocked', undefined].includes(node.status ?? undefined)) ids.add(node.id);
   });
 
   // 现场只展开当前节点的一跳邻域；完整推理路径留给逻辑视图。

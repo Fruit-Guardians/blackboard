@@ -4,9 +4,9 @@ export type BoardNode = {
   title: string;
   detail?: string;
   inputTruncation?: Record<string, { originalLength: number; storedLength: number }> | null;
-  status?: string;
-  severity?: string;
-  confidence?: string;
+  status?: string | null;
+  severity?: string | null;
+  confidence?: string | null;
   ts?: number;
   updated?: number;
   session?: string;
