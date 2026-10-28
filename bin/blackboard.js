@@ -9,12 +9,11 @@ import {
   NODE_TYPES,
   EVENT_VERSION,
   TYPE_LABEL,
-  EDGE_LABEL,
-  INTENT_STATUS,
   NODE_STATES,
   SEVERITIES,
   CONFIDENCE_LEVELS,
-  CONFIDENCE_LABEL,
+  EDGE_LABEL,
+  INTENT_STATUS,
   currentCursor,
   resolveRef,
   projectNode,
@@ -47,6 +46,10 @@ import { searchGraph } from '../lib/search.js';
 import { isOpenThread } from '../lib/semantics.js';
 import { DEFAULT_PORT, resolvePort, rememberViewerPort, probeViewer } from '../lib/service.js';
 import { stableCliPath, cliOrigin } from '../lib/release.js';
+import { OUTPUTS, WRITE_TARGETS } from '../lib/contracts.js';
+import { COMMAND_FLAGS, parseArgs } from '../lib/cli/args.js';
+import { usage } from '../lib/cli/help.js';
+import { C, colorType, shortDetail, nodeLine, activityLine } from '../lib/cli/format.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -55,135 +58,6 @@ const ROOT = path.resolve(HERE, '..');
 const CLI = stableCliPath(path.join(ROOT, 'bin', 'blackboard.js'));
 const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
 
-const C = process.stdout.isTTY
-  ? {
-      dim: (s) => `\x1b[2m${s}\x1b[0m`,
-      bold: (s) => `\x1b[1m${s}\x1b[0m`,
-      grn: (s) => `\x1b[32m${s}\x1b[0m`,
-      blu: (s) => `\x1b[34m${s}\x1b[0m`,
-      mag: (s) => `\x1b[35m${s}\x1b[0m`,
-      red: (s) => `\x1b[31m${s}\x1b[0m`,
-      yel: (s) => `\x1b[33m${s}\x1b[0m`,
-      cyn: (s) => `\x1b[36m${s}\x1b[0m`,
-      gry: (s) => `\x1b[90m${s}\x1b[0m`,
-    }
-  : new Proxy({}, { get: () => (s) => s });
-
-const TYPE_COLOR = {
-  start: C.gry,
-  goal: C.grn,
-  intent: C.blu,
-  observation: C.yel,
-  fact: C.yel,
-  hypothesis: C.mag,
-  question: C.cyn,
-  action: C.blu,
-  result: C.yel,
-  finding: C.red,
-  vuln: C.red,
-  hint: C.mag,
-  summary: C.cyn,
-  note: C.gry,
-  compact: C.cyn,
-};
-
-function colorType(n) {
-  return (TYPE_COLOR[n.type] || ((s) => s))(`${TYPE_LABEL[n.type] || n.type}`);
-}
-
-function usage() {
-  const b = C.bold;
-  console.log(`
-${b('blackboard')} — Agent 外置黑板
-
-${b('初始化')}
-  blackboard init [--title "任务标题"]       建立 .blackboard/
-  blackboard setup [选项]                   一条龙配置 Claude Skill、恢复 Hook 和持久服务
-    --target <目录> --title "标题" --port ${DEFAULT_PORT} --open
-    --no-hooks --no-skill --no-serve        可按需关闭某一接入项
-  blackboard status [--json] [--port <端口>]   查看数据、接入配置和实际服务状态
-
-${b('逻辑节点')}
-  blackboard node add <kind> "标题" [选项]   任意类型节点
-  blackboard start|goal|intent|fact|vuln|hint "标题"  兼容简写
-  可用选项: --enter                    创建后进入该节点
-            --relate-here              与当前节点建立弱关系
-            --to <id>                  新节点指向已有节点，读作 “新节点 <rel> id”
-            --parent <id>              显式来源节点，读作 “id <rel> 新节点”（兼容）
-            --rel <relation>           上述关系的类型，默认 related-to
-            --label <text>             上述关系的说明，同 link --label
-            --at <file:line>           文件位置
-            --detail/-d                详情
-            --tag/-t                   可重复标签
-            --status <state>           可选状态
-            --sev <severity>           严重度
-            --confidence <level>       suspected|static-confirmed|reproduced|confirmed
-            --no-truncate              超限时整条不保存；同样适用于 edit/link/checkpoint/promote
-
-${b('游标与关系')}
-  blackboard cursor <id|none> [--reason "…"] 只移动当前游标，不创建逻辑边
-  blackboard focus <id>                      cursor 的兼容别名
-  blackboard here                            当前节点、邻域和最近轨迹
-  blackboard link <from> <to> [--rel supports]   读作 “from <rel> to”，如 link 观察 猜测 --rel supports
-  blackboard unlink <from> <to> [--rel supports] 断开一条关系
-  blackboard remove <id> [--reason "…"]      把节点及其关系从图上移除（日志保留历史）
-  blackboard done|block|revive <id>          修改节点状态
-  blackboard edit <id> [--title …|-d …|--status …|--sev …|--confidence …]
-
-${b('恢复与查看')}
-  blackboard checkpoint [--summary "…"]      创建恢复检查点
-  blackboard compact [--summary "…"]         checkpoint 的兼容别名
-  blackboard activity ls|show [id]           查看原始活动层
-  blackboard promote <activity-id> [--kind observation] [--title "…"] [--to <id> --rel …]
-  blackboard digest [--write] [--agent <名称>] 当前节点/邻域/轨迹/开放节点
-  blackboard context [选项]                  Agent 可读的结构化上下文包
-    --focus <id> --depth <0-5> --budget <tokens> --since <checkpoint|timestamp>
-    默认输出 JSON；--markdown 输出便于人读的摘要
-  blackboard lint [--json]                   只读检查上下文质量，不修改也不拦截
-  blackboard ls [--type hypothesis] [--open] [--limit 30 | --all]
-  blackboard show <id>
-  blackboard search [关键词] [--type … --tag … --status … --sev … --confidence …]
-    --rel … --related-to <id> --limit <1-1000> --json
-    --group-by severity,status,tag:site       按全部匹配统计；未填写单列为 null
-    --tag site=example.test --tag auth        标签精确匹配，多个标签取交集
-  blackboard history <id> [--json]           节点与关联变更历史（含已删除节点）
-  blackboard changes --since <checkpoint> [--json]   交接后差异与事件过程
-  blackboard backup --out <新备份目录> [--json]      原始事件＋校验清单
-  blackboard restore <备份目录> --into <项目目录> [--json]  恢复到未建黑板的目录
-  blackboard receipt <request-id> [--json]   只读查询提交回执
-  blackboard capabilities [--json]          接入层能力协商
-  blackboard tree [-d 4]
-  blackboard tail
-  blackboard serve [--port ${DEFAULT_PORT}] [--open] [--read-only]   前台查看器；--read-only 关闭页面编辑
-  blackboard export [关键词] [--format html|markdown|mermaid|sarif] [-o 文件]
-    报告筛选: --type … --status … --sev … --confidence … --tag … --rel … --related-to …
-    --sort severity|time|id                 报告默认按严重度、再按 ID 排序
-    --group-by tag:site,severity,status     Markdown/Mermaid 分组
-    --max-nodes <数量>                       Mermaid 节点上限，默认 200，明确报告省略
-  blackboard reset --yes
-
-${b('宿主接入与服务')}
-  blackboard hooks install|uninstall [--write] [--user|--project]   仅 Claude Code 恢复 Hook
-    --with-activity  安装时额外采集工具活动（可能含敏感内容，默认关闭）
-  blackboard skill install [--codex] [--user|--project]   安装 Claude 或 Codex Skill
-  blackboard service status|stop|uninstall [--json]   管理 macOS 共享工作区服务
-  blackboard launcher
-  blackboard hook <event>
-
-${b('版本发布')}
-  blackboard release install [--force]      在开发仓库里运行：复制成独立版本并切换 current
-  blackboard release use <版本>              切换或回滚到已安装的版本
-  blackboard release ls [--json]             列出已安装版本
-  启动器、用户级 Skill/Hook 和常驻服务只指向 current；install/use 后会从新版本刷新它们。
-
-node/edit/link/unlink/remove/cursor/checkpoint/reset 等写命令可加 --request-id <稳定ID>；同一操作重试复用同ID，receipt 可查询提交状态。
-写命令都接受 --agent <名称>（记为节点、关系和修改的作者，并决定移动哪个游标）、--cwd <项目根>、--no-init（项目根没有黑板时报错，不自动新建）。
-读命令同样接受 --cwd；优先级 --cwd > BLACKBOARD_CWD > 当前目录向上最近的黑板。
-所有命令支持 --help / -h；init/setup/status/skill/hooks/launcher/service 支持 --json，供脚本读取。
-端口优先级: --port > BLACKBOARD_PORT > 项目 viewerPort > ${DEFAULT_PORT}；地址统一为 127.0.0.1。
-环境变量: BLACKBOARD_CWD 指定项目根；BLACKBOARD_QUIET=1 静默；BLACKBOARD_AGENT=name 让并行的 Agent 各用各的身份和游标（默认 agent:primary；--agent 优先）。
-`);
-}
 /** Resolve a typed id, failing with the candidate list instead of a stack trace. */
 function refOrFail(map, ref, label = 'node') {
   try {
@@ -198,155 +72,6 @@ function fail(msg) {
   process.exit(1);
 }
 
-const BOOLEAN_FLAGS = new Set([
-  'json', 'open', 'write', 'all', 'open-only', 'quiet', 'enter', 'relate-here',
-  'user', 'project', 'yes', 'with-activity', 'here', 'codex', 'no-hooks',
-  'no-skill', 'no-serve', 'read-only', 'markdown', 'force', 'no-init', 'no-truncate',
-]);
-// Every write takes the same three: who is writing, which board, and whether a missing board may be created.
-const WRITE_FLAGS = 'agent cwd no-init request-id';
-const NODE_FLAGS = `detail tag status sev confidence at parent to enter relate-here rel kind label reason ${WRITE_FLAGS} no-truncate json`;
-const COMMAND_FLAGS = {
-  init: 'title here cwd json',
-  setup: 'target title port open no-hooks no-skill no-serve json',
-  status: 'port agent cwd json',
-  node: NODE_FLAGS, start: NODE_FLAGS, goal: NODE_FLAGS, intent: NODE_FLAGS,
-  fact: NODE_FLAGS, vuln: NODE_FLAGS, hint: NODE_FLAGS,
-  checkpoint: `summary title trigger write ${WRITE_FLAGS} no-truncate json`, compact: `summary title trigger write ${WRITE_FLAGS} no-truncate json`,
-  cursor: `reason ${WRITE_FLAGS} json`, focus: `reason ${WRITE_FLAGS} json`, here: 'agent cwd json',
-  activity: 'limit cwd json',
-  promote: `kind type title detail to enter relate-here rel label reason ${WRITE_FLAGS} no-truncate json`,
-  done: `${WRITE_FLAGS} json`, block: `${WRITE_FLAGS} json`, revive: `${WRITE_FLAGS} json`,
-  edit: `title detail status sev confidence tag ${WRITE_FLAGS} no-truncate json`,
-  link: `rel kind label ${WRITE_FLAGS} no-truncate json`, unlink: `rel kind ${WRITE_FLAGS} json`,
-  remove: `reason ${WRITE_FLAGS} json`, rm: `reason ${WRITE_FLAGS} json`,
-  ls: 'type open open-only limit all cwd json', list: 'type open open-only limit all cwd json',
-  show: 'cwd json', tree: 'depth cwd', digest: 'agent write quiet cwd json',
-  context: 'focus depth budget since limit agent markdown cwd json',
-  lint: 'cwd json', tail: 'agent cwd json', serve: 'port open read-only cwd',
-  export: 'out format type status sev confidence tag rel related-to sort group-by max-nodes cwd json', reset: `yes ${WRITE_FLAGS} json`,
-  search: 'type tag status sev confidence rel related-to group-by limit cwd json', history: 'cwd json', changes: 'since cwd json',
-  backup: 'out cwd json', restore: 'into cwd json', receipt: 'cwd json', capabilities: 'json',
-  hooks: 'write user project with-activity cwd json',
-  skill: 'codex user project cwd json', launcher: 'user project json',
-  service: 'cwd json', release: 'force json', hook: '', help: '', version: '', '-v': '', '--version': '',
-};
-
-// The contract's machine-readable outputs, one entry per command (aliases share
-// it). A top-level object carries its schema in band; an array keeps its shape
-// and is described here only. capabilities --json publishes this table.
-const object = (schema) => ({ shape: 'object', schema });
-const array = (items) => ({ shape: 'array', items });
-const NODE = 'blackboard.node.v2';
-const EDGE = 'blackboard.edge.v1';
-const ACTIVITY = 'blackboard.activity.v1';
-const OUTPUTS = {
-  init: object('blackboard.init.v1'),
-  status: object('blackboard.status.v2'),
-  node: object('blackboard.node-add.v2'),
-  checkpoint: object('blackboard.checkpoint.v1'),
-  cursor: object('blackboard.cursor.v1'),
-  here: object('blackboard.here.v2'),
-  activity: array(ACTIVITY),
-  'activity show': object(ACTIVITY),
-  promote: object('blackboard.node-add.v2'),
-  done: object(NODE), block: object(NODE), revive: object(NODE), edit: object(NODE),
-  link: object(EDGE), unlink: object(EDGE),
-  remove: object('blackboard.remove.v1'),
-  ls: array(NODE),
-  show: object('blackboard.show.v2'),
-  digest: object('blackboard.digest.v1'),
-  context: object('blackboard.context.v2'),
-  lint: object('blackboard.lint.v1'),
-  tail: object('blackboard.tail.v1'),
-  export: object('blackboard.export.v1'),
-  reset: object('blackboard.reset.v1'),
-  search: object('blackboard.search.v2'),
-  history: object('blackboard.history.v2'),
-  changes: object('blackboard.changes.v2'),
-  backup: object('blackboard.backup-receipt.v1'),
-  restore: object('blackboard.restore-receipt.v1'),
-  receipt: object('blackboard.receipt.v1'),
-  capabilities: object('blackboard.capabilities.v1'),
-};
-
-// Every file a command writes inside the project root, so an adapter can
-// authorize exactly these. export, backup and restore also write the path the
-// caller names; nothing else is written.
-const WRITE_TARGETS = [
-  { path: '.blackboard/events.jsonl', role: 'log' },
-  { path: '.blackboard/lock', role: 'lock' },
-  { path: '.blackboard/state.json', role: 'cache' },
-  { path: '.blackboard/state.json.tmp', role: 'cache-temp' },
-  { path: '.blackboard/config.json', role: 'config' },
-  { path: '.blackboard/.gitignore', role: 'gitignore' },
-  { path: '.blackboard/digest.md', role: 'digest' },
-];
-
-function parseArgs(argv, cmd = '') {
-  const args = [];
-  const flags = {};
-  const allowed = new Set((COMMAND_FLAGS[cmd] || '').split(' ').filter(Boolean));
-  const aliases = {
-    '-d': cmd === 'tree' ? 'depth' : 'detail',
-    '-t': ['ls', 'list'].includes(cmd) ? 'type' : 'tag',
-    '-n': 'limit', '-o': 'out', n: 'limit', o: 'out', md: 'markdown',
-    d: cmd === 'tree' ? 'depth' : 'detail',
-    t: ['ls', 'list'].includes(cmd) ? 'type' : 'tag',
-  };
-  for (let i = 0; i < argv.length; i++) {
-    const token = argv[i];
-    if (token === '--') { args.push(...argv.slice(i + 1)); break; }
-    if (!token.startsWith('-') || token === '-') { args.push(token); continue; }
-    const eq = token.indexOf('=');
-    const spelling = eq < 0 ? token : token.slice(0, eq);
-    const raw = spelling.startsWith('--') ? spelling.slice(2) : spelling;
-    const key = aliases[raw] || raw;
-    if (!allowed.has(key)) fail(`未知选项 ${spelling}（命令 ${cmd}）`);
-    let value;
-    if (BOOLEAN_FLAGS.has(key)) {
-      if (eq >= 0) fail(`选项 ${spelling} 不接受值`);
-      value = true;
-    } else {
-      value = eq >= 0 ? token.slice(eq + 1) : argv[++i];
-      if (value === undefined || (eq < 0 && value.startsWith('-') && !/^-\d/.test(value))) {
-        fail(`选项 ${spelling} 缺少值`);
-      }
-      if (!value.length) fail(`选项 ${spelling} 缺少值`);
-    }
-    if (flags[key] !== undefined) {
-      if (key !== 'tag') fail(`选项 ${spelling} 不可重复`);
-      flags.tag = [].concat(flags.tag, value);
-    } else flags[key] = value;
-  }
-  for (const pair of [['user', 'project'], ['rel', 'kind'], ['markdown', 'json'],
-    ['to', 'parent'], ['to', 'relate-here'],
-    ...(cmd === 'promote' ? [['kind', 'type']] : []),
-    ...(['ls', 'list'].includes(cmd) ? [['all', 'limit']] : []),
-    ...(['checkpoint', 'compact'].includes(cmd) ? [['summary', 'title']] : [])]) {
-    if (pair.every((key) => flags[key] !== undefined)) fail(`选项 --${pair[0]} 与 --${pair[1]} 冲突`);
-  }
-  for (const [key, min, max] of [
-    ['port', cmd === 'serve' ? 0 : 1, 65535],
-    ['depth', 0, cmd === 'context' ? 5 : Number.MAX_SAFE_INTEGER],
-    ['budget', 1, Number.MAX_SAFE_INTEGER], ['limit', 1, Number.MAX_SAFE_INTEGER],
-    ['max-nodes', 1, Number.MAX_SAFE_INTEGER],
-  ]) {
-    if (flags[key] !== undefined && (!/^\d+$/.test(flags[key])
-      || !Number.isSafeInteger(Number(flags[key])) || Number(flags[key]) < min || Number(flags[key]) > max)) {
-      fail(`--${key} 应为 ${min}–${max} 的整数，收到 ${flags[key]}`);
-    }
-  }
-  for (const [key, values] of [['status', NODE_STATES], ['sev', SEVERITIES], ['confidence', CONFIDENCE_LEVELS]]) {
-    if (flags[key] !== undefined && !values.includes(flags[key])) fail(`--${key} 只能是 ${values.join('|')}`);
-  }
-  if (cmd === 'setup' && flags.target && args.length) fail('--target 与位置目录冲突');
-  if (['skill', 'hooks'].includes(cmd) && args.length > 1) fail(`${cmd} 只接受一个子命令`);
-  if (cmd === 'hooks' && args[0] === 'uninstall' && flags['with-activity']) {
-    fail('--with-activity 只用于 hooks install');
-  }
-  return { args, flags };
-}
 
 // Set once from the command line: --cwd names the board, --no-init forbids creating one.
 const invocation = { root: null, noInit: false };
@@ -408,18 +133,6 @@ function out(flags, obj, output) {
   console.log(JSON.stringify(body, null, 2));
 }
 
-function shortDetail(s, n = 100) {
-  const t = String(s || '').replace(/\s+/g, ' ').trim();
-  return t.length > n ? `${t.slice(0, n - 1)}…` : t;
-}
-
-function nodeLine(n) {
-  const st = n.status ? ` ${C.dim('[' + n.status + ']')}` : '';
-  const sev = n.severity ? ` ${C.red(n.severity.toUpperCase())}` : '';
-  const confidence = n.confidence ? ` ${C.dim(CONFIDENCE_LABEL[n.confidence] || n.confidence)}` : '';
-  const loc = n.loc ? ` ${C.dim(`@${n.loc.path}${n.loc.line ? `:${n.loc.line}` : ''}`)}` : '';
-  return `${C.dim(n.id.padEnd(5))} ${colorType(n).padEnd(8)}${st}${sev}${confidence} ${n.title}${loc}`;
-}
 
 async function cmdServe(args, flags) {
   const target = cwd();
@@ -860,7 +573,10 @@ async function main() {
   const options = delimiter < 0 ? argv : argv.slice(0, delimiter);
   if (options.includes('--help') || options.includes('-h')) return usage();
   const cmd = argv[0];
-  const { args, flags } = parseArgs(argv.slice(1), cmd);
+  let parsed;
+  try { parsed = parseArgs(argv.slice(1), cmd); }
+  catch (error) { return fail(error.message); }
+  const { args, flags } = parsed;
   if (flags.cwd) invocation.root = path.resolve(String(flags.cwd));
   invocation.noInit = !!flags['no-init'];
 
@@ -1097,10 +813,6 @@ function cmdHere(args, flags) {
   }
 }
 
-function activityLine(a) {
-  const at = new Date(a.at || 0).toISOString().replace('T', ' ').slice(0, 19);
-  return `${C.dim(a.id)} ${C.cyn(a.tool)} ${a.summary || ''} ${C.dim(at)}`;
-}
 
 function cmdActivity(args, flags) {
   needInitRead();

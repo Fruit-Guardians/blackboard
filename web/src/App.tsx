@@ -11,10 +11,9 @@ import { SecurityNode } from './SecurityNode';
 import { focusedIds, frameStrategy, neighborInDirection, pickFocus, type ArrowKey } from './canvas-state';
 import { exportCanvasPng } from './export-image';
 import { RoutedEdge } from './RoutedEdge';
-import { currentNodeId, layoutGraph, NODE_H, NODE_W, project, typeLabel as typeLabelOf, type CanvasNode, type EdgeStyle, type Positions, type RelationGroup } from './graph';
-import { EMPTY_FILTER, filterActive, filterNodes, type NodeFilter } from './presentation';
+import { layoutGraph, NODE_H, NODE_W, typeLabel as typeLabelOf, type CanvasNode, type EdgeStyle, type Positions } from './graph';
+import { EMPTY_FILTER, type NodeFilter } from './presentation';
 import type { ViewMode } from './types';
-import { values } from './types';
 import { useGraphStream } from './use-graph-stream';
 import { usePref } from './use-pref';
 import { CanvasToolbar } from './panels/CanvasToolbar';
@@ -29,10 +28,11 @@ import { Sidebar } from './panels/Sidebar';
 import { Topbar } from './panels/Topbar';
 import { locale, t } from './i18n';
 import { SessionDrafts } from './session-drafts';
+import { useWorkspaceData } from './workspace/use-workspace-data';
+import { useWorkspaceLocation } from './workspace/use-workspace-location';
 
 const nodeTypes = { security: SecurityNode, boardGroup: BoardGroup };
 const edgeTypes = { routed: RoutedEdge };
-const severityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 const INSPECTOR_W = 372;
 /** Colour of a focused edge's arrowhead: its relation family, or ink when unclassified. */
 const focusColor = (group?: string) => group && group !== 'link' ? `var(--rel-${group})` : 'var(--ink)';
@@ -48,14 +48,9 @@ const initialTheme = (): 'light' | 'dark' => {
 
 function Workspace() {
   const { snapshot, connection, syncedAt, isStatic, reload } = useGraphStream();
-  const [agentId, setAgentId] = useState(() => new URLSearchParams(location.search).get('agent') || 'agent:primary');
-  const [mode, setMode] = useState<ViewMode>(() => {
-    const view = new URLSearchParams(location.search).get('view');
-    return view === 'logic' || view === 'all' ? view : 'context';
-  });
+  const { agentId, setAgentId, mode, setMode, selectedId, setSelectedId, deepLink } = useWorkspaceLocation();
   const [theme, setTheme] = useState<'light' | 'dark'>(initialTheme);
   const [direction, setDirection] = usePref<'RIGHT' | 'DOWN'>('direction', 'RIGHT');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
   const [showMap, setShowMap] = usePref('minimap', false);
   // Closed by default: it covers cards, and the toolbar opens it when a reader wants the key.
@@ -89,7 +84,6 @@ function Workspace() {
   const freshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const linkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const deepLink = useRef<string | null>(new URLSearchParams(location.search).get('node'));
   const lastCurrent = useRef<string | null>(null);
   const live = useRef({ follow: false, currentId: null as string | null, selectedId: null as string | null });
   const initialized = useNodesInitialized();
@@ -100,63 +94,16 @@ function Workspace() {
   const updateNodeInternals = useUpdateNodeInternals();
   const laidOutDirection = useRef<string | null>(null);
 
-  const projection = useMemo(() => snapshot ? project(snapshot, mode, '', agentId) : null, [snapshot, mode, agentId]);
-  const agentIds = useMemo(() => {
-    const ids = new Set(['agent:primary', ...Object.keys(snapshot?.cursors || {})]);
-    values(snapshot?.checkpoints).forEach((checkpoint) => { if (checkpoint.agentId) ids.add(checkpoint.agentId); });
-    // Keep an explicit URL identity selected even before that Agent has a cursor or checkpoint.
-    ids.add(agentId);
-    return [...ids].sort((a, b) => a === 'agent:primary' ? -1 : b === 'agent:primary' ? 1 : a.localeCompare(b));
-  }, [snapshot, agentId]);
-  const digest = snapshot?.digests?.[agentId] ?? (agentId === 'agent:primary' ? snapshot?.digest || '' : '');
+  const { board, agent, projection, results, legend } = useWorkspaceData(snapshot, mode, agentId, filter);
+  const { allNodes, allEdges, activities, byId, inbox, paletteNodes, filterOptions, counts } = board;
+  const { agentIds, digest, currentId, current, findings, openItems } = agent;
+  const selected = selectedId ? byId.get(selectedId) || null : null;
 
   useEffect(() => {
     setCopied(false);
     clearTimeout(copyTimer.current ?? undefined);
   }, [digest, agentId]);
 
-  const allNodes = useMemo(() => snapshot ? values(snapshot.nodes) : [], [snapshot]);
-  const allEdges = useMemo(() => snapshot ? values(snapshot.edges) : [], [snapshot]);
-  const activities = useMemo(() => snapshot ? values(snapshot.activities).sort((a, b) => Number(b.at || 0) - Number(a.at || 0)) : [], [snapshot]);
-  const byId = useMemo(() => new Map(allNodes.map((node) => [node.id, node])), [allNodes]);
-  const selected = selectedId ? byId.get(selectedId) || null : null;
-  const currentId = snapshot ? currentNodeId(snapshot, agentId) : null;
-  const current = currentId ? byId.get(currentId) || null : null;
-  const findings = useMemo(() => allNodes
-    .filter((node) => node.id !== currentId && ['finding', 'vuln'].includes(node.type) && node.status !== 'superseded')
-    .sort((a, b) => (severityOrder[a.severity || 'info'] ?? 5) - (severityOrder[b.severity || 'info'] ?? 5)), [allNodes, currentId]);
-  const openItems = useMemo(() => allNodes
-    // Same notion of open as stats.frontier / context.openThreads (deferred is closed).
-    .filter((node) => node.id !== currentId && ['intent', 'hypothesis', 'question'].includes(node.type) && ['open', 'active', 'blocked'].includes(node.status || 'open'))
-    .reverse(), [allNodes, currentId]);
-  const inbox = useMemo(() => {
-    const linked = new Set(allEdges.flatMap((edge) => [edge.from, edge.to]));
-    return allNodes.filter((node) => !linked.has(node.id)).reverse();
-  }, [allNodes, allEdges]);
-  const paletteNodes = useMemo(() => [...allNodes].sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0)), [allNodes]);
-
-  const filterOptions = useMemo(() => {
-    const tally = (pick: (node: typeof allNodes[number]) => string) => {
-      const counts = new Map<string, number>();
-      allNodes.forEach((node) => counts.set(pick(node), (counts.get(pick(node)) || 0) + 1));
-      return [...counts].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
-    };
-    return {
-      types: tally((node) => node.type),
-      statuses: tally((node) => node.status || ''),
-      confidences: tally((node) => node.confidence || ''),
-      riskCount: allNodes.filter((node) => node.severity === 'critical' || node.severity === 'high').length,
-    };
-  }, [allNodes]);
-  const results = useMemo(() => filterActive(filter) ? filterNodes(paletteNodes, filter) : null, [paletteNodes, filter]);
-
-  const legend = useMemo(() => {
-    const types = new Set<string>();
-    projection?.nodes.forEach((node) => { if (!node.data.group) types.add(node.data.item.type); });
-    const groups = new Set<RelationGroup>();
-    projection?.edges.forEach((edge) => groups.add((edge.data as { group: RelationGroup }).group));
-    return { types: [...types].sort(), groups: [...groups] };
-  }, [projection]);
 
   const highlighted = useMemo(() => focusedIds(selectedId, edges), [selectedId, edges]);
   // Rebuild only what actually changed, so React Flow memoized cards keep their
@@ -226,20 +173,6 @@ function Workspace() {
     freshTimer.current = setTimeout(() => setFresh(new Set()), 4000);
   }, [snapshot, allNodes]);
 
-  useEffect(() => {
-    const url = new URL(location.href);
-    url.searchParams.set('view', mode);
-    url.searchParams.set('agent', agentId);
-    history.replaceState(null, '', url);
-  }, [mode, agentId]);
-
-  // Keep the selected node in the address so the view can be shared and survives reloads.
-  useEffect(() => {
-    if (deepLink.current && !selectedId) return; // wait for the deep link to be applied
-    const url = new URL(location.href);
-    if (selectedId) url.searchParams.set('node', selectedId); else url.searchParams.delete('node');
-    history.replaceState(null, '', url);
-  }, [selectedId]);
 
   useEffect(() => {
     const target = deepLink.current;
@@ -439,13 +372,15 @@ function Workspace() {
       } else if (event.key === 'Escape' && !document.querySelector('[role="dialog"], [role="menu"]')) setSelectedId(null);
     };
     window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      if (copyTimer.current) clearTimeout(copyTimer.current);
-      if (freshTimer.current) clearTimeout(freshTimer.current);
-      if (noticeTimer.current) clearTimeout(noticeTimer.current);
-      if (linkTimer.current) clearTimeout(linkTimer.current);
-    };
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Each transient feedback timer belongs to the Workspace lifetime, independently of shortcuts.
+  useEffect(() => () => {
+    clearTimeout(copyTimer.current ?? undefined);
+    clearTimeout(freshTimer.current ?? undefined);
+    clearTimeout(noticeTimer.current ?? undefined);
+    clearTimeout(linkTimer.current ?? undefined);
   }, []);
 
   const copyDigest = async () => {
@@ -476,14 +411,6 @@ function Workspace() {
 
   const writable = !isStatic && snapshot.meta.writable === true;
   const stats = snapshot.stats || {};
-  const risk = Number(stats.vulns?.critical || 0) + Number(stats.vulns?.high || 0);
-  const counts = {
-    nodes: allNodes.length,
-    edges: allEdges.length,
-    risk,
-    open: Number(stats.frontier || 0),
-    candidates: Number(stats.candidates || 0),
-  };
   const hidden = projection?.hidden || 0;
 
   return (

@@ -71,7 +71,7 @@ blackboard 不是行动前置条件，不替 Agent 决定下一步。具体体�
 - 适配层和 Skill 只依赖契约：CLI 参数、`--json` 输出、退出码和事件格式，逐项列在 [公开契约](docs/CONTRACT.md)，由固定输出测试守着。不依赖内部文件名、模块路径或给人看的输出文案。
 - 机器可读输出与事件格式守同一纪律：加字段兼容，改语义、删字段或改类型才升版本。契约内的 `--json` 输出都带 `schema`，并登记在 `capabilities.outputs`；新增输出时同样登记，并在固定输出测试里加用例。
 - 给人看的输出可以随时改；给机器读的输出不能悄悄改。改契约先改测试，让不兼容的改动在内核仓库里先失败。
-- 公开契约见 [CONTRACT.md](docs/CONTRACT.md)。已知缺口（DSH 插件依赖内部文件名、用环境变量传项目根和身份）见 [发展方向](docs/ROADMAP.md) 的“阶段 2”；在补齐之前，不要再扩大这些依赖。
+- DSH 插件已通过公开 CLI 契约显式传 `--cwd` / `--agent` / `--no-init`，以 `capabilities` 检测能力和读取 `writeTargets`，不依赖锁与缓存的内部文件名。完整 Skill 仍按 CLI 发布包结构定位，尚不是公开位置契约；当前边界见 [架构说明](docs/ARCHITECTURE.md)，后续方向见 [发展方向](docs/ROADMAP.md) 的“阶段 2”。
 
 ### 适配
 
@@ -132,6 +132,8 @@ blackboard 不是行动前置条件，不替 Agent 决定下一步。具体体�
 
 - 零运行时依赖，只需 Node ≥ 18；前端依赖全部是 devDependencies，`public/` 带构建产物，CLI 即装即用。
 - `lib/model.js` 必须保持无 Node-only API：被 CLI、server 和浏览器共用。
+- `lib/contracts.js` 是 CLI、服务和导出的共享契约常量；`lib/cli/` 只放参数解析、帮助和终端格式，命令调度仍在唯一入口。实时与离线图快照共用 `lib/snapshot.js`；前端工作台派生数据与 URL 状态在 `web/src/workspace/`。这些是内部路径，不向适配器承诺稳定性。
+- `scripts/lib/` 只共享开发验证辅助实现；运行时 `lib/` / `bin/` 不依赖 `scripts/`、`test/` 或插件。开发与测试职责见 [架构说明](docs/ARCHITECTURE.md)，具体命令与生成产物规则见 [贡献指南](CONTRIBUTING.md)。
 - 命名已完成 breaking cutover：唯一 CLI 是 `blackboard`（`bin/blackboard.js`），环境变量只用 `BLACKBOARD_*`，数据目录只用 `.blackboard/`。不保留 `flow` 入口、`FLOW_*` 读取或 `.flow/` 回退，不新增自动迁移/别名；其他项目按 README 手动重命名目录、重装 Skill/Hook，事件原文不改写。
 - Skill 的唯一源是完整的 `skills/blackboard/` 包：`SKILL.md` 保持聚焦，参考资料按需加载，`agents/openai.yaml` 与 `assets/` 承载展示信息。安装和发布必须包含完整目录，不恢复内嵌副本，也不只复制入口而遗漏资源。
 - 页面协作编辑只提交实际修改字段，并在事件写锁内核对字段基准；冲突保留草稿，不自动覆盖或合并。选择 Agent 阅读视角不写事件、不移动任何人的游标；实时与离线投影须保持同一身份语义。
@@ -141,4 +143,4 @@ blackboard 不是行动前置条件，不替 Agent 决定下一步。具体体�
 
 ## 相关文档
 
-[README](README.md) · [完整设计](docs/BLACKBOARD_DESIGN.md) · [公开契约](docs/CONTRACT.md) · [发展方向](docs/ROADMAP.md) · [DSH 接入调研](docs/DSH_PLUGIN_RESEARCH.md) · [DSH 插件](plugins/dsh-blackboard/README.md) · [界面规范](design/UI_SYSTEM.md)
+[README](README.md) · [文档目录](docs/README.md) · [贡献指南](CONTRIBUTING.md) · [当前架构](docs/ARCHITECTURE.md) · [公开契约](docs/CONTRACT.md) · [发展方向](docs/ROADMAP.md) · [历史设计](docs/BLACKBOARD_DESIGN.md) · [DSH 插件](plugins/dsh-blackboard/README.md) · [界面规范](design/UI_SYSTEM.md)

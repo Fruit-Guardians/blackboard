@@ -2,6 +2,8 @@
 
 调研日期：2026-10-22。本文中的 DSH 指 DeepSeek Harness。
 
+> 历史调研：下文保留 2026-10-22 的版本、宿主快照、建议顺序与测试数量，不代表当前插件功能或本轮验证。当前实现、契约要求与验证入口以[插件说明](../plugins/dsh-blackboard/README.md)和[架构说明](ARCHITECTURE.md)为准。
+
 落地更新：适配器采用**同仓库、独立子包**，位于 `plugins/dsh-blackboard/`。隔离依赖与运行边界，不拆分 Git 仓库。实现和当前验收入口见[插件说明](../plugins/dsh-blackboard/README.md)；下文的测试基线保留为调研时记录。
 
 ## 结论

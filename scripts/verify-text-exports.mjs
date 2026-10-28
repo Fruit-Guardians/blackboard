@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import MarkdownIt from 'markdown-it';
 import { chromium } from 'playwright';
+import { isolatedBlackboardEnv } from './lib/environment.mjs';
 
 const require = createRequire(import.meta.url);
 const cli = fileURLToPath(new URL('../bin/blackboard.js', import.meta.url));
@@ -18,8 +19,7 @@ assert.ok(args.length === 0 || (args.length === 2 && args[0] === '--out-dir'), '
 const outDir = args.length ? path.resolve(args[1]) : null;
 if (outDir) fs.mkdirSync(outDir, { recursive: true });
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'blackboard-text-consumers-'));
-const env = { ...process.env };
-for (const key of Object.keys(env)) if (key.startsWith('BLACKBOARD_')) delete env[key];
+const env = isolatedBlackboardEnv();
 const markdown = new MarkdownIt({ html: true, linkify: false, typographer: false });
 const compact = (value) => value.replace(/\s/gu, '');
 let browser;

@@ -29,6 +29,7 @@ jobs:
       - name: Check publication hygiene (source only; no model or real-task data)
         run: npm run check:publish
       - run: npm ci
+      - run: npm run check:types
       - run: npm test
       - run: npm run build
       - name: Install Chromium for export consumer checks

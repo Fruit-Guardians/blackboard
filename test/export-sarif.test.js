@@ -1,16 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
 import { renderSarif } from '../lib/export-sarif.js';
+import { SARIF_SCHEMA_URL as SCHEMA, validateSarif as validate, sarifValidationErrors } from '../scripts/lib/sarif-validator.mjs';
 
-const SCHEMA = 'https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json';
-const schema = JSON.parse(fs.readFileSync(new URL('./fixtures/sarif/sarif-schema-2.1.0.json', import.meta.url), 'utf8'));
-// The OASIS schema includes a legacy ECMA-262 pattern invalid with the Unicode flag.
-const ajv = new Ajv({ allErrors: true, unicodeRegExp: false });
-addFormats(ajv);
-const validate = ajv.compile(schema);
 
 function finding(overrides = {}) {
   return {
@@ -32,7 +24,7 @@ function render(data) {
   const serialized = renderSarif(data);
   assert.ok(serialized.endsWith('\n'));
   const log = JSON.parse(serialized);
-  assert.ok(validate(log), ajv.errorsText(validate.errors, { separator: '\n' }));
+  assert.ok(validate(log), sarifValidationErrors());
   assert.equal(log.$schema, SCHEMA);
   assert.equal(log.version, '2.1.0');
   assert.equal(log.runs.length, 1);

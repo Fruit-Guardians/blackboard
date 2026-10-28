@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isolatedBlackboardEnv } from './lib/environment.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
 const ROOT = path.resolve(path.dirname(SELF), '..');
@@ -77,9 +78,7 @@ const fingerprint = (graph) => sha(JSON.stringify(graph));
 const sourceFingerprint = (source) => sha(['package.json', 'lib/store.js', 'lib/model.js', 'lib/context.js']
   .map((name) => `${name}\n${fs.readFileSync(path.join(source, name), 'utf8')}`).join('\n'));
 function isolatedEnv() {
-  const env = { ...process.env };
-  for (const key of Object.keys(env)) if (key.startsWith('BLACKBOARD_')) delete env[key];
-  return { ...env, BLACKBOARD_LOCK_TIMEOUT_MS: '120000', BLACKBOARD_QUIET: '1' };
+  return isolatedBlackboardEnv({ BLACKBOARD_LOCK_TIMEOUT_MS: '120000', BLACKBOARD_QUIET: '1' });
 }
 async function modules(source) {
   const store = await import(pathToFileURL(path.join(source, 'lib/store.js')).href);

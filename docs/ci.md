@@ -2,9 +2,11 @@
 
 `.github/workflows/verify.yml` 是验证流程，不会发布 npm 包、创建 release、安装全局启动器、接入个人宿主或调用付费模型。
 
+当前源码边界见[架构说明](ARCHITECTURE.md)，本地开发与检查清单见[贡献指南](../CONTRIBUTING.md)。`0.8.1` 是延续 0.8.0 公开契约的兼容整理；本文描述验证器与 workflow 的覆盖，不为该版本预先记通过结果。
+
 ## 流程
 
-1. **构建一次**：Ubuntu / Node 24 执行 `npm ci`、测试及前端 build；安装 Playwright Chromium 后，用真实 CLI 生成合成报告，在浏览器中渲染 Markdown/Mermaid，并用随库固定的 OASIS schema 校验 SARIF；收集 quick 合成性能报告，再 `npm pack --ignore-scripts`。
+1. **构建一次**：Ubuntu / Node 24 先检查 publication hygiene，再执行 `npm ci`、`npm run check:types`、测试及前端 build；安装 Playwright Chromium 后，用真实 CLI 生成合成报告，在浏览器中渲染 Markdown/Mermaid，并用随库固定的 OASIS schema 校验 SARIF；收集 quick 合成性能报告，再 `npm pack --ignore-scripts`。本地 `npm run check` 合并类型与 publication 检查，CI 将两项分开执行以明确失败位置。
 2. **同包多运行时验证**：将同一个 tarball 交给 Linux、macOS、Windows 的 Node 18 / 22 / 24 矩阵；不执行源码目录的 `npm ci`。
 3. **插件独立验证**：DSH 单元测试与静态 manifest/syntax 检查单独运行在插件声明支持的 Node 22.19 / 24；不把 Host SDK 加到根包，不假装这就是实际 DSH 端到端运行。
 
@@ -19,7 +21,7 @@ Vite 8 的构建依赖要求 Node `^20.19.0 || >=22.12.0`。核心运行时仍�
 node scripts/verify-package.mjs
 
 # 已有候选 tarball，CI 矩阵使用这个入口
-node scripts/verify-package.mjs --tarball /absolute/path/to/blackboard-0.6.0.tgz
+node scripts/verify-package.mjs --tarball /absolute/path/to/blackboard-0.8.1.tgz
 
 # 用同一验证器测试另一个源码目录
 node scripts/verify-package.mjs --source /absolute/path/to/baseline
@@ -59,4 +61,4 @@ npm run verify:exports:text -- --out-dir /tmp/blackboard-export-consumers
 
 ## 结果措辞
 
-本地新增测试和 macOS / Node 26 tarball smoke 已实跑；GitHub Actions 矩阵只有在该 workflow 的具体运行成功后才算经过验证。提交 workflow 文件本身，不等于 Linux / Windows / Node 18 已经跑通。
+此前文档记录过本地新增测试和 macOS / Node 26 tarball smoke 实跑；这是历史环境记录，不代表当前提交或 Node 18 已验证。每次交接应明确实际运行的命令、环境、结果与未运行项；GitHub Actions 矩阵只有在该 workflow 的具体运行成功后才算经过验证。提交 workflow 文件本身，不等于 Linux / Windows / Node 18 已经跑通。

@@ -1,6 +1,6 @@
 # blackboard 发展方向
 
-> 日期：2026-10-28 · 基线：`main` 8c9a52c（0.6.1）
+> 更新：2026-10-28 · 当前维护版本：`0.8.1`；最初方向基线：`main` 8c9a52c（0.6.1）。
 > 本文是方向建议，不是承诺清单；每一阶段以“完成标准”收口，再决定下一步。
 > 上一版（2026-10-23，基线 8ccc06d）的 5 个方向已并入下面的阶段，进展见“已完成”。
 
@@ -12,7 +12,7 @@
 
 | 层 | 状态 | 依据 |
 | --- | --- | --- |
-| 内核 | 稳定 | 事件日志是唯一事实源，CLI 是唯一写入路径；每次写入记录作者；Linux、macOS、Windows × Node 18/22/24 的 CI 全部通过 |
+| 内核 | 事件溯源与共享写入 | 事件日志是唯一事实源；CLI 与页面显式编辑共用 store 写入；每次写入记录作者。Linux、macOS、Windows × Node 18/22/24 的候选包矩阵见 [CI](ci.md)，当前版本通过情况以具体运行结果为准 |
 | 契约 | 已成文 | [公开契约](CONTRACT.md) v2：节点公开投影固定三个可空维度；受影响输出声明 v2，其他输出维持原版本；固定输出测试守着，capabilities 声明 schema、导出格式与写入路径 |
 | 适配 | 只依赖契约 | DSH 插件显式传 `--cwd`/`--agent`/`--no-init`，用 `capabilities` 做特性检测，写入授权读 `writeTargets`；Skill 仍按发布包结构定位，DSH 第二阶段未做 |
 | 证据 | 一块黑板 | exp1：黑板记录答对 13/14，检查点摘要 4–5/14；但只有一个任务、每组一次、非盲评 |
@@ -21,7 +21,7 @@
 
 - 写入署名：节点、关系、修改、删除和重置都记录作者；所有写命令接受 `--agent`，所有命令接受 `--cwd`；`--no-init` 让写入在缺少黑板时报错而不新建。`capabilities` 以 `writeAttribution`、`cwdFlag`、`noInit` 声明。
 - Skill 改用 `--cwd`/`--agent`/`--no-init`，已知目标时用 `--to` 挂到目标，等待外部时用 `block`，标题只写主张，审计目标写明代码版本。
-- Windows CI：`.gitattributes` 固定 LF，打包校验在所有平台通过。
+- Windows CI：`.gitattributes` 固定 LF，候选包打包校验已纳入跨平台矩阵；历史通过记录不代替新版本的具体运行结果。
 - 恢复试验工具进入 `main`（此前误合进 `docs/charter` 分支），修正了检查器的两处误计：检查点 ID 是有效引用；已推翻或已确认的假设不算猜测。
 - exp1（首次接手、中断续接各三组）完成，结果见下一节。
 - 阶段 1 契约成文（#11–#13），见下文“阶段 1”。
@@ -32,6 +32,7 @@
 - 查询与统计（0.7.0）：`search` 增加独立的严重度/可信度筛选和基于全部匹配的组合分组；`tag:site` 读取显式站点标签，缺省值单列为 `null`。`ls --all` 支持完整读取，截断在 stderr 说明数量；Skill 补齐查询与重复标签示例。
 - 节点 JSON 与报告（0.8.0）：公开节点维度固定输出字符串或 null，只改读取投影，事件与回执原文不变；前端和 DSH 适配迁到对应 v2 schema。export 新增 Markdown、Mermaid、SARIF，共用完整筛选与排序；保留显式证据/反证，对图上限与无代码位置的省略给出说明。时间点读取与脱敏仍按阶段 9 单独推进。
 - 导出消费端回归（0.8.0）：Markdown 使用可导航标题与显式锚点；Mermaid 在默认边数与文本限额内导出；官方 SARIF schema 校验、Chromium 中的实际 Markdown/Mermaid 渲染及干净安装包的三格式检查接入 CI。GitHub code scanning 和 IDE 的实际导入仍需对应环境验证。
+- 兼容维护（0.8.1）：CLI 参数、帮助和终端格式移入 `lib/cli/`，共享输出与写入目标常量集中到 `lib/contracts.js`；实时与离线图快照共用 `lib/snapshot.js`，修复缓存焦点指向不存在节点时实时为 null、离线却保留失效 ID 的差异，离线仍省略活动 input/output/summary 与可写标记。前端派生数据与 URL 状态移入 `web/src/workspace/`；`scripts/lib/environment.mjs` 共用验证环境隔离，`scripts/lib/sarif-validator.mjs` 共用开发期官方 schema 校验，不进入运行时依赖。首页缩为入口，详细使用参考、架构与贡献规则分别归位。公开 CLI / JSON schema 与事件格式延续 0.8.0；验证命令与未覆盖范围见[贡献指南](../CONTRIBUTING.md)和 [CI](ci.md)，此项不预先声明本轮检查通过。
 
 ### exp1 告诉了我们什么
 
@@ -76,7 +77,7 @@
 
 **交付：**
 
-进度：前三项已完成；DSH 插件现在要求带公开契约 v1 的内核。
+进度：前三项已完成；DSH 插件通过公开 capabilities 契约检测能力，当前节点与 context 输出要求对应 v2 schema；完整 Skill 定位仍依赖发布包结构。自动恢复与压缩生命周期接入尚未完成。
 
 - [x] DSH 插件改为显式传 `--cwd`/`--agent`/`--no-init`，不再设置 `BLACKBOARD_CWD`、`BLACKBOARD_AGENT`，也不把继承来的这两个变量传给子进程。
 - [x] 用 `capabilities` 做特性检测，去掉对运行时 `package.json` 路径和 0.6.x 的硬编码。

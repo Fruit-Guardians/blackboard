@@ -2,6 +2,8 @@
 
 状态：定稿（2026-10-27）。本文取代此前同名文件里的内核设计，那一版已撤回。
 
+> 这是该日期的设计裁定与撤回记录。下文核对时的读取缺口、试验计划与旧资源名称保留其历史上下文；当前可选方法见 [`methods/inquiry.md`](../skills/blackboard/methods/inquiry.md)，当前行为与目录见[公开契约](CONTRACT.md)和[架构说明](ARCHITECTURE.md)。
+
 ## 一句话
 
 按“问题 → 候选 → 证据 → 裁定 → 排除与覆盖”来记录研究，是一种可选的记录方式，放在 Skill 的方法包 [`methods/inquiry.md`](../skills/blackboard/methods/inquiry.md) 里。内核不认识它，也不为它改变任何投影、预算或 `lint`。Agent 用不用、用哪种方式，都由它自己决定。

@@ -1,6 +1,6 @@
 {
   "name": "blackboard",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Agent 外置黑板：自由探索，持续记录逻辑节点、关系、当前游标与轨迹",
   "type": "module",
   "bin": {
@@ -22,6 +22,7 @@
     "dev": "vite --host 127.0.0.1",
     "serve": "node bin/blackboard.js serve",
     "export": "node bin/blackboard.js export",
+    "check": "npm run check:types && npm run check:publish",
     "check:types": "tsc --noEmit",
     "check:publish": "node scripts/check-publication.mjs",
     "evaluate:recovery": "node scripts/evaluate-recovery.mjs",

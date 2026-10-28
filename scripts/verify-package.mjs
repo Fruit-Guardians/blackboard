@@ -6,14 +6,13 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { isolatedBlackboardEnv } from './lib/environment.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
 const ROOT = path.resolve(path.dirname(SELF), '..');
 
 function cleanEnv(home, board) {
-  const env = { ...process.env };
-  for (const name of Object.keys(env)) if (name.startsWith('BLACKBOARD_')) delete env[name];
-  return { ...env, HOME: home, USERPROFILE: home, BLACKBOARD_CWD: board, BLACKBOARD_QUIET: '1', npm_config_cache: path.join(home, 'npm-cache'), npm_config_update_notifier: 'false' };
+  return isolatedBlackboardEnv({ HOME: home, USERPROFILE: home, BLACKBOARD_CWD: board, BLACKBOARD_QUIET: '1', npm_config_cache: path.join(home, 'npm-cache'), npm_config_update_notifier: 'false' });
 }
 
 // Invoke npm's JavaScript entry directly, including on Windows (.cmd is not an executable).

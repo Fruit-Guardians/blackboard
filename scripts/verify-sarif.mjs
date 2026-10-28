@@ -7,19 +7,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
+import { isolatedBlackboardEnv } from './lib/environment.mjs';
+import { SARIF_SCHEMA_URL as SCHEMA, validateSarif as validate, sarifValidationErrors } from './lib/sarif-validator.mjs';
 
 const CLI = fileURLToPath(new URL('../bin/blackboard.js', import.meta.url));
-const SCHEMA = 'https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json';
-const schema = JSON.parse(fs.readFileSync(new URL('../test/fixtures/sarif/sarif-schema-2.1.0.json', import.meta.url), 'utf8'));
-// Preserve the official schema's legacy ECMA-262 regex syntax without rewriting it.
-const ajv = new Ajv({ allErrors: true, unicodeRegExp: false });
-addFormats(ajv);
-const validate = ajv.compile(schema);
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'blackboard-sarif-'));
-const env = { ...process.env };
-for (const key of Object.keys(env)) if (key.startsWith('BLACKBOARD_')) delete env[key];
+const env = isolatedBlackboardEnv();
 let exportsChecked = 0;
 
 function cli(cwd, ...args) {
@@ -49,7 +42,7 @@ function exportBoard(board) {
   assert.deepEqual(response, { schema: 'blackboard.export.v1', file: output, format: 'sarif' });
   assert.deepEqual(fs.readFileSync(board.events), before, 'Export changed event bytes');
   const log = JSON.parse(fs.readFileSync(output, 'utf8'));
-  assert.ok(validate(log), ajv.errorsText(validate.errors, { separator: '\n' }));
+  assert.ok(validate(log), sarifValidationErrors());
   assert.equal(log.$schema, SCHEMA);
   assert.equal(log.version, '2.1.0');
   assert.equal(log.runs.length, 1);

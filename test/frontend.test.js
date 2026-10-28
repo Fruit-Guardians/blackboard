@@ -7,20 +7,25 @@ import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-// Compile only the pure presenter, without requiring a DOM or a specific Node TS loader.
+// Compile pure viewer modules without requiring a DOM or a specific Node TS loader.
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'blackboard-presenter-'));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 const root = fileURLToPath(new URL('../', import.meta.url));
-execFileSync(process.execPath, [path.join(root, 'node_modules/typescript/bin/tsc'), '--target', 'ES2022', '--module', 'ESNext', '--moduleResolution', 'Bundler', '--skipLibCheck', '--outDir', dir, path.join(root, 'web/src/presentation.ts'), path.join(root, 'web/src/api.ts')], { cwd: dir });
-for (const file of fs.readdirSync(dir).filter((name) => name.endsWith('.js'))) {
-  const p = path.join(dir, file);
-  fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace(/from '(\.\/[^']+)'/g, (_all, name) => `from '${name}.js'`));
+execFileSync(process.execPath, [path.join(root, 'node_modules/typescript/bin/tsc'), '--target', 'ES2022', '--module', 'ESNext', '--moduleResolution', 'Bundler', '--skipLibCheck', '--outDir', dir, path.join(root, 'web/src/presentation.ts'), path.join(root, 'web/src/api.ts'), path.join(root, 'web/src/workspace/selectors.ts')], { cwd: dir });
+function resolveModuleExtensions(directory) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const p = path.join(directory, entry.name);
+    if (entry.isDirectory()) resolveModuleExtensions(p);
+    else if (entry.name.endsWith('.js')) fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace(/from '(\.\.?\/[^']+)'/g, (_all, name) => `from '${name}.js'`));
+  }
 }
+resolveModuleExtensions(dir);
 fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ type: 'module' }));
 const modulePath = path.join(dir, 'presentation.js');
 const { confidenceLabel, presentNode, nodeStateSummary, matchesNode, statusLabel, severityLabel, typeLabel } = await import(pathToFileURL(modulePath).href);
 const { changeDraft, EMPTY_EDIT, existingLink, sourceLocation, historyValue } = await import(pathToFileURL(path.join(dir, 'research-state.js')).href);
 const api = await import(pathToFileURL(path.join(dir, 'api.js')).href);
+const { selectWorkspaceSnapshot, selectWorkspaceAgent } = await import(pathToFileURL(path.join(dir, 'workspace/selectors.js')).href);
 const node = { id: 'node-7', type: 'hypothesis', title: 'Gateway policy。Verify middleware next.', detail: 'Session boundary', status: 'open', severity: 'high', confidence: 'static-confirmed' };
 
 test('node presenter splits a heading from evidence without rewriting it', () => {
@@ -158,4 +163,92 @@ test('canvas state summary never hides a refuted status behind a reproduced conf
   assert.equal(nodeStateSummary({ status: 'refuted', severity: 'high', confidence: 'reproduced' }), '已反驳 · 高危 · 已复现');
   assert.equal(nodeStateSummary({ confidence: 'confirmed' }), '已确认');
   assert.equal(nodeStateSummary({}), '');
+});
+
+test('workspace catalogues preserve authored order, stable severity ties and open-thread semantics', () => {
+  const nodes = Object.freeze([
+    { id: 'a', type: 'finding', title: 'Critical finding', severity: 'critical', status: 'open', ts: 5 },
+    { id: 'b', type: 'vuln', title: 'First high finding', severity: 'high', ts: 10 },
+    { id: 'c', type: 'finding', title: 'Second high finding', severity: 'high', status: 'confirmed', confidence: 'static-confirmed', ts: 10 },
+    { id: 'd', type: 'finding', title: 'Custom risk', severity: 'custom', ts: 0 },
+    { id: 's', type: 'finding', title: 'Superseded finding', severity: 'critical', status: 'superseded', ts: 99 },
+    { id: 'h', type: 'hypothesis', title: 'Unset status is open', status: null, ts: 20 },
+    { id: 'q', type: 'question', title: 'Blocked thread', status: 'blocked', ts: 1 },
+    { id: 'i', type: 'intent', title: 'Deferred thread', status: 'deferred', ts: 2 },
+    { id: 'n', type: 'custom', title: 'Unlinked note', ts: 0 },
+  ]);
+  const edges = Object.freeze([
+    { id: 'e1', from: 'a', to: 'h', kind: 'supports' },
+    { id: 'e2', from: 'b', to: 'absent', kind: 'related-to' },
+  ]);
+  const activities = Object.freeze([{ id: 'old', at: 1 }, { id: 'new', at: 2 }, { id: 'tie', at: 2 }]);
+  const snapshot = { meta: {}, nodes, edges, activities, stats: { vulns: { critical: 1, high: 2 }, frontier: 7, candidates: 2 } };
+  const board = selectWorkspaceSnapshot(snapshot);
+  assert.deepEqual(board.findings.map((item) => item.id), ['a', 'b', 'c', 'd']);
+  assert.deepEqual(board.openItems.map((item) => item.id), ['q', 'h']);
+  assert.deepEqual(board.inbox.map((item) => item.id), ['n', 'i', 'q', 's', 'd', 'c']);
+  assert.deepEqual(board.paletteNodes.map((item) => item.id), ['s', 'h', 'b', 'c', 'a', 'i', 'q', 'd', 'n']);
+  assert.deepEqual(board.activities.map((item) => item.id), ['new', 'tie', 'old']);
+  assert.deepEqual(activities.map((item) => item.id), ['old', 'new', 'tie'], 'sorting must leave the streamed snapshot untouched');
+  assert.equal(board.byId.get('c'), nodes[2], 'inspector and catalogues share the original node objects');
+  assert.deepEqual(board.counts, { nodes: 9, edges: 2, risk: 3, open: 7, candidates: 2 });
+  assert.equal(board.filterOptions.riskCount, 4, 'risk facets include superseded nodes independently of sidebar grouping');
+  assert.deepEqual(board.filterOptions.types.map(({ value, count }) => [value, count]), [
+    ['finding', 4], ['vuln', 1], ['hypothesis', 1], ['question', 1], ['intent', 1], ['custom', 1],
+  ]);
+  assert.deepEqual(board.filterOptions.statuses.map(({ value, count }) => [value, count]), [
+    ['', 4], ['open', 1], ['confirmed', 1], ['superseded', 1], ['blocked', 1], ['deferred', 1],
+  ]);
+  assert.deepEqual(board.filterOptions.confidences, [{ value: '', count: 8 }, { value: 'static-confirmed', count: 1 }]);
+  const records = selectWorkspaceSnapshot({ ...snapshot, nodes: Object.fromEntries(nodes.map((item) => [item.id, item])), edges: Object.fromEntries(edges.map((item) => [item.id, item])), activities: Object.fromEntries(activities.map((item) => [item.id, item])) });
+  assert.deepEqual(records, board, 'record and array snapshots present the same catalogues');
+});
+
+test('workspace Agent perspectives preserve explicit identities and isolate cursor and digest fallbacks', () => {
+  const primary = { id: 'p', type: 'finding', title: 'Primary focus', severity: 'high' };
+  const review = { id: 'r', type: 'hypothesis', title: 'Review focus', status: 'blocked' };
+  const snapshot = {
+    meta: { focus: primary.id }, nodes: [primary, review], edges: [],
+    cursors: {
+      'agent:primary': { id: 'cp', agentId: 'agent:primary', to: primary.id },
+      'agent:review': { id: 'cr', agentId: 'agent:review', to: review.id },
+      'agent:ghost': { id: 'cg', agentId: 'agent:ghost', to: 'removed' },
+    },
+    checkpoints: { archive: { agentId: 'agent:archive' }, review: { agentId: 'agent:review' } },
+    digest: 'Legacy primary digest', digests: { 'agent:review': 'Review digest' },
+  };
+  const before = structuredClone(snapshot);
+  const board = selectWorkspaceSnapshot(snapshot);
+  const main = selectWorkspaceAgent(snapshot, board, 'agent:primary');
+  const reviewer = selectWorkspaceAgent(snapshot, board, 'agent:review');
+  const unknown = selectWorkspaceAgent(snapshot, board, 'agent:pending');
+  assert.equal(main.current, primary);
+  assert.equal(main.digest, 'Legacy primary digest');
+  assert.deepEqual(main.findings, []);
+  assert.deepEqual(main.openItems, [review]);
+  assert.equal(reviewer.currentId, review.id);
+  assert.equal(reviewer.current, review);
+  assert.equal(reviewer.digest, 'Review digest');
+  assert.deepEqual(reviewer.findings, [primary]);
+  assert.deepEqual(reviewer.openItems, []);
+  assert.deepEqual(unknown.agentIds, ['agent:primary', 'agent:archive', 'agent:ghost', 'agent:pending', 'agent:review']);
+  assert.equal(unknown.currentId, null);
+  assert.equal(unknown.current, null);
+  assert.equal(unknown.digest, '');
+  assert.equal(selectWorkspaceAgent(snapshot, board, 'agent:ghost').current, null);
+  assert.equal(selectWorkspaceAgent({ ...snapshot, digests: { 'agent:primary': '' } }, board, 'agent:primary').digest, '', 'an explicit empty digest never falls back to the legacy digest');
+  assert.equal(selectWorkspaceAgent({ ...snapshot, cursors: {} }, board, 'agent:primary').current, primary, 'legacy focus belongs only to primary');
+  assert.deepEqual(snapshot, before, 'reading another perspective cannot move a cursor or rewrite the snapshot');
+});
+
+test('workspace catalogues are usable while the first snapshot is still loading', () => {
+  const board = selectWorkspaceSnapshot(null);
+  const agent = selectWorkspaceAgent(null, board, 'agent:waiting');
+  assert.deepEqual(board.allNodes, []);
+  assert.deepEqual(board.allEdges, []);
+  assert.deepEqual(board.filterOptions, { types: [], statuses: [], confidences: [], riskCount: 0 });
+  assert.deepEqual(board.counts, { nodes: 0, edges: 0, risk: 0, open: 0, candidates: 0 });
+  assert.deepEqual(agent.agentIds, ['agent:primary', 'agent:waiting']);
+  assert.equal(agent.current, null);
+  assert.equal(agent.digest, '');
 });
