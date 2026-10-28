@@ -68,7 +68,7 @@ test('write responses project missing dimensions but stored events and request r
   assert.equal(receipt.schema, 'blackboard.receipt.v1');
   assert.equal(log(), before);
   const vuln = run('node', 'add', 'vuln', 'Existing defaults');
-  assert.equal(vuln.node.severity, 'medium');
+  assert.equal(vuln.node.severity, null, 'an unrated vuln is not given a severity from its type');
   assert.equal(vuln.node.status, null);
   assert.equal(vuln.node.confidence, null);
 });

@@ -43,7 +43,7 @@ import {
 import { buildDigest, neighborsOf, tail } from '../lib/digest.js';
 import { buildAgentContext, renderAgentContext } from '../lib/context.js';
 import { searchGraph } from '../lib/search.js';
-import { isOpenThread } from '../lib/semantics.js';
+import { isOpenThread, isCurrentFinding } from '../lib/semantics.js';
 import { DEFAULT_PORT, resolvePort, rememberViewerPort, probeViewer } from '../lib/service.js';
 import { stableCliPath, cliOrigin } from '../lib/release.js';
 import { OUTPUTS, WRITE_TARGETS } from '../lib/contracts.js';
@@ -202,13 +202,21 @@ async function cmdStatus(args, flags) {
   );
   console.log(
     `逻辑节点 ${C.bold(String(s.total))}  关系 ${s.edges}  ` +
-      `开放 ${C.yel(String(s.frontier))}  活动 ${s.activities}  检查点 ${s.checkpoints}`,
+      `开放假设/问题 ${C.yel(String(s.frontier))}  活动 ${s.activities}  检查点 ${s.checkpoints}`,
   );
   const parts = [...NODE_TYPES, ...Object.keys(s.byType).filter((t) => !NODE_TYPES.includes(t))]
     .filter((t) => s.byType[t]).map(
     (t) => `${colorType({ type: t })} ${s.byType[t]}`,
   );
   if (parts.length) console.log(parts.join('  '));
+  const findings = Object.values(g.nodes).filter(isCurrentFinding);
+  if (findings.length) {
+    // Recorded values only: a missing confidence or severity is shown as missing, not as open or medium.
+    const levels = new Map();
+    for (const node of findings) levels.set(node.confidence || '未声明', (levels.get(node.confidence || '未声明') || 0) + 1);
+    const unrated = findings.filter((node) => !node.severity).length;
+    console.log(`发现/漏洞 ${findings.length}（可信度 ${[...levels].map(([level, count]) => `${level} ${count}`).join(' · ')}${unrated ? `；未定级 ${unrated}` : ''}）`);
+  }
   if (s.confirmed) {
     const sev = Object.entries(s.vulns)
       .filter(([, v]) => v)
@@ -470,7 +478,8 @@ function cmdCapabilities(args, flags) {
       checkpointChanges: true, backupRestore: true, requestReceipts: true,
       writeAttribution: true, cwdFlag: true, noInit: true,
       rejectTruncation: true, inputTruncationMetadata: true, nodeEdgeLabel: true,
-      searchFilters: true, searchGrouping: true, listAll: true, nodeJsonDefaults: true },
+      searchFilters: true, searchGrouping: true, listAll: true, nodeJsonDefaults: true,
+      nodeMultiTarget: true, checkpointDelta: true },
     exportFormats: ['html', 'markdown', 'mermaid', 'sarif'],
     contextContract: { readOnly: true, prescriptive: false, nextStepSelection: 'agent-controlled' },
     limits: LIMITS,
@@ -573,6 +582,10 @@ async function main() {
   const options = delimiter < 0 ? argv : argv.slice(0, delimiter);
   if (options.includes('--help') || options.includes('-h')) return usage();
   const cmd = argv[0];
+  // Options belong to a command; a leading one would otherwise be misread as the command name.
+  if (cmd?.startsWith('--') && cmd !== '--version') {
+    return fail(`选项要写在命令之后，例如 blackboard <命令> ${cmd.split('=')[0]} …`);
+  }
   let parsed;
   try { parsed = parseArgs(argv.slice(1), cmd); }
   catch (error) { return fail(error.message); }
@@ -723,16 +736,47 @@ function addSimple(type, args, flags) {
   warnTruncated(result);
   if (flags.json) return out(flags, { ...result, node: projectNode(result.node) }, OUTPUTS.node);
   if (!process.env.BLACKBOARD_QUIET) {
-    const { edge } = result;
-    const via = !edge ? '' : (edge.from === result.node.id
-      ? ` → ${EDGE_LABEL[edge.kind] || edge.kind} ${edge.to}`
-      : ` ${EDGE_LABEL[edge.kind] || edge.kind} ${edge.from}`) + (edge.label ? `（${edge.label}）` : '');
+    const label = (edge) => EDGE_LABEL[edge.kind] || edge.kind;
+    const edges = result.edges || (result.edge ? [result.edge] : []);
+    const via = !edges.length ? ' · 未连关系' : edges.map((edge) => (edge.from === result.node.id
+      ? ` → ${label(edge)} ${edge.to}`
+      : ` ${label(edge)} ${edge.from}`) + (edge.label ? `（${edge.label}）` : '')).join('');
     const entered = result.cursor ? ' · 已进入' : '';
     console.log(`${C.grn('+')} ${nodeLine(result.node)}${C.dim(via + entered)}`);
   }
 }
 
-function cmdCheckpoint(args, flags) {
+function elapsed(ms) {
+  const minutes = Math.max(0, Math.round(ms / 60000));
+  if (minutes < 1) return '不到 1 分钟';
+  if (minutes < 60) return `${minutes} 分钟`;
+  const hours = Math.floor(minutes / 60);
+  return minutes % 60 ? `${hours} 小时 ${minutes % 60} 分钟` : `${hours} 小时`;
+}
+
+/** What changed on the board since this agent's previous checkpoint, up to this one. Counts only. */
+async function sincePreviousCheckpoint(checkpoint) {
+  const { buildCheckpointChanges } = await import('../lib/history.js');
+  const source = readEvents(cwd());
+  let previous = null;
+  let end = source.events.length;
+  for (let index = 0; index < source.events.length; index++) {
+    const ev = source.events[index];
+    if (ev?.op !== 'checkpoint') continue;
+    if (ev.checkpoint?.id === checkpoint.id) { end = index + 1; break; }
+    if (ev.checkpoint?.agentId === checkpoint.agentId) previous = ev.checkpoint;
+  }
+  if (!previous) return null;
+  const changes = buildCheckpointChanges(source.events.slice(0, end), previous.id, source);
+  return {
+    checkpointId: previous.id,
+    at: previous.at ?? null,
+    nodes: { added: changes.nodes.added.length, updated: changes.nodes.updated.length, removed: changes.nodes.removed.length },
+    edges: { added: changes.edges.added.length, removed: changes.edges.removed.length },
+  };
+}
+
+async function cmdCheckpoint(args, flags) {
   needInit();
   const agentId = agentOf(flags);
   if (flags['request-id'] && !flags.summary && !flags.title && !args.join(' ').trim()) fail('--request-id 的 checkpoint 请显式提供 --summary，确保重试内容稳定');
@@ -749,9 +793,17 @@ function cmdCheckpoint(args, flags) {
   );
   if (flags.write) fs.writeFileSync(paths(cwd()).digest, buildDigest(replay(cwd()), cwd(), agentId));
   warnTruncated(checkpoint);
-  if (flags.json) return out(flags, checkpoint, OUTPUTS.checkpoint);
+  const sincePrevious = await sincePreviousCheckpoint(checkpoint);
+  if (flags.json) return out(flags, { ...checkpoint, sincePrevious }, OUTPUTS.checkpoint);
   if (!process.env.BLACKBOARD_QUIET) {
     console.log(`${C.cyn('+')} 检查点 ${checkpoint.id}${checkpoint.cursorNodeId ? ` @${checkpoint.cursorNodeId}` : ''}`);
+    if (sincePrevious) {
+      const { nodes, edges } = sincePrevious;
+      const ago = sincePrevious.at ? `（${elapsed(Number(checkpoint.at) - Number(sincePrevious.at))}前）` : '';
+      console.log(C.dim(`  自 ${sincePrevious.checkpointId}${ago}以来：节点 +${nodes.added} ~${nodes.updated} -${nodes.removed}；关系 +${edges.added} -${edges.removed}`));
+    } else {
+      console.log(C.dim(`  ${checkpoint.agentId} 的第一个检查点`));
+    }
   }
 }
 

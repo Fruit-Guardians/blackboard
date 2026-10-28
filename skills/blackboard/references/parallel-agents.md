@@ -19,6 +19,12 @@ blackboard checkpoint --summary "已确认内容；当前问题；仍开放的�
 
 避免在同一命令混用冲突的环境身份与 `--agent`；显式参数优先，但 Hook 不会继承某次 CLI 命令里的参数。游标、检查点和活动应沿用同一身份。节点、关系和修改会以该身份记为作者（`author` / `updatedBy`），这只是归属，不是权限：`link`、`edit` 修改的是共享语义图，不提供参与者之间的写入隔离。
 
+## 多个子 Agent 同时工作
+
+写入在事件文件锁内追加，多个参与者可以各自带 `--agent` 直接写同一块黑板，不会互相覆盖。
+
+如果宿主或其他 Skill 规定子 Agent 不得写共享文件，就由协调者在**每一波结束时**把子 Agent 返回的判断和证据写成节点，在 `--detail` 写明来源参与者，然后打检查点。不要把整轮记录推到全部结束后补写：中途压缩或中断时，未写入的过程无法恢复。
+
 ## Hook 继承边界
 
 Claude 恢复 Hook 使用运行它的宿主进程实际继承的 `BLACKBOARD_AGENT`：SessionStart 的 Digest、PreCompact 的检查点和 Digest 使用该身份；显式启用活动采集时，活动的 agentId 也使用该身份。缺少该环境变量仍是 primary，不从 session ID 推导角色。

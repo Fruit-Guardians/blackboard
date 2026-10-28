@@ -170,7 +170,7 @@ blackboard export --out blackboard.html
 
 ## 版本与升级
 
-`0.8.3` 让强制重装失败时保留可运行的 current 版本，按订阅需求推送实时快照并合并慢连接的积压，工作台在收到有效图数据后才显示已同步；CLI / JSON schema 和事件格式延续 `0.8.0`。安装、切换与回滚见[版本管理](docs/USAGE.md#release)，验证范围见 [CI 说明](docs/ci.md)。
+`0.9.0` 修正一批影响日常记录的接口细节：`capabilities` 接受 `--cwd`，`--to` 可重复，help 写明全部 `--json` 输出，没有 `--sev` 的漏洞不再被写成 medium；检查点回显自上一检查点以来的记录变化，Skill 写明“判断形成时就记”。新增字段均为兼容扩展，事件格式不变。安装、切换与回滚见[版本管理](docs/USAGE.md#release)，验证范围见 [CI 说明](docs/ci.md)。
 
 <a id="upgrade"></a>
 

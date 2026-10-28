@@ -39,8 +39,8 @@
 | --- | --- | --- | --- | --- |
 | `init` | — | `outputs/init.json` | `blackboard.init.v1` | 对象 `{schema, cwd, board, title, session}` |
 | `status` | — | `outputs/status.json` | `blackboard.status.v2` | 对象 `{schema, stats, cursor, cursors, title, session, cwd, agentId, viewer, integration, latestNode}` |
-| `node` | `start` `goal` `intent` `fact` `vuln` `hint` | `outputs/node.json` | `blackboard.node-add.v2` | 对象 `{schema, node, edge, cursor}`；`edge`、`cursor` 未发生时为 `null`；给了 `--label` 时 `edge` 带 `label`（`features.nodeEdgeLabel`） |
-| `checkpoint` | `compact` | `outputs/checkpoint.json` | `blackboard.checkpoint.v1` | 检查点记录 `{schema, id, agentId, at, sessionId, cursorNodeId, summary, trigger}` |
+| `node` | `start` `goal` `intent` `fact` `vuln` `hint` | `outputs/node.json` | `blackboard.node-add.v2` | 对象 `{schema, node, edge, edges, cursor}`；`edges` 是本次创建的全部关系（可能为空），`edge` 是其中第一条或 `null`，`cursor` 未发生时为 `null`；给了 `--label` 时关系带 `label`（`features.nodeEdgeLabel`）；`--to` 可重复（`features.nodeMultiTarget`） |
+| `checkpoint` | `compact` | `outputs/checkpoint.json` | `blackboard.checkpoint.v1` | 检查点记录 `{schema, id, agentId, at, sessionId, cursorNodeId, summary, trigger, sincePrevious}`；`sincePrevious` 是同一身份上一检查点到本检查点之间的节点 `{added, updated, removed}` 与关系 `{added, removed}` 数量及上一检查点的 `checkpointId`、`at`，没有上一检查点时为 `null`（`features.checkpointDelta`） |
 | `cursor` | `focus` | `outputs/cursor.json` | `blackboard.cursor.v1` | 对象 `{schema, cursor}`；不带参数时另有 `agentId` |
 | `here` | — | `outputs/here.json` | `blackboard.here.v2` | 对象 `{schema, agentId, cursor, node, neighbors, trail}` |
 | `activity` | — | `outputs/activity.json` | `blackboard.activity.v1` | 不带子命令：活动记录的数组，每项是 `blackboard.activity.v1`；`show`：单个活动记录 |
@@ -68,13 +68,15 @@
 | `receipt` | — | `outputs/receipt.json` | `blackboard.receipt.v1` | 写入回执 |
 | `capabilities` | — | `outputs/capabilities.json` | `blackboard.capabilities.v1` | 能力协商对象，见下 |
 
-写命令都接受 `--agent <名称>`、`--cwd <项目根>`、`--no-init`；`--request-id <稳定ID>` 用于可重试的写入，回执用 `receipt` 查询（见 [receipts.md](receipts.md)）。读命令接受 `--cwd`。项目根的优先级是 `--cwd` > `BLACKBOARD_CWD` > 当前目录向上最近的黑板。
+写命令都接受 `--agent <名称>`、`--cwd <项目根>`、`--no-init`；`--request-id <稳定ID>` 用于可重试的写入，回执用 `receipt` 查询（见 [receipts.md](receipts.md)）。读命令和 `capabilities` 接受 `--cwd`；`capabilities` 描述 CLI 本身，不读取该项目。项目根的优先级是 `--cwd` > `BLACKBOARD_CWD` > 当前目录向上最近的黑板。选项写在命令之后。
 
 `context` 的返回包必须始终带 `readOnly: true`、`prescriptive: false`、`nextStepSelection: "agent-controlled"`（在 `policy` 里）。`search`、`history`、`changes` 同样带 `readOnly: true`、`prescriptive: false`。
 
 ### 节点 JSON 的缺省维度（v2）
 
 公开节点投影始终包含 `status`、`severity`、`confidence`，类型为记录的字符串或 `null`；只有未记录/值为 null 时输出 `null`，不按类型或其他字段推断。完整节点、邻域节点、历史前后值、context 中的压缩节点均遵守此规则；context 继续保留自己的 `location`/`at` 命名和预算约束。
+
+写入同样不推断：自 0.9.0 起，没有 `--sev` 的 `vuln` 不再被写成 `medium`，严重度保持未记录。字段含义不变，因此不升 schema；更早写入的事件保留原值，回放不改写。
 
 可选字符串扩展为可空字段，因此 `node`、`node-add`、`status`、`here`、`show`、`context`、`search`、`history`、`changes` 升为对应 `.v2`；`ls` 仍为裸数组，项版本由 capabilities 声明。`/api/graph`、SSE 和离线 HTML 的快照增加 `blackboard.graph.v2`；HTTP 节点创建/修改响应声明对应的 node-add/node v2。DSH 适配和前端随此版本切换，没有旧 schema 输出模式。
 
@@ -135,7 +137,7 @@ SARIF `level` 只映射记录的 severity：critical/high → error，medium →
 - `0`：成功。`lint` 无论发现什么都返回 0。
 - `1`：失败，如参数错误、未知选项、引用不存在的节点或回执、`--no-init` 时缺黑板、读命令时缺黑板。失败时 stdout 为空。
 
-固定输出测试为每条命令记录退出码，并包含若干失败用例（`show nope`、`edit nope`、`cursor nope`、`receipt` 缺参数或找不到、`capabilities --cwd`、`goal … --no-init`）。
+固定输出测试为每条命令记录退出码，并包含若干失败用例（`show nope`、`edit nope`、`cursor nope`、`receipt` 缺参数或找不到、`goal … --no-init`）。
 
 ## 事件格式
 
@@ -158,6 +160,8 @@ SARIF `level` 只映射记录的 severity：critical/high → error，medium →
 - `eventVersion`：当前写入的事件版本。
 - `runtime`、`commands`、`features`、`contextContract`、`limits`。
 - `features.nodeJsonDefaults`：节点公开投影包含三个可空维度；具体版本仍以 `outputs` 为准。
+- `features.nodeMultiTarget`：`node add` / 简写命令 / `promote` 的 `--to` 可重复，用同一关系连向多个已有节点；任一目标不存在时整次写入不发生。
+- `features.checkpointDelta`：`checkpoint --json` 带 `sincePrevious`。
 - `exportFormats`：当前支持 `html`、`markdown`、`mermaid`、`sarif`。
 - `outputs`：每个契约输出的形状，以命令为键（`activity show` 单列）。对象输出是 `{shape: "object", schema}`，数组输出是 `{shape: "array", items}`。输出里的 `schema` 与这张表来自同一处，测试逐个用例核对。
 - `writeTargets`：命令在项目根下会写的全部文件，每项是 `{path, role}`，`path` 相对项目根、用 `/` 分隔：

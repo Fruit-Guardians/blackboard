@@ -35,6 +35,7 @@
           "confidence": null
         },
         "edge": null,
+        "edges": [],
         "cursor": null
       },
       "events": [
@@ -95,6 +96,16 @@
           "ts": "<now>",
           "author": "agent:primary"
         },
+        "edges": [
+          {
+            "id": "n1->g1:inspired-by",
+            "from": "n1",
+            "to": "g1",
+            "kind": "inspired-by",
+            "ts": "<now>",
+            "author": "agent:primary"
+          }
+        ],
         "cursor": {
           "id": "<cursor-id>",
           "agentId": "agent:primary",
@@ -170,6 +181,7 @@
           "confidence": null
         },
         "edge": null,
+        "edges": [],
         "cursor": null
       },
       "events": [
@@ -214,6 +226,7 @@
           "confidence": null
         },
         "edge": null,
+        "edges": [],
         "cursor": null
       },
       "events": [
@@ -265,6 +278,16 @@
           "ts": "<now>",
           "author": "agent:primary"
         },
+        "edges": [
+          {
+            "id": "v1->i2:related-to",
+            "from": "v1",
+            "to": "i2",
+            "kind": "related-to",
+            "ts": "<now>",
+            "author": "agent:primary"
+          }
+        ],
         "cursor": null
       },
       "events": [
@@ -329,6 +352,7 @@
           "severity": null
         },
         "edge": null,
+        "edges": [],
         "cursor": null
       },
       "events": [
@@ -388,6 +412,16 @@
           "ts": "<now>",
           "author": "agent:primary"
         },
+        "edges": [
+          {
+            "id": "f2->v2:related-to",
+            "from": "f2",
+            "to": "v2",
+            "kind": "related-to",
+            "ts": "<now>",
+            "author": "agent:primary"
+          }
+        ],
         "cursor": null
       },
       "events": [
@@ -424,6 +458,105 @@
     {
       "board": "research",
       "args": [
+        "fact",
+        "Shared evidence",
+        "--to",
+        "g1",
+        "--to",
+        "f2",
+        "--rel",
+        "supports",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.node-add.v2",
+        "node": {
+          "id": "f5",
+          "type": "fact",
+          "title": "Shared evidence",
+          "ts": "<now>",
+          "session": "<session-id>",
+          "author": "agent:primary",
+          "status": null,
+          "severity": null,
+          "confidence": null
+        },
+        "edge": {
+          "id": "f5->g1:supports",
+          "from": "f5",
+          "to": "g1",
+          "kind": "supports",
+          "ts": "<now>",
+          "author": "agent:primary"
+        },
+        "edges": [
+          {
+            "id": "f5->g1:supports",
+            "from": "f5",
+            "to": "g1",
+            "kind": "supports",
+            "ts": "<now>",
+            "author": "agent:primary"
+          },
+          {
+            "id": "f5->f2:supports",
+            "from": "f5",
+            "to": "f2",
+            "kind": "supports",
+            "ts": "<now>",
+            "author": "agent:primary"
+          }
+        ],
+        "cursor": null
+      },
+      "events": [
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "node",
+          "node": {
+            "id": "f5",
+            "type": "fact",
+            "title": "Shared evidence",
+            "ts": "<now>",
+            "session": "<session-id>",
+            "author": "agent:primary"
+          }
+        },
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "edge",
+          "edge": {
+            "id": "f5->g1:supports",
+            "from": "f5",
+            "to": "g1",
+            "kind": "supports",
+            "ts": "<now>",
+            "author": "agent:primary"
+          }
+        },
+        {
+          "eventVersion": 1,
+          "eventId": "<event-id>",
+          "op": "edge",
+          "edge": {
+            "id": "f5->f2:supports",
+            "from": "f5",
+            "to": "f2",
+            "kind": "supports",
+            "ts": "<now>",
+            "author": "agent:primary"
+          }
+        }
+      ]
+    },
+    {
+      "board": "research",
+      "args": [
         "hint",
         "Compare with the SSO handler",
         "--agent",
@@ -447,6 +580,7 @@
           "confidence": null
         },
         "edge": null,
+        "edges": [],
         "cursor": null
       },
       "events": [
@@ -491,6 +625,7 @@
           "confidence": null
         },
         "edge": null,
+        "edges": [],
         "cursor": null
       },
       "events": [
@@ -520,6 +655,7 @@
                 "author": "agent:primary"
               },
               "edge": null,
+              "edges": [],
               "cursor": null
             },
             "events": [

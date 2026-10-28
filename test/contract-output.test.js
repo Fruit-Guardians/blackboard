@@ -49,6 +49,7 @@ const CASES = {
     { board: 'research', args: ['intent', 'Try the logout path', '--relate-here'] },
     { board: 'research', args: ['fact', 'Logout keeps the id', '--confidence', 'reproduced', '--at', 'src/auth.js:42'] },
     { board: 'research', args: ['vuln', 'Cookie scope too wide', '--sev', 'medium', '--parent', 'f2'] },
+    { board: 'research', args: ['fact', 'Shared evidence', '--to', 'g1', '--to', 'f2', '--rel', 'supports'] },
     { board: 'research', args: ['hint', 'Compare with the SSO handler', '--agent', 'agent:reviewer'] },
     { board: 'research', args: ['fact', 'x', '--request-id', 'req-new-1'] },
     { board: null, args: ['goal', 'No board yet', '--no-init'] },

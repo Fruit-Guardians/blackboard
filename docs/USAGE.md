@@ -207,7 +207,8 @@ blackboard edit hy1 --title "修订后的猜测" --detail "补充证据"
 
 - `--enter` 显式移动游标；`--relate-here` 显式关联当前位置，默认关系为弱语义的 `related-to`。
 - `--to <id>` 让新节点指向已有节点，读作“新节点 `--rel` id”，如新证据 `--to hy1 --rel supports`；`--parent <id>` 方向相反，读作“id `--rel` 新节点”。**当前游标不是隐式父节点**。
-- 一次创建只声明一条关系：`--to` 不能与 `--parent`/`--relate-here` 同用，其余关系用 `link`；目标不存在时整条命令不写入。
+- `--to` 可重复，用同一 `--rel` 把新节点连向多个已有节点；`--to` 不能与 `--parent`/`--relate-here` 同用，关系不同的连边用 `link`。任一目标不存在时整条命令不写入。
+- 写命令加 `--json` 时，新节点 ID 在 `node.id`，本次建立的关系在 `edges`；不要解析给人看的回显。没有连关系的节点，回显会注明“未连关系”。
 - `--at <file:line>` 记录证据位置；`--detail` / `-d` 添加详情；`--tag` / `-t` 可重复指定标签。
 - ID 按类型递增，如 `g1`、`o1`、`hy1`；活动和检查点如 `act1`、`cp1`。接受 ID 的命令支持 `[hy1]`、大小写不敏感及唯一前缀，存在歧义时列出候选。
 - `start`、`goal`、`intent`、`fact`、`vuln`、`hint` 可用同名简写；`focus` 是 `cursor` 的别名，`compact` 是 `checkpoint` 的别名。这些写法也不会隐式连边或进入节点。
@@ -343,6 +344,8 @@ blackboard service uninstall      # 停止任务并删除本工具受管 plist
 ## 版本与升级
 
 
+`0.9.0` 修正真实长任务中暴露的接口细节：`capabilities` 接受 `--cwd`；选项写在命令前面时给出明确提示；`--to` 可重复；help 写明除 `tree`、`serve`、`hook` 外都支持 `--json`。没有 `--sev` 的 `vuln` 不再被写成 `medium`，严重度保持未记录。`checkpoint` 回显同一身份上一检查点以来的节点与关系变化（`--json` 的 `sincePrevious`），`status` 按可信度列出发现/漏洞并注明未定级数量。Skill 写明记录时机：判断形成时就记，磁盘上的日志和台账不替代节点，分波工作每波结束时记录并打检查点。新增字段均为兼容扩展，事件格式不变。
+
 `0.8.3` 将版本包发布移入内部模块：`release install --force` 发布新目录失败时恢复原版本，current 保持可运行；回滚或清理失败时保留旧版本字节并在错误中给出恢复路径。实时服务只在有页面订阅时读取日志，慢连接只保留最新一份待发快照；工作台忽略无效快照、保留上一份画面，并在收到有效数据后才显示已同步。CLI / JSON schema 与事件格式延续 `0.8.0`。
 
 `0.8.2` 拆分存储文件 I/O 与 HTTP 请求/写入职责，修复日志短读、文件描述符及失败锁写入的清理，损坏的成功响应会保留页面草稿并提示结果不确定；增加离线文档链接、图片和锚点检查。CLI / JSON schema 与事件格式延续 `0.8.0`。
@@ -359,7 +362,8 @@ blackboard service uninstall      # 停止任务并删除本工具受管 plist
 ├── versions/0.8.1/
 ├── versions/0.8.2/
 ├── versions/0.8.3/
-└── current -> versions/0.8.3
+├── versions/0.9.0/
+└── current -> versions/0.9.0
 ```
 
 ```bash

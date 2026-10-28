@@ -20,7 +20,20 @@
         "sessionId": "<session-id>",
         "cursorNodeId": "v1",
         "summary": "Third pass.",
-        "trigger": "manual"
+        "trigger": "manual",
+        "sincePrevious": {
+          "checkpointId": "cp1",
+          "at": 1767226140000,
+          "nodes": {
+            "added": 1,
+            "updated": 4,
+            "removed": 0
+          },
+          "edges": {
+            "added": 2,
+            "removed": 0
+          }
+        }
       },
       "events": [
         {
@@ -60,7 +73,20 @@
         "sessionId": "<session-id>",
         "cursorNodeId": "v1",
         "summary": "Before compaction.",
-        "trigger": "pre-compact"
+        "trigger": "pre-compact",
+        "sincePrevious": {
+          "checkpointId": "cp1",
+          "at": 1767226140000,
+          "nodes": {
+            "added": 1,
+            "updated": 4,
+            "removed": 0
+          },
+          "edges": {
+            "added": 2,
+            "removed": 0
+          }
+        }
       },
       "events": [
         {

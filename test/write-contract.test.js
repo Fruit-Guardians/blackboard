@@ -190,4 +190,51 @@ test('capabilities advertise attribution, --cwd and --no-init so adapters can fe
   assert.equal(caps.features.writeAttribution, true);
   assert.equal(caps.features.cwdFlag, true);
   assert.equal(caps.features.noInit, true);
+  // The negotiation entry point accepts the same --cwd an adapter passes everywhere else.
+  assert.deepEqual(ok(t, ['capabilities', '--cwd', tmp(t), '--json']), caps);
+});
+
+test('repeated --to links one new node to every target with the same relation, all or nothing', (t) => {
+  const dir = board(t);
+  const env = { BLACKBOARD_CWD: dir };
+  ok(t, ['goal', 'G'], { env });
+  ok(t, ['node', 'add', 'hypothesis', 'H'], { env });
+  const created = ok(t, ['node', 'add', 'observation', 'E', '--to', 'g1', '--to', 'hy1', '--to', 'g1', '--rel', 'supports', '--agent', 'ev', '--json'], { env });
+  assert.deepEqual(created.edges.map((edge) => [edge.from, edge.kind, edge.to, edge.author]),
+    [['o1', 'supports', 'g1', 'agent:ev'], ['o1', 'supports', 'hy1', 'agent:ev']]);
+  assert.deepEqual(created.edge, created.edges[0], 'single-edge readers still see the first relation');
+  assert.equal(Object.keys(replay(dir).edges).length, 2, 'a repeated target is linked once');
+
+  const single = ok(t, ['node', 'add', 'note', 'N', '--to', 'g1', '--json'], { env });
+  assert.deepEqual(single.edges, [single.edge]);
+  const unlinked = ok(t, ['node', 'add', 'note', 'Alone', '--json'], { env });
+  assert.deepEqual([unlinked.edge, unlinked.edges], [null, []]);
+
+  const log = fs.readFileSync(path.join(dir, '.blackboard', 'events.jsonl'));
+  assert.equal(run(t, ['node', 'add', 'note', 'X', '--to', 'g1', '--to', 'missing'], { env }).status, 1);
+  assert.deepEqual(fs.readFileSync(path.join(dir, '.blackboard', 'events.jsonl')), log, 'an unknown target writes neither the node nor any relation');
+  assert.equal(run(t, ['node', 'add', 'note', 'X', '--to', 'g1', '--relate-here'], { env }).status, 1);
+});
+
+test('checkpoint reports what changed since the same identity\'s previous checkpoint, up to itself', (t) => {
+  const dir = board(t);
+  const env = { BLACKBOARD_CWD: dir };
+  ok(t, ['goal', 'G'], { env });
+  assert.equal(ok(t, ['checkpoint', '--summary', 'first', '--json'], { env }).sincePrevious, null);
+  const idle = ok(t, ['checkpoint', '--summary', 'nothing new', '--json'], { env }).sincePrevious;
+  assert.deepEqual([idle.checkpointId, idle.nodes, idle.edges], ['cp1', { added: 0, updated: 0, removed: 0 }, { added: 0, removed: 0 }]);
+
+  ok(t, ['node', 'add', 'note', 'N', '--to', 'g1'], { env });
+  ok(t, ['edit', 'g1', '--title', 'G2'], { env });
+  assert.equal(ok(t, ['checkpoint', '--summary', 'other', '--agent', 'review', '--json'], { env }).sincePrevious, null,
+    'another identity has its own sequence');
+  const busy = ok(t, ['checkpoint', '--summary', 'after work', '--request-id', 'cp-retry', '--json'], { env });
+  assert.deepEqual([busy.sincePrevious.checkpointId, busy.sincePrevious.nodes, busy.sincePrevious.edges],
+    ['cp2', { added: 1, updated: 1, removed: 0 }, { added: 1, removed: 0 }]);
+
+  // A retried checkpoint reports the interval it closed, not writes made after it.
+  ok(t, ['node', 'add', 'note', 'Later'], { env });
+  const retried = ok(t, ['checkpoint', '--summary', 'after work', '--request-id', 'cp-retry', '--json'], { env });
+  assert.equal(retried.id, busy.id);
+  assert.deepEqual(retried.sincePrevious, busy.sincePrevious);
 });

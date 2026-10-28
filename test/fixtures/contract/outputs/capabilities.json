@@ -87,7 +87,9 @@
           "searchFilters": true,
           "searchGrouping": true,
           "listAll": true,
-          "nodeJsonDefaults": true
+          "nodeJsonDefaults": true,
+          "nodeMultiTarget": true,
+          "checkpointDelta": true
         },
         "exportFormats": [
           "html",
@@ -272,8 +274,264 @@
         "<board>",
         "--json"
       ],
-      "exitCode": 1,
-      "output": null
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.capabilities.v1",
+        "schemaVersion": 1,
+        "version": "<package-version>",
+        "eventVersion": 1,
+        "runtime": {
+          "minimumNode": 18,
+          "runtimeDependencies": 0
+        },
+        "commands": [
+          "init",
+          "setup",
+          "status",
+          "node",
+          "start",
+          "goal",
+          "intent",
+          "fact",
+          "vuln",
+          "hint",
+          "checkpoint",
+          "compact",
+          "cursor",
+          "focus",
+          "here",
+          "activity",
+          "promote",
+          "done",
+          "block",
+          "revive",
+          "edit",
+          "link",
+          "unlink",
+          "remove",
+          "rm",
+          "ls",
+          "list",
+          "show",
+          "tree",
+          "digest",
+          "context",
+          "lint",
+          "tail",
+          "serve",
+          "export",
+          "reset",
+          "search",
+          "history",
+          "changes",
+          "backup",
+          "restore",
+          "receipt",
+          "capabilities",
+          "hooks",
+          "skill",
+          "launcher",
+          "service",
+          "release",
+          "hook",
+          "help",
+          "version"
+        ],
+        "features": {
+          "context": true,
+          "incrementalContext": true,
+          "search": true,
+          "nodeHistory": true,
+          "checkpointChanges": true,
+          "backupRestore": true,
+          "requestReceipts": true,
+          "writeAttribution": true,
+          "cwdFlag": true,
+          "noInit": true,
+          "rejectTruncation": true,
+          "inputTruncationMetadata": true,
+          "nodeEdgeLabel": true,
+          "searchFilters": true,
+          "searchGrouping": true,
+          "listAll": true,
+          "nodeJsonDefaults": true,
+          "nodeMultiTarget": true,
+          "checkpointDelta": true
+        },
+        "exportFormats": [
+          "html",
+          "markdown",
+          "mermaid",
+          "sarif"
+        ],
+        "contextContract": {
+          "readOnly": true,
+          "prescriptive": false,
+          "nextStepSelection": "agent-controlled"
+        },
+        "limits": {
+          "title": 500,
+          "detail": 20000,
+          "label": 500,
+          "summary": 12000
+        },
+        "outputs": {
+          "init": {
+            "shape": "object",
+            "schema": "blackboard.init.v1"
+          },
+          "status": {
+            "shape": "object",
+            "schema": "blackboard.status.v2"
+          },
+          "node": {
+            "shape": "object",
+            "schema": "blackboard.node-add.v2"
+          },
+          "checkpoint": {
+            "shape": "object",
+            "schema": "blackboard.checkpoint.v1"
+          },
+          "cursor": {
+            "shape": "object",
+            "schema": "blackboard.cursor.v1"
+          },
+          "here": {
+            "shape": "object",
+            "schema": "blackboard.here.v2"
+          },
+          "activity": {
+            "shape": "array",
+            "items": "blackboard.activity.v1"
+          },
+          "activity show": {
+            "shape": "object",
+            "schema": "blackboard.activity.v1"
+          },
+          "promote": {
+            "shape": "object",
+            "schema": "blackboard.node-add.v2"
+          },
+          "done": {
+            "shape": "object",
+            "schema": "blackboard.node.v2"
+          },
+          "block": {
+            "shape": "object",
+            "schema": "blackboard.node.v2"
+          },
+          "revive": {
+            "shape": "object",
+            "schema": "blackboard.node.v2"
+          },
+          "edit": {
+            "shape": "object",
+            "schema": "blackboard.node.v2"
+          },
+          "link": {
+            "shape": "object",
+            "schema": "blackboard.edge.v1"
+          },
+          "unlink": {
+            "shape": "object",
+            "schema": "blackboard.edge.v1"
+          },
+          "remove": {
+            "shape": "object",
+            "schema": "blackboard.remove.v1"
+          },
+          "ls": {
+            "shape": "array",
+            "items": "blackboard.node.v2"
+          },
+          "show": {
+            "shape": "object",
+            "schema": "blackboard.show.v2"
+          },
+          "digest": {
+            "shape": "object",
+            "schema": "blackboard.digest.v1"
+          },
+          "context": {
+            "shape": "object",
+            "schema": "blackboard.context.v2"
+          },
+          "lint": {
+            "shape": "object",
+            "schema": "blackboard.lint.v1"
+          },
+          "tail": {
+            "shape": "object",
+            "schema": "blackboard.tail.v1"
+          },
+          "export": {
+            "shape": "object",
+            "schema": "blackboard.export.v1"
+          },
+          "reset": {
+            "shape": "object",
+            "schema": "blackboard.reset.v1"
+          },
+          "search": {
+            "shape": "object",
+            "schema": "blackboard.search.v2"
+          },
+          "history": {
+            "shape": "object",
+            "schema": "blackboard.history.v2"
+          },
+          "changes": {
+            "shape": "object",
+            "schema": "blackboard.changes.v2"
+          },
+          "backup": {
+            "shape": "object",
+            "schema": "blackboard.backup-receipt.v1"
+          },
+          "restore": {
+            "shape": "object",
+            "schema": "blackboard.restore-receipt.v1"
+          },
+          "receipt": {
+            "shape": "object",
+            "schema": "blackboard.receipt.v1"
+          },
+          "capabilities": {
+            "shape": "object",
+            "schema": "blackboard.capabilities.v1"
+          }
+        },
+        "writeTargets": [
+          {
+            "path": ".blackboard/events.jsonl",
+            "role": "log"
+          },
+          {
+            "path": ".blackboard/lock",
+            "role": "lock"
+          },
+          {
+            "path": ".blackboard/state.json",
+            "role": "cache"
+          },
+          {
+            "path": ".blackboard/state.json.tmp",
+            "role": "cache-temp"
+          },
+          {
+            "path": ".blackboard/config.json",
+            "role": "config"
+          },
+          {
+            "path": ".blackboard/.gitignore",
+            "role": "gitignore"
+          },
+          {
+            "path": ".blackboard/digest.md",
+            "role": "digest"
+          }
+        ]
+      }
     }
   ]
 }

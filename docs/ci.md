@@ -2,7 +2,7 @@
 
 `.github/workflows/verify.yml` 是验证流程，不会发布 npm 包、创建 release、安装全局启动器、接入个人宿主或调用付费模型。
 
-当前源码边界见[架构说明](ARCHITECTURE.md)，本地开发与检查清单见[贡献指南](../CONTRIBUTING.md)。`0.8.3` 延续 0.8.0 的公开契约；本文描述验证器与 workflow 的覆盖，不为该版本预先记通过结果。
+当前源码边界见[架构说明](ARCHITECTURE.md)，本地开发与检查清单见[贡献指南](../CONTRIBUTING.md)。`0.9.0` 在 0.8.0 公开契约上做兼容新增；本文描述验证器与 workflow 的覆盖，不为该版本预先记通过结果。
 
 ## 流程
 
@@ -21,7 +21,7 @@ Vite 8 的构建依赖要求 Node `^20.19.0 || >=22.12.0`。核心运行时仍�
 node scripts/verify-package.mjs
 
 # 已有候选 tarball，CI 矩阵使用这个入口
-node scripts/verify-package.mjs --tarball /absolute/path/to/blackboard-0.8.3.tgz
+node scripts/verify-package.mjs --tarball /absolute/path/to/blackboard-0.9.0.tgz
 
 # 用同一验证器测试另一个源码目录
 node scripts/verify-package.mjs --source /absolute/path/to/baseline
