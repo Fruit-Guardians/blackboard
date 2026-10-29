@@ -170,7 +170,7 @@ blackboard export --out blackboard.html
 
 ## 版本与升级
 
-`0.9.0` 修正一批影响日常记录的接口细节：`capabilities` 接受 `--cwd`，`--to` 可重复，help 写明全部 `--json` 输出，没有 `--sev` 的漏洞不再被写成 medium；检查点回显自上一检查点以来的记录变化，Skill 写明“判断形成时就记”。新增字段均为兼容扩展，事件格式不变。安装、切换与回滚见[版本管理](docs/USAGE.md#release)，验证范围见 [CI 说明](docs/ci.md)。
+`0.10.0` 新增 `batch`：一条命令写入一组相关的节点、关系和修改，整批全部成功或全部不写，适合每波并行工作结束时导入子 Agent 的记录。`0.9.0` 修正了一批日常记录的接口细节，并让检查点回显自上一检查点以来的记录变化。新增均为兼容扩展，事件格式不变。安装、切换与回滚见[版本管理](docs/USAGE.md#release)，验证范围见 [CI 说明](docs/ci.md)。
 
 <a id="upgrade"></a>
 

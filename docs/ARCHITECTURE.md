@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [贡献指南](../CONTRIBUTING.md) · [工程原则](../AGENT.md) · [公开契约](CONTRACT.md)
 
-本文描述 `0.9.0` 的源码组织：CLI 支持代码、实时与离线图快照、实时推送与前端订阅、存储文件 I/O、HTTP 写入和版本包发布各有明确边界，开发验证脚本复用公共辅助实现。模块路径是实现细节，宿主与脚本依赖的稳定接口只由[公开契约](CONTRACT.md)定义。
+本文描述 `0.10.0` 的源码组织：CLI 支持代码、实时与离线图快照、实时推送与前端订阅、存储文件 I/O、HTTP 写入、批量写入和版本包发布各有明确边界，开发验证脚本复用公共辅助实现。模块路径是实现细节，宿主与脚本依赖的稳定接口只由[公开契约](CONTRACT.md)定义。
 
 ## 数据如何流动
 
@@ -33,7 +33,8 @@ flowchart TD
 | `lib/cli/format.js` | 终端颜色与人类可读的行格式；不决定 JSON schema |
 | `lib/contracts.js` | 纯常量：`OUTPUTS`、`WRITE_TARGETS`、`GRAPH_SCHEMA`；CLI 与投影共用，保持浏览器可用 |
 | `lib/model.js`、`lib/semantics.js` | CLI、服务、浏览器共用的回放与语义；不引入 Node-only API |
-| `lib/store.js` | 项目板发现、事件追加、缓存、游标与检查点；在写锁内校验事件版本，不认识宿主 |
+| `lib/store.js` | 项目板发现、事件追加、缓存、游标与检查点；在写锁内校验事件版本，不认识宿主。单条写入与 `writeBatch` 共用同一套节点、关系、修改的执行函数，batch 只在内存工作图上逐行执行后整体提交 |
+| `lib/batch.js` | `batch` 的 JSONL 解析：字段白名单、类型与批内引用检查，错误带输入行号；不写事件 |
 | `lib/storage/` | `file-lock.js` 管理跨进程锁、文件身份核对与异常清理；`event-file.js` 管理完整字节读取、短读和断尾修复；不决定事件语义 |
 | `lib/context.js`、`lib/digest.js`、`lib/search.js`、`lib/history.js`、`lib/lint.js` | 由已记录的内容生成上下文、摘要、查询、追溯与提示；省略明确报告，不推断缺省维度 |
 | `lib/snapshot.js` | Node 运行时中的 `buildGraphSnapshot`；实时 HTTP / SSE 与离线 HTML 共用图、身份与有效焦点投影，通过选项保留各自的可写性和活动详情边界 |
@@ -90,6 +91,7 @@ DSH 的 CLI 桥每次显式传 `--cwd`、`--agent`，写入另加 `--no-init`；
 | 变更范围 | 主要行为证据 |
 | --- | --- |
 | CLI 参数、输出与 schema | `test/blackboard.test.js`、`test/contract-output.test.js`、`test/write-contract.test.js`、`test/node-json.test.js`；固定输出与 capabilities 同步 |
+| 批量写入 | `test/batch.test.js`：批内引用与作者、不移动游标、任一行出错整批不写、request-id 重试与中途中断后的补齐、上限与截断 |
 | 事件、写锁、身份、恢复 | `test/store-io.test.js` 的异常、短读与所有权回归，及 `test/recovery.test.js`、`test/receipts.test.js`、`test/backup.test.js`、`test/iteration.test.js` |
 | 上下文预算与历史 | `test/context-*.test.js`、`test/history.test.js`；`npm run evaluate:recovery` 验证合成投影，不替代真实模型恢复试验 |
 | 服务写入、历史与回执 | `test/api-receipts.test.js`、`test/input-integrity-api.test.js`；可选 `npm run verify:api` 需要 Postman CLI |

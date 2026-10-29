@@ -45,6 +45,7 @@
 | `here` | — | `outputs/here.json` | `blackboard.here.v2` | 对象 `{schema, agentId, cursor, node, neighbors, trail}` |
 | `activity` | — | `outputs/activity.json` | `blackboard.activity.v1` | 不带子命令：活动记录的数组，每项是 `blackboard.activity.v1`；`show`：单个活动记录 |
 | `promote` | — | `outputs/promote.json` | `blackboard.node-add.v2` | 同 `node` |
+| `batch` | — | `outputs/batch.json` | `blackboard.batch.v1` | 对象 `{schema, requestId, counts, results}`；`counts` 为 `{nodes, edges, edits}`；`results` 按输入顺序，每项带输入行号 `line` 与 `op`：`node` 项有 `node`、`edges` 及可选 `ref`，`link` 项有 `edge`，`edit` 项有修改后的 `node`；有截断时该项带 `truncated`。输入格式、必填 `--request-id` 与原子性见下文“批量写入” |
 | `done` | — | `outputs/done.json` | `blackboard.node.v2` | 修改后的节点记录 |
 | `block` | — | `outputs/block.json` | `blackboard.node.v2` | 修改后的节点记录 |
 | `revive` | — | `outputs/revive.json` | `blackboard.node.v2` | 修改后的节点记录 |
@@ -81,6 +82,23 @@
 可选字符串扩展为可空字段，因此 `node`、`node-add`、`status`、`here`、`show`、`context`、`search`、`history`、`changes` 升为对应 `.v2`；`ls` 仍为裸数组，项版本由 capabilities 声明。`/api/graph`、SSE 和离线 HTML 的快照增加 `blackboard.graph.v2`；HTTP 节点创建/修改响应声明对应的 node-add/node v2。DSH 适配和前端随此版本切换，没有旧 schema 输出模式。
 
 只规范化输出，不改写事件、回放图、请求指纹或缓存。`receipt.result` 是当时保存的原始写入结果，保持 v1 原样，可能没有这三个字段，也不补 schema；不能用它的原始结构与 v2 写响应做逐字段相等比较。字段级历史仍报告实际变化，不因补 null 生成虚假变更；节点不存在时仍为整体 `null`。
+
+### 批量写入
+
+`batch --request-id <ID> [--file <JSONL>] [--agent <名称>] [--no-truncate]` 把一组记录作为**一次请求**写入；不给 `--file` 时读 stdin。`--request-id` 必填：同一 ID、同样内容重试返回原结果且不再写入，内容不同返回 `request_id_conflict`；写到一半中断时回执为 pending，用同一 ID 重试按原计划补齐。`features.batch` 声明此命令，`limits.batchMaxOps`、`limits.batchMaxBytes` 给出单批上限。
+
+输入每行一个 JSON 对象，空行忽略：
+
+| `op` | 必填 | 可选 |
+| --- | --- | --- |
+| `node` | `type`、`title` | `detail`、`tags`、`at`、`status`、`severity`、`confidence`、`to`（ID 或 ID 数组）、`rel`、`label`、`ref`、`agent` |
+| `link` | `from`、`to` | `rel`、`label`、`agent` |
+| `edit` | `id`，以及 `title`、`detail`、`status`、`severity`、`confidence`、`tags` 中至少一个 | `agent` |
+
+- `ref` 给本批新建的节点起本地名（`[A-Za-z0-9_-]`，最长 64），后续行用 `$名字` 引用；只能引用之前的行，名字在一批内唯一。
+- 未知 `op` 或未知字段、类型不对、取值不合法、引用不存在，都使整批失败：退出码 1，stdout 为空，stderr 写明行号，日志不变。
+- `agent` 只决定该行的作者（`author` / `updatedBy`），缺省用 `--agent`。批量写入不移动任何游标，不支持 `enter`、`relate-here`、`parent`，也不包含删除、重置、检查点和活动。
+- 写入的是普通 `node`、`edge`、`patch` 事件加一个回执标记，与单条写入的事件相同；`receipt` 的 `command` 为 `batch`。文本上限与截断规则同单条写入，`--no-truncate` 作用于整批。
 
 ### 导出格式
 

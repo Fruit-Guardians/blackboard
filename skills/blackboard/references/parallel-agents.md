@@ -23,7 +23,21 @@ blackboard checkpoint --summary "已确认内容；当前问题；仍开放的�
 
 写入在事件文件锁内追加，多个参与者可以各自带 `--agent` 直接写同一块黑板，不会互相覆盖。
 
-如果宿主或其他 Skill 规定子 Agent 不得写共享文件，就由协调者在**每一波结束时**把子 Agent 返回的判断和证据写成节点，在 `--detail` 写明来源参与者，然后打检查点。不要把整轮记录推到全部结束后补写：中途压缩或中断时，未写入的过程无法恢复。
+如果宿主或其他 Skill 规定子 Agent 不得写共享文件，就由协调者在**每一波结束时**把子 Agent 返回的判断和证据写进黑板，然后打检查点。不要把整轮记录推到全部结束后补写：中途压缩或中断时，未写入的过程无法恢复。
+
+CLI 声明了 `features.batch` 时，可以让子 Agent 把记录写成 JSONL，放在**它自己的输出文件**里，协调者每波用一条命令导入。每行用 `agent` 写明来源参与者；同一批里新建的节点用 `ref` 命名，后面用 `$名字` 引用。整批要么全部写入，要么一条都不写，出错时会写明是第几行：
+
+```jsonl
+{"op":"node","ref":"h","type":"hypothesis","title":"本参与者的判断","confidence":"suspected","to":"<目标ID>","agent":"research"}
+{"op":"node","type":"observation","title":"支持它的观察","at":"src/file.js:42","to":"$h","rel":"supports","agent":"research"}
+```
+
+```sh
+blackboard batch --request-id "<波次ID>" --file "<子Agent输出目录>/wave.jsonl" --cwd "/已确认项目" --no-init
+blackboard checkpoint --summary "本波确认内容；仍开放的问题" --cwd "/已确认项目" --no-init
+```
+
+`--request-id` 必填，用波次或文件名这类稳定的名字；命令中断或不确定是否写入时，用同一 ID 重试，不会重复写入。批量写入不移动游标，也不包含删除和检查点。
 
 ## Hook 继承边界
 

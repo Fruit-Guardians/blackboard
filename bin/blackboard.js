@@ -39,7 +39,9 @@ import {
   readState,
   readEvents,
   stats,
+  writeBatch,
 } from '../lib/store.js';
+import { BATCH_LIMITS, parseBatch } from '../lib/batch.js';
 import { buildDigest, neighborsOf, tail } from '../lib/digest.js';
 import { buildAgentContext, renderAgentContext } from '../lib/context.js';
 import { searchGraph } from '../lib/search.js';
@@ -479,10 +481,10 @@ function cmdCapabilities(args, flags) {
       writeAttribution: true, cwdFlag: true, noInit: true,
       rejectTruncation: true, inputTruncationMetadata: true, nodeEdgeLabel: true,
       searchFilters: true, searchGrouping: true, listAll: true, nodeJsonDefaults: true,
-      nodeMultiTarget: true, checkpointDelta: true },
+      nodeMultiTarget: true, checkpointDelta: true, batch: true },
     exportFormats: ['html', 'markdown', 'mermaid', 'sarif'],
     contextContract: { readOnly: true, prescriptive: false, nextStepSelection: 'agent-controlled' },
-    limits: LIMITS,
+    limits: { ...LIMITS, ...BATCH_LIMITS },
     outputs: OUTPUTS,
     writeTargets: WRITE_TARGETS,
   };
@@ -637,6 +639,8 @@ async function main() {
       return cmdActivity(args, flags);
     case 'promote':
       return cmdPromote(args, flags);
+    case 'batch':
+      return cmdBatch(args, flags);
     case 'done':
     case 'block':
     case 'revive':
@@ -736,14 +740,54 @@ function addSimple(type, args, flags) {
   warnTruncated(result);
   if (flags.json) return out(flags, { ...result, node: projectNode(result.node) }, OUTPUTS.node);
   if (!process.env.BLACKBOARD_QUIET) {
-    const label = (edge) => EDGE_LABEL[edge.kind] || edge.kind;
-    const edges = result.edges || (result.edge ? [result.edge] : []);
-    const via = !edges.length ? ' · 未连关系' : edges.map((edge) => (edge.from === result.node.id
-      ? ` → ${label(edge)} ${edge.to}`
-      : ` ${label(edge)} ${edge.from}`) + (edge.label ? `（${edge.label}）` : '')).join('');
     const entered = result.cursor ? ' · 已进入' : '';
-    console.log(`${C.grn('+')} ${nodeLine(result.node)}${C.dim(via + entered)}`);
+    console.log(`${C.grn('+')} ${nodeLine(result.node)}${C.dim(relationsOf(result.node, result.edges || (result.edge ? [result.edge] : [])) + entered)}`);
   }
+}
+
+/** The relations a write just created, read from the new node's side; says so when there are none. */
+function relationsOf(node, edges) {
+  if (!edges.length) return ' · 未连关系';
+  return edges.map((edge) => (edge.from === node.id
+    ? ` → ${EDGE_LABEL[edge.kind] || edge.kind} ${edge.to}`
+    : ` ${EDGE_LABEL[edge.kind] || edge.kind} ${edge.from}`) + (edge.label ? `（${edge.label}）` : '')).join('');
+}
+
+/** A non-blocking stdin pipe can return EAGAIN to a synchronous read once input exceeds the pipe buffer. */
+async function readStdin() {
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(chunk);
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+async function cmdBatch(args, flags) {
+  if (args.length) fail('用法: blackboard batch --request-id <ID> [--file <JSONL 文件>]；不给 --file 时读 stdin');
+  if (!flags['request-id']) fail('batch 需要 --request-id：整批作为一次请求写入，失败或中断后可用同一 ID 重试');
+  if (!flags.file && process.stdin.isTTY) fail('请用 --file 指定 JSONL 文件，或通过 stdin 传入');
+  needInit();
+  const text = flags.file ? fs.readFileSync(path.resolve(String(flags.file)), 'utf8') : await readStdin();
+  let result;
+  try {
+    result = writeBatch(parseBatch(text), {
+      agentId: agentOf(flags), requestId: flags['request-id'], rejectTruncation: !!flags['no-truncate'],
+    }, cwd());
+  } catch (error) {
+    if (error.line) fail(`第 ${error.line} 行：${error.message}`);
+    throw error;
+  }
+  for (const entry of result.results) {
+    if (entry.truncated) process.stderr.write(`第 ${entry.line} 行：`), warnTruncated(entry);
+  }
+  const results = result.results.map((entry) => (entry.node ? { ...entry, node: projectNode(entry.node) } : entry));
+  if (flags.json) return out(flags, { ...result, results }, OUTPUTS.batch);
+  if (process.env.BLACKBOARD_QUIET) return;
+  for (const entry of result.results) {
+    if (entry.op === 'node') console.log(`${C.grn('+')} ${nodeLine(entry.node)}${C.dim(relationsOf(entry.node, entry.edges))}`);
+    else if (entry.op === 'link') console.log(`${C.grn('+')} ${entry.edge.from} ${C.dim(EDGE_LABEL[entry.edge.kind] || entry.edge.kind)} ${entry.edge.to}${entry.edge.label ? C.dim(`（${entry.edge.label}）`) : ''}`);
+    else console.log(`${C.grn('✓')} ${nodeLine(entry.node)}`);
+  }
+  const { nodes, edges, edits } = result.counts;
+  console.log(C.dim(`批量写入 ${result.requestId}：节点 +${nodes}，关系 +${edges}，修改 ${edits}`));
 }
 
 function elapsed(ms) {

@@ -35,6 +35,7 @@
           "here",
           "activity",
           "promote",
+          "batch",
           "done",
           "block",
           "revive",
@@ -89,7 +90,8 @@
           "listAll": true,
           "nodeJsonDefaults": true,
           "nodeMultiTarget": true,
-          "checkpointDelta": true
+          "checkpointDelta": true,
+          "batch": true
         },
         "exportFormats": [
           "html",
@@ -106,7 +108,9 @@
           "title": 500,
           "detail": 20000,
           "label": 500,
-          "summary": 12000
+          "summary": 12000,
+          "batchMaxOps": 500,
+          "batchMaxBytes": 4194304
         },
         "outputs": {
           "init": {
@@ -144,6 +148,10 @@
           "promote": {
             "shape": "object",
             "schema": "blackboard.node-add.v2"
+          },
+          "batch": {
+            "shape": "object",
+            "schema": "blackboard.batch.v1"
           },
           "done": {
             "shape": "object",
@@ -302,6 +310,7 @@
           "here",
           "activity",
           "promote",
+          "batch",
           "done",
           "block",
           "revive",
@@ -356,7 +365,8 @@
           "listAll": true,
           "nodeJsonDefaults": true,
           "nodeMultiTarget": true,
-          "checkpointDelta": true
+          "checkpointDelta": true,
+          "batch": true
         },
         "exportFormats": [
           "html",
@@ -373,7 +383,9 @@
           "title": 500,
           "detail": 20000,
           "label": 500,
-          "summary": 12000
+          "summary": 12000,
+          "batchMaxOps": 500,
+          "batchMaxBytes": 4194304
         },
         "outputs": {
           "init": {
@@ -411,6 +423,10 @@
           "promote": {
             "shape": "object",
             "schema": "blackboard.node-add.v2"
+          },
+          "batch": {
+            "shape": "object",
+            "schema": "blackboard.batch.v1"
           },
           "done": {
             "shape": "object",

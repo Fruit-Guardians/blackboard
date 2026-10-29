@@ -214,6 +214,24 @@ blackboard edit hy1 --title "修订后的猜测" --detail "补充证据"
 - `start`、`goal`、`intent`、`fact`、`vuln`、`hint` 可用同名简写；`focus` 是 `cursor` 的别名，`compact` 是 `checkpoint` 的别名。这些写法也不会隐式连边或进入节点。
 - 未知 CLI 选项、缺失参数值、冲突选项与无效数值会明确报错，且不执行写入；`--tag` 可重复，其他单值选项不可重复。标题以 `-` 开头时放在 `--` 后；自定义节点类型和关系名仍可使用。
 
+### 批量写入
+
+一次要记多条相关记录时（例如一波并行工作结束），用 `batch` 一条命令写入，不必拆成一串单条命令。输入是 JSON Lines，每行一个 `node`、`link` 或 `edit`：
+
+```bash
+cat > wave-3.jsonl <<'EOF'
+{"op":"node","ref":"h","type":"hypothesis","title":"导出接口缺少租户过滤","confidence":"suspected","to":"g1","agent":"audit-a1"}
+{"op":"node","type":"observation","title":"handler 直接使用请求里的 tenantId","at":"src/export.ts:42","to":["$h","g1"],"rel":"supports","agent":"audit-a1"}
+{"op":"edit","id":"hy2","status":"refuted","agent":"audit-a2"}
+EOF
+blackboard batch --request-id wave-3 --file wave-3.jsonl
+```
+
+- `ref` 给本批新建的节点起本地名，后续行用 `$名字` 引用；`agent` 记为该行作者，缺省用 `--agent`。
+- 整批要么全部写入，要么一条都不写；出错时写明第几行、什么原因。字段名拼错也会报错，不会被静默忽略。
+- `--request-id` 必填。命令中断或不确定是否写入时，用同一 ID 重试：已提交的不会重复，写到一半的会按原计划补齐。
+- 不移动游标，不包含删除、重置和检查点；需要时在导入后单独运行。完整规则见[公开契约](CONTRACT.md#批量写入)。
+
 
 
 `link <from> <to> --rel X` 读作 **“from X to”**：
@@ -344,6 +362,8 @@ blackboard service uninstall      # 停止任务并删除本工具受管 plist
 ## 版本与升级
 
 
+`0.10.0` 新增 `batch`：从 JSONL 文件或 stdin 一次写入多条 `node`、`link`、`edit`，批内可用 `$名字` 引用本批新建的节点，每行可写明作者。整批全部写入或全部不写，出错时报告行号；必须带 `--request-id`，中断后用同一 ID 重试会按原计划补齐。不移动游标。新增 `blackboard.batch.v1` 输出、`features.batch` 与 `limits.batchMaxOps` / `limits.batchMaxBytes`；其他输出与事件格式不变。
+
 `0.9.0` 修正真实长任务中暴露的接口细节：`capabilities` 接受 `--cwd`；选项写在命令前面时给出明确提示；`--to` 可重复；help 写明除 `tree`、`serve`、`hook` 外都支持 `--json`。没有 `--sev` 的 `vuln` 不再被写成 `medium`，严重度保持未记录。`checkpoint` 回显同一身份上一检查点以来的节点与关系变化（`--json` 的 `sincePrevious`），`status` 按可信度列出发现/漏洞并注明未定级数量。Skill 写明记录时机：判断形成时就记，磁盘上的日志和台账不替代节点，分波工作每波结束时记录并打检查点。新增字段均为兼容扩展，事件格式不变。
 
 `0.8.3` 将版本包发布移入内部模块：`release install --force` 发布新目录失败时恢复原版本，current 保持可运行；回滚或清理失败时保留旧版本字节并在错误中给出恢复路径。实时服务只在有页面订阅时读取日志，慢连接只保留最新一份待发快照；工作台忽略无效快照、保留上一份画面，并在收到有效数据后才显示已同步。CLI / JSON schema 与事件格式延续 `0.8.0`。
@@ -363,7 +383,8 @@ blackboard service uninstall      # 停止任务并删除本工具受管 plist
 ├── versions/0.8.2/
 ├── versions/0.8.3/
 ├── versions/0.9.0/
-└── current -> versions/0.9.0
+├── versions/0.10.0/
+└── current -> versions/0.10.0
 ```
 
 ```bash

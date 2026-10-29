@@ -75,6 +75,18 @@ const CASES = {
   promote: [
     { board: 'research', args: ['promote', 'act1', '--kind', 'observation', '--title', 'Same id twice'] },
   ],
+  batch: [
+    {
+      board: 'research', args: ['batch', '--request-id', 'batch-1', '--agent', 'coordinator'],
+      input: [
+        { op: 'node', ref: 'h', type: 'hypothesis', title: 'Token reuse after logout', confidence: 'suspected', to: 'g1', agent: 'audit-a1' },
+        { op: 'node', type: 'observation', title: 'Logout leaves the token valid', at: 'src/auth.js:51', to: ['$h', 'f2'], rel: 'supports' },
+        { op: 'link', from: 'f2', to: '$h', rel: 'related-to', label: 'same session' },
+        { op: 'edit', id: 'f2', confidence: 'reproduced', agent: 'audit-a2' },
+      ].map((line) => JSON.stringify(line)).join('\n') + '\n',
+    },
+    { board: 'research', args: ['batch', '--request-id', 'batch-bad'], input: '{"op":"node","type":"note","title":"Fine"}\n{"op":"node","type":"note","title":"Bad","to":"missing"}\n' },
+  ],
   done: [{ board: 'research', args: ['done', 'q1'] }],
   block: [{ board: 'research', args: ['block', 'h1'] }],
   revive: [{ board: 'research', args: ['revive', 'i1'] }],
@@ -200,12 +212,12 @@ function fill(args, { root, board }) {
   return args.map((a) => a.replaceAll('<root>', root).replaceAll('<board>', board));
 }
 
-function cli(args, { root }) {
+function cli(args, { root }, input) {
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (key.startsWith('BLACKBOARD_')) delete env[key];
   // digest prints times in the local zone, so every machine renders them as UTC.
   Object.assign(env, { HOME: path.join(root, 'home'), BLACKBOARD_QUIET: '1', BLACKBOARD_PORT: String(PORT), TZ: 'UTC' });
-  return spawnSync(process.execPath, [CLI, ...args], { cwd: root, env, encoding: 'utf8' });
+  return spawnSync(process.execPath, [CLI, ...args], { cwd: root, env, input, encoding: 'utf8' });
 }
 
 function readLog(board) {
@@ -284,7 +296,7 @@ function runCase(t, spec, writes = []) {
   const before = readLog(dirs.board).length;
   const files = snapshot(dirs.board);
   const args = [...spec.args, ...(spec.cwd === false ? [] : ['--cwd', '<board>']), '--json'];
-  const r = cli(fill(args, dirs), dirs);
+  const r = cli(fill(args, dirs), dirs, spec.input);
   writes.push(...touched(files, snapshot(dirs.board)));
   let output = null;
   if (r.stdout.trim()) {
