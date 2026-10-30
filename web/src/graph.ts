@@ -156,7 +156,7 @@ export function project(snapshot: GraphSnapshot, mode: ViewMode, query: string, 
       data: { kind: edge.kind, group, reversed, quiet, text: relationLabel(edge.kind) },
       animated: false,
       ...(reversed ? { markerStart: marker } : { markerEnd: marker }),
-      style: { strokeWidth: important ? 1.5 : 1.25, strokeDasharray: RELATION_DASH[group] },
+      style: { strokeWidth: important ? 1.75 : 1.5, strokeDasharray: RELATION_DASH[group] },
     };
   });
 

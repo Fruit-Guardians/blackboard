@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Collapsible } from 'radix-ui';
 import { Check, ArrowDownLeft, ArrowUpRight, ChevronRight, Link2, Unlink, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,7 @@ import { Kbd } from '@/components/ui/kbd';
 import { NodeTypeIcon, TypeDot } from '../SecurityNode';
 import { formatTime, relationLabel, typeLabel } from '../graph';
 import { confidenceLabel, presentNode, severityLabel, statusLabel } from '../presentation';
+import { SeverityBadge } from '../SeverityBadge';
 import { removeEdge } from '../api';
 import { AddSection, ConnectSection, EditSection } from './EditPanel';
 import type { BoardEdge, BoardNode } from '../types';
@@ -29,7 +30,6 @@ type Props = HistoryAvailability & {
 
 export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, linkCopied, writable, onReload, isStatic, connected, revision }: Props) {
   const relations = edges.filter((edge) => edge.from === node.id || edge.to === node.id);
-  const severe = node.severity === 'critical' || node.severity === 'high';
   return (
     <aside
       aria-label={t('inspector.label')}
@@ -51,7 +51,7 @@ export function Inspector({ node, edges, byId, onClose, onFocus, onCopyLink, lin
 
         <dl className="mt-5 mb-0 divide-y rounded-lg border text-[13px]">
           <Prop label={t('inspector.status')} value={statusLabel(node.status)} />
-          <Prop label={t('inspector.risk')} value={severityLabel(node.severity)} tone={severe ? 'danger' : undefined} />
+          <Prop label={t('inspector.risk')} value={node.severity ? <SeverityBadge severity={node.severity} /> : severityLabel(node.severity)} />
           <Prop label={t('inspector.confidence')} value={confidenceLabel(node.confidence)} />
           {typeof node.author === 'string' && node.author && <Prop label={t('inspector.author')} value={node.author === 'human' ? t('inspector.human') : node.author} />}
           <Prop label={t('inspector.created')} value={formatTime(Number(node.ts || 0))} />
@@ -132,11 +132,11 @@ function InputIntegrityNotice({ record }: { record: Pick<BoardNode, 'inputTrunca
   </section>;
 }
 
-function Prop({ label, value, tone }: { label: string; value: string; tone?: 'danger' }) {
+function Prop({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 px-3 py-2">
       <dt className="shrink-0 text-muted-foreground">{label}</dt>
-      <dd className={cn('m-0 min-w-0 text-right tabular-nums [overflow-wrap:anywhere]', tone === 'danger' && 'font-medium text-destructive')}>{value}</dd>
+      <dd className="m-0 min-w-0 text-right tabular-nums [overflow-wrap:anywhere]">{value}</dd>
     </div>
   );
 }

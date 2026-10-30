@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { TypeDot } from '../SecurityNode';
 import { FilterPopover } from './FilterPopover';
-import { confidenceLabel, presentNode, severityLabel } from '../presentation';
+import { confidenceLabel, presentNode } from '../presentation';
+import { SeverityBadge } from '../SeverityBadge';
 import { typeLabel } from '../graph';
 import type { NodeFilter } from '../presentation';
 import type { BoardNode } from '../types';
@@ -111,7 +112,6 @@ function Section({ title, count, defaultOpen = true, children }: { title: string
 }
 
 function Row({ node, current = false, selected, onSelect }: { node: BoardNode; current?: boolean; selected: boolean; onSelect: (id: string) => void }) {
-  const severe = node.severity === 'critical' || node.severity === 'high';
   return (
     <button
       onClick={() => onSelect(node.id)}
@@ -125,9 +125,9 @@ function Row({ node, current = false, selected, onSelect }: { node: BoardNode; c
       <TypeDot type={node.type} className="mt-[7px]" />
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 text-[13px] leading-5 text-foreground">{presentNode(node).headline}</span>
-        <span className="flex items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
+        <span className="flex flex-wrap items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
           {typeLabel(node.type)}
-          {severe && <span className="text-destructive">· {severityLabel(node.severity)}</span>}
+          {node.severity && <SeverityBadge severity={node.severity} />}
           {node.confidence && <span>· {confidenceLabel(node.confidence)}</span>}
         </span>
       </span>

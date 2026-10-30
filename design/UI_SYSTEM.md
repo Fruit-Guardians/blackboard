@@ -4,8 +4,11 @@ Linear/Vercel-style minimal tool UI: the canvas is the product, chrome stays qui
 
 ## Layout
 
-- **Top bar (48px)**: sidebar toggle · brand / task title · view switch
-  (现场 / 逻辑 / 全局) · ⌘K · Agent activity popover · digest · theme.
+- **Top bar (48px at 1024px and above)**: sidebar toggle · brand / task title · view
+  switch (现场 / 逻辑 / 全局) · Agent perspective · ⌘K · Agent activity · new node ·
+  digest · theme. Narrow screens use two compact rows. The Agent menu appears only
+  when there is more than one perspective; long names truncate in the trigger,
+  with the full identity available in its tooltip and menu.
 - **Sidebar (256px, collapsible; overlay below 1024px)**: outline of the board —
   current position, open items, findings, unconnected records — plus counts.
 - **Canvas**: full-bleed React Flow. One floating toolbar (bottom-left) holds
@@ -41,6 +44,11 @@ by `@tailwindcss/vite`.
   current node changes, the canvas re-centres on it.
 - Every node kind has its own hue: a faint wash, a tinted edge, an accent bar and a
   coloured type label/icon (`--c` set from `--node-<type>`).
+- Severity has its own labelled badge, independent of node type, status and confidence:
+  critical red, high orange, medium amber, low blue, information neutral. Cards, sidebar
+  and Inspector share the same badge; rated badges remain visible in the zoomed-out
+  overview. Missing severity stays unassessed; unknown values keep their authored label
+  and a neutral tone.
 - `?` lists the shortcuts. The selected node is mirrored in the address (`?node=id`),
   so a reload or a shared link reopens it; Inspector has a copy-link button.
 - Sidebar filter (type · status · high risk) replaces the outline with a flat result list.
@@ -51,6 +59,8 @@ by `@tailwindcss/vite`.
 - Relation kinds fall into six families with one colour each — 证实 / 反驳 / 推导 /
   产出 / 取代 / 关联 (`relationGroup` in `graph.ts`; `--rel-*` / `--edge-*` tokens).
   反驳 is dashed, 取代 dotted; a focused edge keeps its family colour at full strength.
+  Links use a separate grey from the background grid. Strokes keep a constant screen
+  width while zooming (1.5px, 1.75px for emphasized relations, 2px when focused).
 - The legend (top-left, toolbar toggle, hidden on phones) lists only the node types
   and relation families present in the current view.
 - Connections can be drawn as curves (default), rounded steps or straight lines
@@ -65,9 +75,10 @@ by `@tailwindcss/vite`.
 ## Theme
 
 Neutral zinc surfaces, near-black (light) / near-white (dark) as the only accent.
-Colour carries meaning only: a small dot per node type, green for the current
-position, red for high/critical severity. Follows `prefers-color-scheme` until the
-user toggles. Reduced-motion disables zoom animation and transitions.
+Colour carries meaning only: node-kind hues, green for the current position, and
+separate severity badges. Light and dark themes each define legible severity colours.
+Follows `prefers-color-scheme` until the user toggles. Reduced-motion disables zoom
+animation and transitions.
 
 ## Verification
 

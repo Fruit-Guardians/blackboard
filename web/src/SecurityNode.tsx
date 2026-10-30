@@ -9,7 +9,8 @@ import type { CanvasNode } from './graph';
 import { typeLabel } from './graph';
 import { BaseNode } from './components/react-flow/base-node';
 import { detailLevel } from './canvas-state';
-import { nodeStateSummary, presentNode, severityLabel } from './presentation';
+import { nodeStateSummary, presentNode } from './presentation';
+import { SeverityBadge } from './SeverityBadge';
 import { t } from './i18n';
 
 const ICONS = {
@@ -53,9 +54,10 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
   const text = presentNode(item);
   const severe = item.severity === 'critical' || item.severity === 'high';
   const state = nodeStateSummary(item);
+  const progress = nodeStateSummary({ status: item.status, confidence: item.confidence });
   const overview = level === 'overview';
   // The header that names severity is gone in the overview, so it moves to a badge that survives zooming out.
-  const rated = item.severity && item.severity !== 'info' ? severityLabel(item.severity) : '';
+  const rated = item.severity && item.severity !== 'info';
 
   return (
     <BaseNode
@@ -85,11 +87,11 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
         </span>
       )}
       {overview && rated && (
-        <span className={cn('zoom-chip at-right rounded-md border px-2 text-[11px]', severe ? 'border-destructive bg-danger-soft text-destructive' : 'border-border bg-card text-muted-foreground')}>{rated}</span>
+        <SeverityBadge severity={item.severity} className="zoom-chip at-right px-2 text-[11px]" />
       )}
       {!overview && (
         <header className="flex items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
-          <span className="inline-flex items-center gap-1 font-medium text-[color-mix(in_srgb,var(--c)_78%,var(--ink))]">
+          <span className="inline-flex shrink-0 items-center gap-1 font-medium text-[color-mix(in_srgb,var(--c)_78%,var(--ink))]">
             <NodeTypeIcon type={item.type} size={12} />{typeLabel(item.type)}
           </span>
           {current && (
@@ -102,9 +104,8 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
               <i className="size-1.5 shrink-0 rounded-full bg-strong" />{agent}
             </span>
           ))}
-          {state && (
-            <span title={state} className={cn('ml-auto truncate', severe && 'rounded-sm bg-danger-soft px-1.5 font-medium text-destructive')}>{state}</span>
-          )}
+          <span title={progress} className="ml-auto min-w-0 truncate">{progress}</span>
+          {item.severity && <SeverityBadge severity={item.severity} />}
         </header>
       )}
       <h3

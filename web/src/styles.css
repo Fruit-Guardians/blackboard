@@ -62,6 +62,10 @@
   --line-strong: #d4d4d8;
   --live: #16a34a;
   --danger: #b91c1c;
+  --severity-critical: #b91c1c;
+  --severity-high: #c2410c;
+  --severity-medium: #a16207;
+  --severity-low: #1d4ed8;
   --rel-support: #16a34a;
   --rel-oppose: #dc2626;
   --rel-derive: #6366f1;
@@ -98,6 +102,10 @@
   --line-strong: #3a3a40;
   --live: #4ade80;
   --danger: #f87171;
+  --severity-critical: #f87171;
+  --severity-high: #fb923c;
+  --severity-medium: #facc15;
+  --severity-low: #60a5fa;
   --rel-support: #4ade80;
   --rel-oppose: #f87171;
   --rel-derive: #818cf8;
@@ -148,8 +156,8 @@
 .react-flow {
   --xy-background-color: transparent;
   --xy-background-pattern-dots-color-default: var(--line-strong);
-  --xy-edge-stroke-default: var(--line-strong);
-  --xy-edge-stroke-width-default: 1.25;
+  --xy-edge-stroke-default: var(--edge-link);
+  --xy-edge-stroke-width-default: 1.5;
   --xy-edge-label-background-color-default: var(--bg);
   --xy-edge-label-color-default: var(--ink-3);
   --xy-node-boxshadow-selected-default: none;
@@ -158,15 +166,19 @@
   --xy-minimap-mask-stroke-color-default: var(--line-strong);
   --xy-minimap-mask-stroke-width-default: 1;
 }
-.react-flow__edge-path { stroke: var(--line-strong); transition: stroke .15s, opacity .15s; }
-/* One colour per relation family, softened so a dense board stays calm. */
+.react-flow__edge-path {
+  stroke: var(--edge-link);
+  vector-effect: non-scaling-stroke;
+  transition: stroke .15s, opacity .15s;
+}
+/* Separate links from the background grid; keep family colours readable when zoomed out. */
 .react-flow {
-  --edge-link: var(--line-strong);
-  --edge-support: color-mix(in srgb, var(--rel-support) 70%, var(--line-strong));
-  --edge-oppose: color-mix(in srgb, var(--rel-oppose) 70%, var(--line-strong));
-  --edge-derive: color-mix(in srgb, var(--rel-derive) 70%, var(--line-strong));
-  --edge-produce: color-mix(in srgb, var(--rel-produce) 70%, var(--line-strong));
-  --edge-replace: color-mix(in srgb, var(--rel-replace) 70%, var(--line-strong));
+  --edge-link: color-mix(in srgb, var(--ink-3) 65%, var(--line-strong));
+  --edge-support: color-mix(in srgb, var(--rel-support) 85%, var(--line-strong));
+  --edge-oppose: color-mix(in srgb, var(--rel-oppose) 85%, var(--line-strong));
+  --edge-derive: color-mix(in srgb, var(--rel-derive) 85%, var(--line-strong));
+  --edge-produce: color-mix(in srgb, var(--rel-produce) 85%, var(--line-strong));
+  --edge-replace: color-mix(in srgb, var(--rel-replace) 85%, var(--line-strong));
 }
 .react-flow__edge.edge-g-support .react-flow__edge-path { stroke: var(--edge-support); }
 .react-flow__edge.edge-g-oppose .react-flow__edge-path { stroke: var(--edge-oppose); }
@@ -226,6 +238,18 @@
   100% { box-shadow: 0 0 0 10px transparent; }
 }
 .fresh-pulse { animation: fresh-ring 1.4s ease-out 3; }
+
+/* Severity is independent of the node kind, status and confidence. */
+.severity-badge {
+  --severity: var(--ink-3);
+  color: var(--severity);
+  border-color: color-mix(in srgb, var(--severity) 28%, var(--line));
+  background: color-mix(in srgb, var(--severity) 10%, var(--surface));
+}
+.severity-badge[data-severity="critical"] { --severity: var(--severity-critical); }
+.severity-badge[data-severity="high"] { --severity: var(--severity-high); }
+.severity-badge[data-severity="medium"] { --severity: var(--severity-medium); }
+.severity-badge[data-severity="low"] { --severity: var(--severity-low); }
 
 /* The current node must be findable at a glance, at any zoom. */
 .current-halo { box-shadow: 0 0 0 5px color-mix(in srgb, var(--live) 16%, transparent); }

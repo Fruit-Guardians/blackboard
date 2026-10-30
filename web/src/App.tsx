@@ -147,7 +147,7 @@ function Workspace() {
       // noise wait for a selection.
       hidden: !active && (mode === 'all' || (!selectedId && Boolean((edge.data as { quiet?: boolean } | undefined)?.quiet))),
       zIndex: active ? 10 : 0,
-      style: { ...edge.style, opacity: selectedId ? active ? 1 : .12 : mode === 'all' ? .3 : 1, strokeWidth: active ? 1.75 : 1.25 },
+      style: { ...edge.style, opacity: selectedId ? active ? 1 : .12 : 1, strokeWidth: active ? 2 : edge.style?.strokeWidth },
     };
   }), [edges, selectedId, mode, edgeStyle]);
 
