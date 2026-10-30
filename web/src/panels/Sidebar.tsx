@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { TypeDot } from '../SecurityNode';
 import { FilterPopover } from './FilterPopover';
-import { confidenceLabel, presentNode } from '../presentation';
+import { confidenceLabel, presentNode, statusLabel } from '../presentation';
 import { SeverityBadge } from '../SeverityBadge';
 import { typeLabel } from '../graph';
 import type { NodeFilter } from '../presentation';
@@ -69,7 +69,7 @@ export function Sidebar({ current, openItems, findings, inbox, selectedId, count
         </Section>
         </>)}
       </nav>
-      <footer className="flex items-center gap-3 border-t px-4 py-2.5 text-xs tabular-nums text-muted-foreground">
+      <footer className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t px-4 py-2.5 text-xs tabular-nums text-muted-foreground *:whitespace-nowrap">
         <span>{t('sidebar.nodes', { n: counts.nodes })}</span>
         <span>{t('sidebar.edges', { n: counts.edges })}</span>
         {counts.open > 0 && <span>{t('sidebar.openCount', { n: counts.open })}</span>}
@@ -128,6 +128,7 @@ function Row({ node, current = false, selected, onSelect }: { node: BoardNode; c
         <span className="flex flex-wrap items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
           {typeLabel(node.type)}
           {node.severity && <SeverityBadge severity={node.severity} />}
+          {node.status && <span>· {statusLabel(node.status)}</span>}
           {node.confidence && <span>· {confidenceLabel(node.confidence)}</span>}
         </span>
       </span>

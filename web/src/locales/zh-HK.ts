@@ -35,7 +35,6 @@ export const zhHK: Messages = {
   'node.untitled': '未命名節點',
   'node.current': '目前',
   'node.agentHere': '{agent} 在這裡',
-  'node.preview': '預覽',
   'node.previewHint': '點擊查看完整記錄',
 
   'relation.proves': '證明', 'relation.prove': '證明', 'relation.supports': '支持', 'relation.contradicts': '反駁',

@@ -36,7 +36,6 @@ export const en: Messages = {
   'node.untitled': 'Untitled node',
   'node.current': 'Current',
   'node.agentHere': '{agent} is here',
-  'node.preview': 'Preview',
   'node.previewHint': 'Select to read the complete record',
 
   'relation.proves': 'proves', 'relation.prove': 'proves', 'relation.supports': 'supports', 'relation.contradicts': 'contradicts',

@@ -11,8 +11,11 @@ Linear/Vercel-style minimal tool UI: the canvas is the product, chrome stays qui
   with the full identity available in its tooltip and menu.
 - **Sidebar (256px, collapsible; overlay below 1024px)**: outline of the board —
   current position, open items, findings, unconnected records — plus counts.
+  Rows show recorded status, severity and confidence independently; footer counts wrap
+  between labels without splitting a label.
 - **Canvas**: full-bleed React Flow. One floating toolbar (bottom-left) holds
-  fit / locate current / layout direction / minimap / zoom.
+  fit / locate current / layout direction / minimap / zoom. At narrow widths the zoom
+  controls wrap together onto another row, keeping every button visible.
 - **Inspector**: floats over the canvas right edge (bottom sheet on phones), so
   selecting a node never resizes or re-lays-out the canvas.
 - **⌘K command palette** (cmdk): jump to any node, switch view/theme, copy digest.
@@ -49,10 +52,13 @@ by `@tailwindcss/vite`.
   and Inspector share the same badge; rated badges remain visible in the zoomed-out
   overview. Missing severity stays unassessed; unknown values keep their authored label
   and a neutral tone.
+  Recorded ruled-out, refuted and superseded states also remain labelled when zoomed out.
 - `?` lists the shortcuts. The selected node is mirrored in the address (`?node=id`),
   so a reload or a shared link reopens it; Inspector has a copy-link button.
 - Sidebar filter (type · status · high risk) replaces the outline with a flat result list.
 - The toolbar and ⌘K can export the whole board as a PNG (capped at 8000px per side).
+  Export bounds include display-only parents; the image carries resolved SVG edge,
+  arrowhead and label colours for the current theme without changing the live canvas.
 - A connection lost for more than 1.5s shows a banner with the last sync time; the
   status dot is always visible. Empty boards show how to write the first node.
 - Nodes the Agent just wrote or changed pulse for a few seconds (`fresh-pulse`).

@@ -35,7 +35,6 @@ export const ja: Messages = {
   'node.untitled': '無題のノード',
   'node.current': '現在',
   'node.agentHere': '{agent} がここにいます',
-  'node.preview': 'プレビュー',
   'node.previewHint': '選択して記録の全文を読む',
 
   'relation.proves': '証明', 'relation.prove': '証明', 'relation.supports': '支持', 'relation.contradicts': '反証',

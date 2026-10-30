@@ -90,7 +90,7 @@ function Workspace() {
   const motion = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 350;
   const [nodes, setNodes, onNodesChange] = useNodesState<CanvasNode>([]);
   const [edges, setEdges] = useEdgesState<Edge>([]);
-  const { fitView, getNode, getNodes, setCenter } = useReactFlow<CanvasNode>();
+  const { fitView, getNode, getNodes, getNodesBounds, setCenter } = useReactFlow<CanvasNode>();
   const updateNodeInternals = useUpdateNodeInternals();
   const laidOutDirection = useRef<string | null>(null);
 
@@ -206,11 +206,11 @@ function Workspace() {
     if (exporting) return;
     setExporting(true);
     try {
-      await exportCanvasPng(getNodes(), `blackboard-${mode}-${new Date().toISOString().slice(0, 10)}.png`);
+      await exportCanvasPng(getNodesBounds(getNodes()), `blackboard-${mode}-${new Date().toISOString().slice(0, 10)}.png`);
       flash(t('app.exported'));
     } catch { flash(t('app.exportFailed')); }
     finally { setExporting(false); }
-  }, [exporting, getNodes, mode, flash]);
+  }, [exporting, getNodes, getNodesBounds, mode, flash]);
 
   const copyNodeLink = async () => {
     try {

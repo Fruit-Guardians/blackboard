@@ -9,7 +9,7 @@ import type { CanvasNode } from './graph';
 import { typeLabel } from './graph';
 import { BaseNode } from './components/react-flow/base-node';
 import { detailLevel } from './canvas-state';
-import { nodeStateSummary, presentNode } from './presentation';
+import { nodeStateSummary, presentNode, statusLabel } from './presentation';
 import { SeverityBadge } from './SeverityBadge';
 import { t } from './i18n';
 
@@ -58,6 +58,7 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
   const overview = level === 'overview';
   // The header that names severity is gone in the overview, so it moves to a badge that survives zooming out.
   const rated = item.severity && item.severity !== 'info';
+  const retired = ['dead', 'refuted', 'superseded'].includes(item.status || '');
 
   return (
     <BaseNode
@@ -86,8 +87,11 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
           <i className="size-1.5 rounded-full bg-white" />{t('node.current')}
         </span>
       )}
-      {overview && rated && (
-        <SeverityBadge severity={item.severity} className="zoom-chip at-right px-2 text-[11px]" />
+      {overview && (rated || retired) && (
+        <span className="zoom-chip at-right inline-flex items-center gap-1 text-[11px]">
+          {retired && <span className="rounded-md border bg-card px-2 text-muted-foreground">{statusLabel(item.status)}</span>}
+          {rated && <SeverityBadge severity={item.severity} className="px-2 text-[11px]" />}
+        </span>
       )}
       {!overview && (
         <header className="flex items-center gap-1.5 text-[11px] leading-4 text-muted-foreground">
@@ -116,7 +120,6 @@ export const SecurityNode = memo(function SecurityNode({ data, selected }: NodeP
         )}
       >
         {overview && <TypeDot type={item.type} className="mr-2 mb-0.5 size-2.5 align-middle" />}
-        <span className="mr-1.5 text-[10px] font-normal text-muted-foreground">{t('node.preview')}</span>
         {text.headline}
       </h3>
       {level === 'detail' && !compact && text.summary && (

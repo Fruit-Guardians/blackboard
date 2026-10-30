@@ -38,7 +38,7 @@ export function CanvasToolbar({ hasCurrent, canFollow, canExport, onExport, grou
   const Direction = direction === 'RIGHT' ? AlignHorizontalSpaceAround : AlignVerticalSpaceAround;
   return (
     <Panel position="bottom-left" className="m-3!">
-      <div className="flex items-center gap-0.5 rounded-xl border bg-card p-1 shadow-float">
+      <div className="flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center gap-0.5 rounded-xl border bg-card p-1 shadow-float">
         <IconButton label={t('toolbar.fit')} onClick={() => fitView({ padding: 0.14, duration: motion })}><Maximize2 /></IconButton>
         {hasCurrent && <IconButton label={t('toolbar.locate')} onClick={onLocate}><Crosshair /></IconButton>}
         {hasCurrent && canFollow && (
@@ -68,21 +68,23 @@ export function CanvasToolbar({ hasCurrent, canFollow, canExport, onExport, grou
         </Popover>
         {canExport && <IconButton label={t('toolbar.export')} onClick={onExport}><ImageDown /></IconButton>}
         <IconButton label={showMap ? t('toolbar.hideMap') : t('toolbar.showMap')} aria-pressed={showMap} onClick={onToggleMap}><MapIcon /></IconButton>
-        <span className="mx-1 h-4 w-px bg-border" />
-        <IconButton label={t('toolbar.zoomOut')} onClick={() => zoomOut({ duration: motion })}><Minus /></IconButton>
-        <Slider
-          aria-label={t('toolbar.zoom')}
-          className="w-20 max-sm:hidden"
-          value={[zoom]}
-          min={minZoom}
-          max={maxZoom}
-          step={0.01}
-          onValueChange={(next) => zoomTo(next[0])}
-        />
-        <IconButton label={t('toolbar.zoomIn')} onClick={() => zoomIn({ duration: motion })}><Plus /></IconButton>
-        <Button size="sm" className="w-12 tabular-nums text-muted-foreground" aria-label={t('toolbar.zoomReset')} onClick={() => zoomTo(1, { duration: motion })}>
-          {Math.round(zoom * 100)}%
-        </Button>
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          <span className="mx-1 hidden h-4 w-px bg-border sm:block" />
+          <IconButton label={t('toolbar.zoomOut')} onClick={() => zoomOut({ duration: motion })}><Minus /></IconButton>
+          <Slider
+            aria-label={t('toolbar.zoom')}
+            className="w-20 max-sm:hidden"
+            value={[zoom]}
+            min={minZoom}
+            max={maxZoom}
+            step={0.01}
+            onValueChange={(next) => zoomTo(next[0])}
+          />
+          <IconButton label={t('toolbar.zoomIn')} onClick={() => zoomIn({ duration: motion })}><Plus /></IconButton>
+          <Button size="sm" className="w-12 tabular-nums text-muted-foreground" aria-label={t('toolbar.zoomReset')} onClick={() => zoomTo(1, { duration: motion })}>
+            {Math.round(zoom * 100)}%
+          </Button>
+        </div>
       </div>
     </Panel>
   );

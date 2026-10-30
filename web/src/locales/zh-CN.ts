@@ -34,7 +34,6 @@ export const zhCN = {
   'node.untitled': '未命名节点',
   'node.current': '当前',
   'node.agentHere': '{agent} 在这里',
-  'node.preview': '预览',
   'node.previewHint': '点击查看完整记录',
 
   'relation.proves': '证明', 'relation.prove': '证明', 'relation.supports': '支持', 'relation.contradicts': '反驳',
