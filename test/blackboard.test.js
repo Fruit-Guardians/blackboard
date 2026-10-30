@@ -1293,11 +1293,9 @@ test('CLI preserves custom semantics, repeated tags, aliases and delimiter title
 });
 
 
-test('CLI serve accepts port zero and reports its actual listening port', async (t) => {
-  const dir = fixture(t);
-  const child = spawn(process.execPath, [CLI, 'serve', '--port', '0'], {
-    env: cliEnv(t, dir), stdio: ['ignore', 'pipe', 'pipe'],
-  });
+/** Resolves once serve has recorded its port and printed how to stop it. */
+async function serveProcess(t, dir, env = cliEnv(t, dir)) {
+  const child = spawn(process.execPath, [CLI, 'serve', '--port', '0'], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   t.after(() => child.kill());
   let stdout = '';
   let stderr = '';
@@ -1307,13 +1305,59 @@ test('CLI serve accepts port zero and reports its actual listening port', async 
     child.stdout.on('data', (chunk) => {
       stdout += chunk;
       const match = /127\.0\.0\.1:(\d+)/.exec(stdout);
-      if (match && Number(match[1])) { clearTimeout(timeout); resolve(Number(match[1])); }
+      if (match && Number(match[1]) && stdout.includes('blackboard stop')) { clearTimeout(timeout); resolve(Number(match[1])); }
     });
     child.once('exit', (code) => { clearTimeout(timeout); reject(new Error(`serve exited ${code}: ${stderr}`)); });
   });
+  return { child, port };
+}
+
+test('CLI serve accepts port zero and reports its actual listening port', async (t) => {
+  const dir = fixture(t);
+  const { port } = await serveProcess(t, dir);
   const response = await fetch(`http://127.0.0.1:${port}/api/status`);
   assert.equal(response.status, 200);
   assert.equal((await response.json()).cwd, fs.realpathSync(dir));
+});
+
+test('stop ends this project\'s viewer, refuses another project\'s and leaves the board alone', async (t) => {
+  const dir = fixture(t);
+  const other = fixture(t);
+  addNode({ type: 'note', title: 'kept' }, dir);
+  const env = cliEnv(t, dir);
+  const { child, port } = await serveProcess(t, dir, env);
+  const before = fs.readFileSync(paths(dir).events);
+
+  const refused = spawnSync(process.execPath, [CLI, 'stop', '--port', String(port), '--cwd', other], { env, encoding: 'utf8' });
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /其他项目/);
+  assert.equal(child.exitCode, null);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/api/status`)).status, 200);
+
+  const exited = new Promise((resolve) => child.once('exit', resolve));
+  const stopped = JSON.parse(execFileSync(process.execPath, [CLI, 'stop', '--json'], { env, encoding: 'utf8' }));
+  assert.deepEqual([stopped.state, stopped.via, stopped.port], ['stopped', 'process', port]);
+  assert.equal(await exited, 0);
+
+  const again = JSON.parse(execFileSync(process.execPath, [CLI, 'stop', '--json'], { env, encoding: 'utf8' }));
+  assert.equal(again.state, 'not-running');
+  assert.deepEqual(fs.readFileSync(paths(dir).events), before);
+});
+
+test('stop leaves listeners it cannot identify running', async (t) => {
+  const dir = fixture(t);
+  const env = cliEnv(t, dir);
+  let body = 'not a blackboard';
+  const listener = http.createServer((_request, response) => response.end(body));
+  await new Promise((resolve) => listener.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve) => listener.close(resolve)));
+  const stop = () => execFileAsync(process.execPath, [CLI, 'stop', '--port', String(listener.address().port)], { env, encoding: 'utf8' });
+
+  await assert.rejects(stop(), /不是可识别/);
+  // A viewer from a release that does not report its process id.
+  body = JSON.stringify({ cwd: fs.realpathSync(dir), readOnly: false });
+  await assert.rejects(stop(), /旧版本/);
+  assert.equal(listener.listening, true);
 });
 
 test('macOS shared service lifecycle operates only on an isolated managed launchd job', {
@@ -1375,6 +1419,13 @@ if (args[0] === 'print') {
   const installed = await run('service', 'status');
   assert.equal(installed.state, 'running');
   assert.equal(installed.currentProject, true);
+  // KeepAlive would restart a killed job, so stop boots it out and keeps the registration.
+  const closed = await run('stop');
+  assert.deepEqual([closed.state, closed.via, closed.port], ['stopped', 'launchd', port]);
+  assert.equal((await run('status')).viewer.state, 'offline');
+  assert.equal((await run('service', 'status')).state, 'stopped');
+  assert.equal(fs.existsSync(installed.file), true);
+  await run('setup', '--target', dir, '--port', String(port), '--no-hooks', '--no-skill');
   const switched = await run('setup', '--target', other, '--port', String(port), '--no-hooks', '--no-skill');
   assert.equal(switched.service.previousCwd, dir);
   assert.equal(switched.service.cwd, other);

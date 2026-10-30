@@ -86,6 +86,7 @@ const CASES = {
       ].map((line) => JSON.stringify(line)).join('\n') + '\n',
     },
     { board: 'research', args: ['batch', '--request-id', 'batch-bad'], input: '{"op":"node","type":"note","title":"Fine"}\n{"op":"node","type":"note","title":"Bad","to":"missing"}\n' },
+    { board: 'research', args: ['batch', '--check'], input: '{"op":"node","ref":"n","type":"note","title":"Fine","to":"g1"}\n{"op":"edit","id":"$n","status":"done"}\n' },
   ],
   done: [{ board: 'research', args: ['done', 'q1'] }],
   block: [{ board: 'research', args: ['block', 'h1'] }],

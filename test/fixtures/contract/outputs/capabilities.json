@@ -48,11 +48,13 @@
           "list",
           "show",
           "tree",
+          "tui",
           "digest",
           "context",
           "lint",
           "tail",
           "serve",
+          "stop",
           "export",
           "reset",
           "search",
@@ -91,7 +93,9 @@
           "nodeJsonDefaults": true,
           "nodeMultiTarget": true,
           "checkpointDelta": true,
-          "batch": true
+          "batch": true,
+          "batchCheck": true,
+          "jsonErrors": true
         },
         "exportFormats": [
           "html",
@@ -99,6 +103,27 @@
           "mermaid",
           "sarif"
         ],
+        "errors": {
+          "stream": "stderr",
+          "schema": "blackboard.error.v1",
+          "codes": [
+            "unknown_command",
+            "unknown_option",
+            "missing_value",
+            "invalid_value",
+            "conflicting_options",
+            "invalid_usage",
+            "board_missing",
+            "not_found",
+            "ambiguous_ref",
+            "invalid_batch",
+            "input_too_long",
+            "request_id_conflict",
+            "request_recovery_conflict",
+            "pending_request",
+            "error"
+          ]
+        },
         "contextContract": {
           "readOnly": true,
           "prescriptive": false,
@@ -323,11 +348,13 @@
           "list",
           "show",
           "tree",
+          "tui",
           "digest",
           "context",
           "lint",
           "tail",
           "serve",
+          "stop",
           "export",
           "reset",
           "search",
@@ -366,7 +393,9 @@
           "nodeJsonDefaults": true,
           "nodeMultiTarget": true,
           "checkpointDelta": true,
-          "batch": true
+          "batch": true,
+          "batchCheck": true,
+          "jsonErrors": true
         },
         "exportFormats": [
           "html",
@@ -374,6 +403,27 @@
           "mermaid",
           "sarif"
         ],
+        "errors": {
+          "stream": "stderr",
+          "schema": "blackboard.error.v1",
+          "codes": [
+            "unknown_command",
+            "unknown_option",
+            "missing_value",
+            "invalid_value",
+            "conflicting_options",
+            "invalid_usage",
+            "board_missing",
+            "not_found",
+            "ambiguous_ref",
+            "invalid_batch",
+            "input_too_long",
+            "request_id_conflict",
+            "request_recovery_conflict",
+            "pending_request",
+            "error"
+          ]
+        },
         "contextContract": {
           "readOnly": true,
           "prescriptive": false,

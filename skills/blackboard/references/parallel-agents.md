@@ -37,7 +37,7 @@ blackboard batch --request-id "<波次ID>" --file "<子Agent输出目录>/wave.j
 blackboard checkpoint --summary "本波确认内容；仍开放的问题" --cwd "/已确认项目" --no-init
 ```
 
-`--request-id` 必填，用波次或文件名这类稳定的名字；命令中断或不确定是否写入时，用同一 ID 重试，不会重复写入。批量写入不移动游标，也不包含删除和检查点。
+`--request-id` 必填，用波次或文件名这类稳定的名字；命令中断或不确定是否写入时，用同一 ID 重试，不会重复写入。批量写入不移动游标，也不包含删除和检查点。CLI 声明了 `features.batchCheck` 时，可以先用 `batch --check --file …` 校验，它不写入，也不需要 `--request-id`。输入格式见 `blackboard batch --help`。
 
 ## Hook 继承边界
 

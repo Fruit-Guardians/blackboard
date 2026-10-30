@@ -40,17 +40,19 @@ import {
   readEvents,
   stats,
   writeBatch,
+  checkBatch,
 } from '../lib/store.js';
 import { BATCH_LIMITS, batchTooLarge, parseBatch } from '../lib/batch.js';
 import { buildDigest, neighborsOf, tail } from '../lib/digest.js';
 import { buildAgentContext, renderAgentContext } from '../lib/context.js';
 import { searchGraph } from '../lib/search.js';
 import { isOpenThread, isCurrentFinding } from '../lib/semantics.js';
-import { DEFAULT_PORT, resolvePort, rememberViewerPort, probeViewer } from '../lib/service.js';
+import { DEFAULT_PORT, resolvePort, rememberViewerPort, probeViewer, stopViewer, viewerUrl } from '../lib/service.js';
 import { stableCliPath, cliOrigin } from '../lib/release.js';
-import { OUTPUTS, WRITE_TARGETS } from '../lib/contracts.js';
-import { COMMAND_FLAGS, parseArgs } from '../lib/cli/args.js';
+import { ERROR_CODES, ERROR_SCHEMA, OUTPUTS, WRITE_TARGETS } from '../lib/contracts.js';
+import { COMMAND_FLAGS, closest, parseArgs } from '../lib/cli/args.js';
 import { usage } from '../lib/cli/help.js';
+import { commandHelp, commandHelpFor } from '../lib/cli/command-help.js';
 import { C, colorType, shortDetail, nodeLine, activityLine } from '../lib/cli/format.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -65,18 +67,35 @@ function refOrFail(map, ref, label = 'node') {
   try {
     return resolveRef(map, ref, label);
   } catch (e) {
-    return fail(e.message);
+    return fail(e);
   }
 }
 
-function fail(msg) {
-  console.error(`${C.red('blackboard:')} ${msg}`);
+/**
+ * The single way out on failure. Exit status and an empty stdout mean the same with or
+ * without --json; under --json the reason is one line an Agent can read without parsing prose.
+ */
+function fail(problem, details = {}) {
+  const error = problem instanceof Error ? problem : null;
+  const message = error ? error.message : problem;
+  if (invocation.json) {
+    const code = !error ? 'invalid_usage' : ERROR_CODES.includes(error.code) ? error.code : error.line ? 'invalid_batch' : 'error';
+    const known = Object.fromEntries(['line', 'column', 'suggestion', 'candidates', 'requestId', 'fields']
+      .filter((key) => error?.[key] !== undefined).map((key) => [key, error[key]]));
+    console.error(JSON.stringify({ schema: ERROR_SCHEMA, code, ...known, ...details, message }));
+  } else console.error(`${C.red('blackboard:')} ${message}`);
   process.exit(1);
 }
 
+function unknownCommand(name) {
+  const suggestion = closest(name, Object.keys(COMMAND_FLAGS).filter((key) => !key.startsWith('-')));
+  return fail(`未知命令 ${name}${suggestion ? `，你可能想用 ${suggestion}` : ''}（blackboard help 查看用法）`, {
+    code: 'unknown_command', ...(suggestion ? { suggestion } : {}),
+  });
+}
 
-// Set once from the command line: --cwd names the board, --no-init forbids creating one.
-const invocation = { root: null, noInit: false };
+// Set once from the command line: --cwd names the board, --no-init forbids creating one, --json shapes failures.
+const invocation = { root: null, noInit: false, json: false };
 
 function cwd() {
   if (invocation.root) return invocation.root;
@@ -103,7 +122,7 @@ function agentOf(flags) {
 /** Under --no-init a missing board is an error; nothing, not even the directory, is created. */
 function refuseMissingBoard() {
   if (invocation.noInit && !isInitialized(cwd())) {
-    fail(`${cwd()} 没有 .blackboard/，--no-init 不会新建黑板。检查 --cwd / BLACKBOARD_CWD，或先运行 blackboard init。`);
+    fail(`${cwd()} 没有 .blackboard/，--no-init 不会新建黑板。检查 --cwd / BLACKBOARD_CWD，或先运行 blackboard init。`, { code: 'board_missing', cwd: cwd() });
   }
 }
 
@@ -119,8 +138,7 @@ function needInit() {
 /** Read-only commands must not create state as a side effect. */
 function needInitRead() {
   if (!isInitialized(cwd())) {
-    console.error(`${C.red('blackboard:')} 当前目录没有 .blackboard/。先运行 blackboard init --title "审计目标"`);
-    process.exit(1);
+    fail('当前目录没有 .blackboard/。先运行 blackboard init --title "审计目标"', { code: 'board_missing', cwd: cwd() });
   }
   return paths(cwd());
 }
@@ -132,7 +150,7 @@ function needInitRead() {
 function out(flags, obj, output) {
   if (!flags.json) return;
   const body = output?.shape === 'object' ? Object.assign({ schema: output.schema }, obj, { schema: output.schema }) : obj;
-  console.log(JSON.stringify(body, null, 2));
+  console.log(JSON.stringify(body));
 }
 
 
@@ -142,12 +160,44 @@ async function cmdServe(args, flags) {
   needInit();
   const { startServer } = await import('../lib/server.js');
   const server = await startServer({ cwd: target, port, open: !!flags.open, readOnly: !!flags['read-only'] });
+  // Signal handlers run between synchronous log writes, so stopping never cuts one in half.
+  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => process.exit(0));
   try {
     rememberViewerPort(target, server.address().port);
   } catch (error) {
     server.close();
     throw error;
   }
+  console.log(C.dim('  停止: Ctrl+C，或在该项目运行 blackboard stop'));
+}
+
+async function cmdStop(args, flags) {
+  if (args.length) fail('用法: blackboard stop [--port <端口>] [--json]');
+  const p = needInitRead();
+  const { workspaceServiceStatus, stopWorkspaceService } = await import('../lib/setup.js');
+  let result;
+  try {
+    const service = workspaceServiceStatus({ cwd: p.cwd });
+    // launchd's KeepAlive would restart a killed service, so the job itself has to go.
+    if (!flags.port && service.currentProject && service.loaded) {
+      stopWorkspaceService({ cwd: p.cwd });
+      const port = resolvePort({ cwd: p.cwd });
+      result = { state: 'stopped', via: 'launchd', port, url: viewerUrl(port) };
+    } else result = await stopViewer({ cwd: p.cwd, port: flags.port });
+  } catch (error) { return fail(error); }
+  if (flags.json) return out(flags, { ...result, cwd: p.cwd });
+  console.log(result.state === 'stopped' ? `${C.grn('已停止')} ${result.url}` : `当前项目的查看器没有运行（${result.url}）`);
+}
+
+async function cmdTui(args, flags) {
+  if (args.length) fail('用法: blackboard tui [--agent <名称>]');
+  const p = needInitRead();
+  // Never wait on a pipe: an Agent or script that lands here must fail at once, not hang.
+  if (!process.stdin.isTTY || !process.stdout.isTTY || process.env.TERM === 'dumb') {
+    fail('tui 需要交互式终端；Agent 和脚本请用 context、search 或 show --json');
+  }
+  const { runTui } = await import('../lib/cli/tui.js');
+  await runTui({ cwd: p.cwd, agentId: agentOf(flags) });
 }
 
 async function cmdExport(args, flags) {
@@ -240,7 +290,9 @@ async function cmdStatus(args, flags) {
   const labels = { online: '在线', offline: '未启动或无法连接', 'other-project': '正在服务其他项目', unrecognized: '该地址不是可识别的 blackboard 服务' };
   console.log(`可视化 ${viewer.url} · ${labels[viewer.state]}${viewer.state === 'online' && viewer.readOnly ? '（只读）' : ''}`);
   if (viewer.state === 'other-project') console.log(C.yel(`  服务项目 ${viewer.cwd}；当前项目 ${p.cwd}`));
-  if (viewer.state !== 'online') console.log(C.dim(`  当前项目启动: blackboard serve --port ${port} --open`));
+  if (viewer.state === 'online') console.log(C.dim('  停止: blackboard stop'));
+  else if (viewer.state === 'offline') console.log(C.dim(`  当前项目启动: blackboard serve --port ${port} --open`));
+  else console.log(C.dim(`  端口 ${port} 已被占用；当前项目用空闲端口启动: blackboard serve --port 0 --open`));
 }
 
 function cmdList(args, flags) {
@@ -333,16 +385,18 @@ function cmdTree(args, flags) {
     ? starts
     : Object.values(g.nodes).slice(0, 10);
   const walk = (n, d, seen, prefix) => {
-    if (seen.has(n.id) || d > depth) {
-      if (d > depth) console.log(`${prefix}${C.dim('…')}`);
-      return;
-    }
+    if (seen.has(n.id)) return;
     seen.add(n.id);
     console.log(`${prefix}${nodeLine(n)}`);
     const cs = (kids.get(n.id) || [])
       .map((e) => g.nodes[e.to])
       .filter(Boolean)
       .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    if (d >= depth) {
+      const folded = cs.filter((c) => !seen.has(c.id)).length;
+      if (folded) console.log(`${prefix}  ${C.dim(`… ${folded} 个子节点未展开（-d 加深）`)}`);
+      return;
+    }
     for (const c of cs) walk(c, d + 1, seen, `${prefix}  `);
   };
   const seen = new Set();
@@ -481,8 +535,9 @@ function cmdCapabilities(args, flags) {
       writeAttribution: true, cwdFlag: true, noInit: true,
       rejectTruncation: true, inputTruncationMetadata: true, nodeEdgeLabel: true,
       searchFilters: true, searchGrouping: true, listAll: true, nodeJsonDefaults: true,
-      nodeMultiTarget: true, checkpointDelta: true, batch: true },
+      nodeMultiTarget: true, checkpointDelta: true, batch: true, batchCheck: true, jsonErrors: true },
     exportFormats: ['html', 'markdown', 'mermaid', 'sarif'],
+    errors: { stream: 'stderr', schema: ERROR_SCHEMA, codes: ERROR_CODES },
     contextContract: { readOnly: true, prescriptive: false, nextStepSelection: 'agent-controlled' },
     limits: { ...LIMITS, ...BATCH_LIMITS },
     outputs: OUTPUTS,
@@ -582,15 +637,17 @@ async function main() {
   const argv = process.argv.slice(2);
   const delimiter = argv.indexOf('--');
   const options = delimiter < 0 ? argv : argv.slice(0, delimiter);
-  if (options.includes('--help') || options.includes('-h')) return usage();
+  if (options.includes('--help') || options.includes('-h')) return commandHelpFor(argv[0]) ? console.log(commandHelp(argv[0])) : usage();
   const cmd = argv[0];
+  invocation.json = options.includes('--json') || (cmd === 'context' && !options.includes('--markdown') && !options.includes('--md'));
   // Options belong to a command; a leading one would otherwise be misread as the command name.
   if (cmd?.startsWith('--') && cmd !== '--version') {
     return fail(`选项要写在命令之后，例如 blackboard <命令> ${cmd.split('=')[0]} …`);
   }
+  if (cmd !== undefined && !Object.hasOwn(COMMAND_FLAGS, cmd)) return unknownCommand(cmd);
   let parsed;
   try { parsed = parseArgs(argv.slice(1), cmd); }
-  catch (error) { return fail(error.message); }
+  catch (error) { return fail(error); }
   const { args, flags } = parsed;
   if (flags.cwd) invocation.root = path.resolve(String(flags.cwd));
   invocation.noInit = !!flags['no-init'];
@@ -600,7 +657,9 @@ async function main() {
     case '-h':
     case '--help':
     case 'help':
-      return usage();
+      if (!args[0]) return usage();
+      if (!commandHelpFor(args[0])) return unknownCommand(args[0]);
+      return console.log(commandHelp(args[0]));
     case '-v':
     case '--version':
     case 'version':
@@ -678,6 +737,10 @@ async function main() {
       return cmdTail(args, flags);
     case 'serve':
       return cmdServe(args, flags);
+    case 'stop':
+      return cmdStop(args, flags);
+    case 'tui':
+      return cmdTui(args, flags);
     case 'export':
       return cmdExport(args, flags);
     case 'reset':
@@ -695,7 +758,7 @@ async function main() {
     case 'hook':
       return hookEntry(args[0], args.slice(1), flags);
     default:
-      fail(`未知命令 ${cmd}（blackboard help 查看用法）`);
+      unknownCommand(cmd);
   }
 }
 
@@ -773,19 +836,25 @@ async function readStdin(maxBytes = Infinity) {
 
 async function cmdBatch(args, flags) {
   if (args.length) fail('用法: blackboard batch --request-id <ID> [--file <JSONL 文件>]；不给 --file 时读 stdin');
-  if (!flags['request-id']) fail('batch 需要 --request-id：整批作为一次请求写入，失败或中断后可用同一 ID 重试');
+  const check = !!flags.check;
+  if (!check && !flags['request-id']) fail('batch 需要 --request-id：整批作为一次请求写入，失败或中断后可用同一 ID 重试');
   if (!flags.file && process.stdin.isTTY) fail('请用 --file 指定 JSONL 文件，或通过 stdin 传入');
-  needInit();
+  if (check) needInitRead(); else needInit();
   const file = flags.file ? path.resolve(String(flags.file)) : null;
-  if (file && fs.statSync(file).size > BATCH_LIMITS.batchMaxBytes) fail(batchTooLarge().message);
+  if (file && fs.statSync(file).size > BATCH_LIMITS.batchMaxBytes) fail(batchTooLarge());
   const text = file ? fs.readFileSync(file, 'utf8') : await readStdin(BATCH_LIMITS.batchMaxBytes);
+  const options = { agentId: agentOf(flags), rejectTruncation: !!flags['no-truncate'] };
   let result;
   try {
-    result = writeBatch(parseBatch(text), {
-      agentId: agentOf(flags), requestId: flags['request-id'], rejectTruncation: !!flags['no-truncate'],
-    }, cwd());
+    const records = parseBatch(text);
+    result = check
+      ? { checked: true, requestId: flags['request-id'] ?? null, ...checkBatch(records, options, cwd()) }
+      : writeBatch(records, { ...options, requestId: flags['request-id'] }, cwd());
   } catch (error) {
-    if (error.line) fail(`第 ${error.line} 行：${error.message}`);
+    if (error.line) {
+      error.message = `第 ${error.line} 行：${error.message}`;
+      fail(error);
+    }
     throw error;
   }
   for (const entry of result.results) {
@@ -794,6 +863,10 @@ async function cmdBatch(args, flags) {
   const results = result.results.map((entry) => (entry.node ? { ...entry, node: projectNode(entry.node) } : entry));
   if (flags.json) return out(flags, { ...result, results }, OUTPUTS.batch);
   if (process.env.BLACKBOARD_QUIET) return;
+  if (check) {
+    const { nodes, edges, edits } = result.counts;
+    return console.log(`${C.grn('检查通过')} 节点 +${nodes}，关系 +${edges}，修改 ${edits}；未写入`);
+  }
   for (const entry of result.results) {
     if (entry.op === 'node') console.log(`${C.grn('+')} ${nodeLine(entry.node)}${C.dim(relationsOf(entry.node, entry.edges))}`);
     else if (entry.op === 'link') console.log(`${C.grn('+')} ${entry.edge.from} ${C.dim(EDGE_LABEL[entry.edge.kind] || entry.edge.kind)} ${entry.edge.to}${entry.edge.label ? C.dim(`（${entry.edge.label}）`) : ''}`);
@@ -1024,7 +1097,7 @@ function cmdUnlink(args, flags) {
   if (!from || !to) fail('用法: blackboard unlink <from> <to> [--rel supports]');
   let edge;
   try { edge = removeEdge({ from, to, kind: flags.rel || flags.kind || null }, { by: agentOf(flags), requestId: flags['request-id'] }, cwd()); }
-  catch (e) { return fail(e.message); }
+  catch (e) { return fail(e); }
   if (flags.json) return out(flags, edge, OUTPUTS.unlink);
   if (!process.env.BLACKBOARD_QUIET) {
     console.log(`${C.grn('−')} ${edge.from} ${C.dim(EDGE_LABEL[edge.kind] || edge.kind)} ${edge.to}`);
@@ -1036,7 +1109,7 @@ function cmdRemove(args, flags) {
   if (!args[0]) fail('用法: blackboard remove <id> [--reason "…"]（节点及其关系从图上移除，事件日志仍保留历史）');
   let result;
   try { result = removeNode(args[0], { by: agentOf(flags), reason: flags.reason || '', requestId: flags['request-id'] }, cwd()); }
-  catch (e) { return fail(e.message); }
+  catch (e) { return fail(e); }
   if (flags.json) return out(flags, result, OUTPUTS.remove);
   if (!process.env.BLACKBOARD_QUIET) {
     console.log(`${C.grn('−')} ${result.id}${result.edges.length ? C.dim(`（连带 ${result.edges.length} 条关系）`) : ''}`);
@@ -1242,5 +1315,5 @@ async function hookEntry(event, args, flags) {
 
 main().catch((e) => {
   if (process.env.BLACKBOARD_DEBUG) console.error(e);
-  else fail(e.message);
+  else fail(e);
 });

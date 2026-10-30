@@ -29,7 +29,7 @@
 1. **冻结现有输出形状。** 裸数组输出（`ls`/`list`、`activity`）保持数组，不包成对象；它们的 schema 只在 `capabilities.outputs` 里声明。
 2. **顶层是对象的输出都带 `schema` 字段**，放在第一个，包括直接返回节点、关系、检查点、活动记录的命令。`schema` 只出现在顶层：嵌在别的输出里的记录（如 `node` 输出里的 `node`、`ls` 数组里的每一项）不带。`schema` 在打印时加上，所以用 `--request-id` 重试时重放的旧结果也带它；`receipt` 输出里的 `result` 是写入时存下的原样结果，不带。
 3. **写命令默认仍自动初始化。** 项目根没有黑板时，写命令会新建一块。适配层和 Skill 必须显式传 `--no-init`，此时缺黑板就以退出码 1 失败，不新建。
-4. **错误 = 退出码 + stderr 文字。** 失败时退出码为 1，stdout 为空（即使带了 `--json`），原因写在 stderr。stderr 的措辞不是契约，调用方不要解析它。暂不提供 JSON 错误信封。
+4. **错误 = 退出码 + stderr。** 失败时退出码为 1，stdout 为空（即使带了 `--json`）。不带 `--json` 时 stderr 是给人看的文字，措辞不是契约，调用方不要解析它；带 `--json` 时 stderr 是一行 `blackboard.error.v1`，见“错误输出”。
 
 ## 命令与固定输出
 
@@ -45,7 +45,7 @@
 | `here` | — | `outputs/here.json` | `blackboard.here.v2` | 对象 `{schema, agentId, cursor, node, neighbors, trail}` |
 | `activity` | — | `outputs/activity.json` | `blackboard.activity.v1` | 不带子命令：活动记录的数组，每项是 `blackboard.activity.v1`；`show`：单个活动记录 |
 | `promote` | — | `outputs/promote.json` | `blackboard.node-add.v2` | 同 `node` |
-| `batch` | — | `outputs/batch.json` | `blackboard.batch.v1` | 对象 `{schema, requestId, counts, results}`；`counts` 为 `{nodes, edges, edits}`；`results` 按输入顺序，每项带输入行号 `line` 与 `op`：`node` 项有 `node`、`edges` 及可选 `ref`，`link` 项有 `edge`，`edit` 项有修改后的 `node`；有截断时该项带 `truncated`。输入格式、必填 `--request-id` 与原子性见下文“批量写入” |
+| `batch` | — | `outputs/batch.json` | `blackboard.batch.v1` | 对象 `{schema, requestId, refs, counts, results}`；`refs` 把批内名字映射到节点 ID（`0.10.1` 及更早写入的回执重放时没有此字段）；`counts` 为 `{nodes, edges, edits}`；`results` 按输入顺序，每项带输入行号 `line` 与 `op`：`node` 项有 `node`、`edges` 及可选 `ref`，`link` 项有 `edge`，`edit` 项有修改后的 `node`；有截断时该项带 `truncated`。输入格式、必填 `--request-id` 与原子性见下文“批量写入” |
 | `done` | — | `outputs/done.json` | `blackboard.node.v2` | 修改后的节点记录 |
 | `block` | — | `outputs/block.json` | `blackboard.node.v2` | 修改后的节点记录 |
 | `revive` | — | `outputs/revive.json` | `blackboard.node.v2` | 修改后的节点记录 |
@@ -87,6 +87,8 @@
 
 `batch --request-id <ID> [--file <JSONL>] [--agent <名称>] [--no-truncate]` 把一组记录作为**一次请求**写入；不给 `--file` 时读 stdin。`--request-id` 必填：同一 ID、同样内容重试返回原结果且不再写入，内容不同返回 `request_id_conflict`；写到一半中断时回执为 pending，用同一 ID 重试按原计划补齐。`features.batch` 声明此命令，`limits.batchMaxOps`、`limits.batchMaxBytes` 给出单批上限。
 
+`batch --check` 对当前黑板完整执行一遍校验但不写入事件，`--request-id` 可省略（省略时输出里为 `null`）。输出同为 `blackboard.batch.v1`，另有 `checked: true`；其中的 ID 是预计值，不是已创建的节点。没有黑板时报错，不新建。它不查询回执，也不预留 ID：校验通过后日志若有变化，或已有未完成的请求，实际写入仍可能失败。`features.batchCheck` 声明此选项。
+
 输入每行一个 JSON 对象，空行忽略，开头的 UTF-8 BOM 忽略：
 
 | `op` | 必填 | 可选 |
@@ -96,7 +98,7 @@
 | `edit` | `id`，以及 `title`、`detail`、`status`、`severity`、`confidence`、`tags` 中至少一个 | `agent` |
 
 - `ref` 给本批新建的节点起本地名（`[A-Za-z0-9_-]`，最长 64），后续行用 `$名字` 引用；只能引用之前的行，名字在一批内唯一。
-- 未知 `op` 或未知字段、类型不对、取值不合法、引用不存在，都使整批失败：退出码 1，stdout 为空，stderr 写明行号，日志不变。文本字段不接受空字符串或纯空白，`tags` 必须是非空数组（与 CLI 拒绝缺值的选项一致，批量写入不能借此清空字段）；`node` 的 `rel`、`label` 描述指向 `to` 的关系，没有 `to` 时报错而不是忽略。
+- 未知 `op` 或未知字段、类型不对、取值不合法、引用不存在，都使整批失败：退出码 1，stdout 为空，stderr 写明行号，日志不变。JSON 语法错误在解析器给出偏移时另报列号，不回显行内容。文本字段不接受空字符串或纯空白，`tags` 必须是非空数组（与 CLI 拒绝缺值的选项一致，批量写入不能借此清空字段）；`node` 的 `rel`、`label` 描述指向 `to` 的关系，没有 `to` 时报错而不是忽略。
 - `agent` 只决定该行的作者（`author` / `updatedBy`），缺省用 `--agent`。批量写入不移动任何游标，不支持 `enter`、`relate-here`、`parent`，也不包含删除、重置、检查点和活动。
 - 写入的是普通 `node`、`edge`、`patch` 事件加一个回执标记，与单条写入的事件相同；`receipt` 的 `command` 为 `batch`。文本上限与截断规则同单条写入，`--no-truncate` 作用于整批。
 
@@ -146,7 +148,9 @@ SARIF `level` 只映射记录的 severity：critical/high → error，medium →
 | `service` | 管理 macOS 常驻服务 |
 | `release` | 安装与切换版本，只在开发仓库使用 |
 | `serve` | 前台常驻进程，没有 `--json` |
+| `stop` | 操作本机常驻进程，输出依赖运行状态 |
 | `tree` | 只有文本输出 |
+| `tui` | 交互式终端视图，给人用；没有 `--json`，非 TTY 时立即报错退出 |
 | `hook` | 宿主 Hook 入口，输入输出由宿主协议决定 |
 | `help` `version` | 只给人看 |
 
@@ -156,6 +160,21 @@ SARIF `level` 只映射记录的 severity：critical/high → error，medium →
 - `1`：失败，如参数错误、未知选项、引用不存在的节点或回执、`--no-init` 时缺黑板、读命令时缺黑板。失败时 stdout 为空。
 
 固定输出测试为每条命令记录退出码，并包含若干失败用例（`show nope`、`edit nope`、`cursor nope`、`receipt` 缺参数或找不到、`goal … --no-init`）。
+
+## 输出格式与错误输出
+
+`--json` 输出单行紧凑 JSON，以节省 Agent 的上下文；空白不是契约，读取方按 JSON 解析。`context` 的 `estimatedTokens` 按同样的紧凑形式估算。
+
+`features.jsonErrors` 声明时，带 `--json` 的失败在 stderr 输出一行 `blackboard.error.v1`（`context` 不带 `--markdown` 时同样如此，因为它默认输出 JSON）：
+
+```json
+{"schema":"blackboard.error.v1","code":"unknown_option","suggestion":"--type","message":"…"}
+```
+
+- `code` 必有，取值列在 `capabilities.errors.codes`；已列出的 code 含义稳定，将来可以新增，调用方遇到不认识的值按普通失败处理。`error` 表示尚未归类。
+- `message` 必有，是给人看的文字，不是契约。
+- 可选字段：`suggestion`（最接近的合法写法，只是拼写建议）、`candidates`（前缀匹配到的节点 ID）、`line` 与 `column`（batch 输入位置，语法错误且解析器给出偏移时才有 `column`）、`requestId`、`fields`、`cwd`。
+- 判断成败看退出码。成功时 stderr 仍可能有给人看的提示，如截断说明，它们不是 JSON。
 
 ## 事件格式
 
@@ -180,6 +199,8 @@ SARIF `level` 只映射记录的 severity：critical/high → error，medium →
 - `features.nodeJsonDefaults`：节点公开投影包含三个可空维度；具体版本仍以 `outputs` 为准。
 - `features.nodeMultiTarget`：`node add` / 简写命令 / `promote` 的 `--to` 可重复，用同一关系连向多个已有节点；任一目标不存在时整次写入不发生。
 - `features.checkpointDelta`：`checkpoint --json` 带 `sincePrevious`。
+- `features.batchCheck`：`batch --check` 只校验、不写入。
+- `features.jsonErrors`：带 `--json` 的失败输出 `blackboard.error.v1`；`errors` 给出 `{stream, schema, codes}`。
 - `exportFormats`：当前支持 `html`、`markdown`、`mermaid`、`sarif`。
 - `outputs`：每个契约输出的形状，以命令为键（`activity show` 单列）。对象输出是 `{shape: "object", schema}`，数组输出是 `{shape: "array", items}`。输出里的 `schema` 与这张表来自同一处，测试逐个用例核对。
 - `writeTargets`：命令在项目根下会写的全部文件，每项是 `{path, role}`，`path` 相对项目根、用 `/` 分隔：

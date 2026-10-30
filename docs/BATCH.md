@@ -22,6 +22,7 @@
 
 ```sh
 blackboard batch --request-id wave-3 --file wave-3.jsonl --cwd "/已确认项目" --no-init [--agent coordinator] [--no-truncate] [--json]
+blackboard batch --check --file wave-3.jsonl --cwd "/已确认项目"   # 只校验，不写入
 # 不给 --file 时从 stdin 读取
 ```
 
@@ -53,7 +54,8 @@ JSON Lines，每行一个对象，`op` 决定操作。空行忽略。
 ## 原子性与错误
 
 - 整批**要么全部写入，要么一个字节都不写**。先逐行解析并在内存中模拟执行，所有行都通过才追加事件。
-- 任一行出错时退出码为 1，stdout 为空，stderr 写明行号和原因（如 `第 3 行：no such target node: o9`），不回显该行内容。
+- 任一行出错时退出码为 1，stdout 为空，stderr 写明行号和原因（如 `第 3 行：no such target node: o9`），不回显该行内容。JSON 语法错误在解析器给出偏移时另报列号；同一行粘了两条记录时明确提示换行。
+- `--check` 按当前黑板走完同一遍校验后丢弃事件，什么都不写，也不需要 `--request-id`；输出里的 ID 是预计值。它不是预留：校验后日志若有变化，实际写入仍可能失败。
 - 上限：每批最多 500 个操作，输入最多 4 MB。超出时整批拒绝，提示拆分。
 
 ## 输出
@@ -64,6 +66,7 @@ JSON Lines，每行一个对象，`op` 决定操作。空行忽略。
 {
   "schema": "blackboard.batch.v1",
   "requestId": "wave-3",
+  "refs": { "h": "hy4" },
   "counts": { "nodes": 2, "edges": 4, "edits": 1 },
   "results": [
     { "line": 1, "op": "node", "ref": "h", "node": { "id": "hy4", "...": "..." }, "edges": [ { "from": "hy4", "to": "g1", "kind": "related-to" } ] },
@@ -73,7 +76,7 @@ JSON Lines，每行一个对象，`op` 决定操作。空行忽略。
 }
 ```
 
-节点使用公开投影（三个维度可空）。文本输出每行一条，格式同单条写入的回显，最后一行汇总本批数量。
+`refs` 把批内名字映射到最终节点 ID，后续命令直接读它，不必遍历 `results`；`--check` 时是预计值。节点使用公开投影（三个维度可空）。文本输出每行一条，格式同单条写入的回显，最后一行汇总本批数量。
 
 ## 能力与契约
 

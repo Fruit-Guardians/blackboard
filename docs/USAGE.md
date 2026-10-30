@@ -62,7 +62,9 @@ blackboard init --title "项目或任务名"
 blackboard serve --open
 ```
 
-`serve` 是前台服务，退出进程即停止。项目子目录会发现上层最近的 `.blackboard/`；确需独立黑板时使用 `init --here`。
+`serve` 是前台服务，`Ctrl+C` 或在该项目运行 `blackboard stop` 即停止。项目子目录会发现上层最近的 `.blackboard/`；确需独立黑板时使用 `init --here`。
+
+在终端里看黑板用 `blackboard tui`：只读，日志变化时自动刷新，按 `?` 查看按键，`q` 退出。它给人用，不写事件也不移动游标；没有终端时立即报错退出，Agent 和脚本继续用 `context`、`search`、`show`。
 
 ### 3. 核验接入结果
 
@@ -339,7 +341,7 @@ blackboard promote act1 --kind observation --title "值得保留的观察"
 **页面显示“重连中”，但画面还在？** 页面只在收到结构有效的图快照后显示“已同步”。连接中断或服务发来无法识别的数据时，页面保留上一份有效画面并显示重连中，不会清空；服务恢复推送有效快照后自动回到已同步。
 
 
-**如何停用？** 前台 `serve` 用 `Ctrl+C` 停止。用下面的命令移除所用范围的 Hook，再手动移除对应的 Skill 目录；不必删除黑板数据：
+**如何停用？** 用 `blackboard stop` 关闭当前项目的查看器（前台 `serve` 也可 `Ctrl+C`）。端口属于其他项目或无法识别时，它报错且不动对方；共享服务归属当前项目时，它等同 `service stop`，之后用 `setup` 重新启动。用下面的命令移除所用范围的 Hook，再手动移除对应的 Skill 目录；不必删除黑板数据：
 
 ```bash
 blackboard hooks uninstall --user --write

@@ -68,7 +68,9 @@ blackboard search --type vuln --group-by severity,status --cwd "/已确认项目
 blackboard node add hypothesis "待验证的判断" --confidence suspected --to "<目标ID>" --enter --cwd "/已确认项目" --no-init
 ```
 
-需要新节点的 ID 时加 `--json`，读输出里的 `node.id`；写命令都支持 `--json`，不要解析给人看的文本。
+需要新节点的 ID 时加 `--json`：`node add` 读 `node.id`；`edit`、`done`、`block`、`revive` 的节点字段在顶层，读 `id`。各命令的选项、示例和输出形状用 `blackboard <命令> --help` 查看；不要解析给人看的文本。
+
+带 `--json` 失败时退出码为 1、stdout 为空，stderr 是一行 `blackboard.error.v1`：读 `code`，有 `suggestion` 时据此改正后重试，`batch` 错误还带 `line` 和 `column`。CLI 声明 `features.jsonErrors` 时才这样；`blackboard tui` 是给人看的交互界面，Agent 不要运行它。
 
 等待外部依赖（源码未到、等用户答复、等长时间运行的结果）时，把卡住的节点标为 `blocked`，等到后用 `revive` 恢复为 `open`；在等什么写进检查点摘要。这只是记录，不阻止任何操作，但接手者能据此分清“刚开始”和“卡住了”：
 

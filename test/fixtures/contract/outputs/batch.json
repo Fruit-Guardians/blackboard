@@ -17,6 +17,9 @@
       "output": {
         "schema": "blackboard.batch.v1",
         "requestId": "batch-1",
+        "refs": {
+          "h": "hy1"
+        },
         "counts": {
           "nodes": 2,
           "edges": 4,
@@ -139,6 +142,9 @@
             "fingerprint": "4fc9c10018c5d756b3a1ae778400b1f0c6ad6fba840e4eda914dbf0f79f1f281",
             "result": {
               "requestId": "batch-1",
+              "refs": {
+                "h": "hy1"
+              },
               "counts": {
                 "nodes": 2,
                 "edges": 4,
@@ -448,6 +454,75 @@
       ],
       "exitCode": 1,
       "output": null
+    },
+    {
+      "board": "research",
+      "args": [
+        "batch",
+        "--check",
+        "--cwd",
+        "<board>",
+        "--json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "schema": "blackboard.batch.v1",
+        "checked": true,
+        "requestId": null,
+        "refs": {
+          "n": "n1"
+        },
+        "counts": {
+          "nodes": 1,
+          "edges": 1,
+          "edits": 1
+        },
+        "results": [
+          {
+            "line": 1,
+            "op": "node",
+            "ref": "n",
+            "node": {
+              "id": "n1",
+              "type": "note",
+              "title": "Fine",
+              "ts": "<now>",
+              "session": "<session-id>",
+              "author": "agent:primary",
+              "status": null,
+              "severity": null,
+              "confidence": null
+            },
+            "edges": [
+              {
+                "id": "n1->g1:related-to",
+                "from": "n1",
+                "to": "g1",
+                "kind": "related-to",
+                "ts": "<now>",
+                "author": "agent:primary"
+              }
+            ]
+          },
+          {
+            "line": 2,
+            "op": "edit",
+            "node": {
+              "id": "n1",
+              "type": "note",
+              "title": "Fine",
+              "ts": "<now>",
+              "session": "<session-id>",
+              "author": "agent:primary",
+              "status": "done",
+              "updated": "<now>",
+              "updatedBy": "agent:primary",
+              "severity": null,
+              "confidence": null
+            }
+          }
+        ]
+      }
     }
   ]
 }

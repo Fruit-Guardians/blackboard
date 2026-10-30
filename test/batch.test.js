@@ -221,6 +221,49 @@ test('oversized batches are rejected before anything is written', (t) => {
   assert.deepEqual(log(dir), before);
 });
 
+test('a broken line reports its column without echoing the input', (t) => {
+  const dir = seeded(t);
+  const before = log(dir);
+  const first = JSON.stringify({ op: 'node', type: 'note', title: 'synthetic-private-text' });
+  const r = run(dir, ['batch', '--request-id', 'glued'], `${first}${JSON.stringify({ op: 'link', from: 'g1', to: 'hy1' })}\n`);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, new RegExp(`第 1 行.*column ${first.length + 1}`));
+  assert.doesNotMatch(r.stderr, /synthetic-private-text/);
+  assert.deepEqual(log(dir), before);
+});
+
+test('--check resolves against the current board, predicts the ids and writes nothing', (t) => {
+  const dir = seeded(t);
+  const before = log(dir);
+  const input = jsonl(
+    { op: 'node', ref: 'h', type: 'hypothesis', title: 'Predicted', to: 'g1' },
+    { op: 'edit', id: '$h', status: 'refuted' },
+    { op: 'edit', id: 'hy1', status: 'refuted' },
+  );
+  const checked = ok(dir, ['batch', '--check', '--json'], input);
+  assert.equal(checked.checked, true);
+  assert.equal(checked.requestId, null);
+  assert.deepEqual(checked.counts, { nodes: 1, edges: 1, edits: 2 });
+  assert.deepEqual(log(dir), before);
+
+  const dangling = run(dir, ['batch', '--check'], jsonl({ op: 'link', from: 'nope', to: 'g1' }));
+  assert.equal(dangling.status, 1);
+  assert.equal(dangling.stdout, '');
+  assert.match(dangling.stderr, /第 1 行.*nope/);
+  assert.deepEqual(log(dir), before);
+
+  const written = ok(dir, ['batch', '--request-id', 'after-check', '--json'], input);
+  assert.deepEqual(written.results.map((result) => result.node.id), checked.results.map((result) => result.node.id));
+});
+
+test('--check never creates a board', (t) => {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'blackboard-batch-')));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const r = run(dir, ['batch', '--check'], jsonl({ op: 'node', type: 'note', title: 'x' }));
+  assert.equal(r.status, 1);
+  assert.deepEqual(fs.readdirSync(dir), []);
+});
+
 test('capabilities advertise batch with its output schema and limits', () => {
   const caps = JSON.parse(spawnSync(process.execPath, [CLI, 'capabilities', '--json'], { encoding: 'utf8' }).stdout);
   assert.equal(caps.features.batch, true);
