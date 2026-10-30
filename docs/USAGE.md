@@ -207,7 +207,7 @@ blackboard edit hy1 --title "修订后的猜测" --detail "补充证据"
 
 - `--enter` 显式移动游标；`--relate-here` 显式关联当前位置，默认关系为弱语义的 `related-to`。
 - `--to <id>` 让新节点指向已有节点，读作“新节点 `--rel` id”，如新证据 `--to hy1 --rel supports`；`--parent <id>` 方向相反，读作“id `--rel` 新节点”。**当前游标不是隐式父节点**。
-- `--to` 可重复，用同一 `--rel` 把新节点连向多个已有节点；`--to` 不能与 `--parent`/`--relate-here` 同用，关系不同的连边用 `link`。任一目标不存在时整条命令不写入。
+- `--to` 可重复，用同一 `--rel` 把新节点连向多个已有节点；`--to` 不能与 `--parent`/`--relate-here` 同用，关系不同的连边用 `link`。任一目标不存在时整条命令不写入。`--rel`、`--label` 描述的是这条关系，没有 `--to`/`--parent`/`--relate-here` 时报错，不再静默忽略。
 - 写命令加 `--json` 时，新节点 ID 在 `node.id`，本次建立的关系在 `edges`；不要解析给人看的回显。没有连关系的节点，回显会注明“未连关系”。
 - `--at <file:line>` 记录证据位置；`--detail` / `-d` 添加详情；`--tag` / `-t` 可重复指定标签。
 - ID 按类型递增，如 `g1`、`o1`、`hy1`；活动和检查点如 `act1`、`cp1`。接受 ID 的命令支持 `[hy1]`、大小写不敏感及唯一前缀，存在歧义时列出候选。
@@ -362,6 +362,8 @@ blackboard service uninstall      # 停止任务并删除本工具受管 plist
 ## 版本与升级
 
 
+`0.10.1` 修正 `batch` 与 Hook 的细节：同一批里先建后改的节点，日志中的创建事件不再被后面的修改改写；批量输入拒绝空字符串、空 `tags` 和没有 `to` 的 `rel`/`label`，接受带 BOM 的文件，超过 `limits.batchMaxBytes` 时不再先整份读入内存。`node add`/`promote` 的 `--rel` 没有关系目标时报错。活动采集的脱敏在大段工具输出上不再退化为平方时间（200 KB 输出曾使 Hook 卡住数十秒），Hook 改为异步读取 stdin，Node 18 下大载荷不再因 `EAGAIN` 被当作空载荷丢弃。脱敏结果、输出与事件格式不变。
+
 `0.10.0` 新增 `batch`：从 JSONL 文件或 stdin 一次写入多条 `node`、`link`、`edit`，批内可用 `$名字` 引用本批新建的节点，每行可写明作者。整批全部写入或全部不写，出错时报告行号；必须带 `--request-id`，中断后用同一 ID 重试会按原计划补齐。不移动游标。新增 `blackboard.batch.v1` 输出、`features.batch` 与 `limits.batchMaxOps` / `limits.batchMaxBytes`；其他输出与事件格式不变。
 
 `0.9.0` 修正真实长任务中暴露的接口细节：`capabilities` 接受 `--cwd`；选项写在命令前面时给出明确提示；`--to` 可重复；help 写明除 `tree`、`serve`、`hook` 外都支持 `--json`。没有 `--sev` 的 `vuln` 不再被写成 `medium`，严重度保持未记录。`checkpoint` 回显同一身份上一检查点以来的节点与关系变化（`--json` 的 `sincePrevious`），`status` 按可信度列出发现/漏洞并注明未定级数量。Skill 写明记录时机：判断形成时就记，磁盘上的日志和台账不替代节点，分波工作每波结束时记录并打检查点。新增字段均为兼容扩展，事件格式不变。
@@ -384,7 +386,8 @@ blackboard service uninstall      # 停止任务并删除本工具受管 plist
 ├── versions/0.8.3/
 ├── versions/0.9.0/
 ├── versions/0.10.0/
-└── current -> versions/0.10.0
+├── versions/0.10.1/
+└── current -> versions/0.10.1
 ```
 
 ```bash

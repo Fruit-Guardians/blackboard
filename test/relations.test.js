@@ -81,12 +81,18 @@ test('node add --label writes the label on the relation it creates', (t) => {
   assert.equal(JSON.parse(capabilities.stdout).features.nodeEdgeLabel, true);
 });
 
-test('a label without a relation is refused before anything is written', (t) => {
+test('a label or relation name without a relation target is refused before anything is written', (t) => {
   const cwd = fixture(t);
   const before = log(cwd);
   const loose = cli(cwd, ['node', 'add', 'note', 'Synthetic note', '--label', 'no relation']);
   assert.equal(loose.status, 1);
   assert.match(loose.stderr, /label/);
+  assert.equal(log(cwd), before);
+  for (const args of [['node', 'add', 'note', 'Synthetic note', '--rel', 'supports'], ['fact', 'Synthetic fact', '--rel', 'supports']]) {
+    const dangling = cli(cwd, args);
+    assert.equal(dangling.status, 1, args.join(' '));
+    assert.match(dangling.stderr, /--rel/);
+  }
   assert.equal(log(cwd), before);
 
   // relateHere with no cursor creates no relation either.

@@ -1014,12 +1014,22 @@ test('redaction covers connection strings, key-like names, JSON, tokens and priv
     'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig': '[REDACTED JWT]',
     'https://x/?access_token=abc&n=1': 'https://x/?access_token=[REDACTED]&n=1',
     'ls -la token_count is fine': 'ls -la token_count is fine',
+    'x +git+ssh://deploy:hunter2@host': 'x +git+ssh://deploy:[REDACTED]@host',
+    'see a.redis://u:hunter2@h': 'see a.redis://u:[REDACTED]@h',
+    'my.app_token.v2: abc': 'my.app_token.v2: [REDACTED]',
   };
   for (const [input, expected] of Object.entries(cases)) assert.equal(redactSensitive(input), expected, input);
   assert.equal(
     redactSensitive('a\n-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----\nb'),
     'a\n[REDACTED PRIVATE KEY]\nb',
   );
+});
+
+test('redaction stays linear on long word runs so a large tool output cannot stall the hook', () => {
+  // Each of these took seconds to tens of seconds when a pattern rescanned the run from every character.
+  const started = Date.now();
+  for (const input of ['x'.repeat(200000), 'a.'.repeat(100000), 'token'.repeat(40000)]) redactSensitive(input);
+  assert.ok(Date.now() - started < 2000, `redaction took ${Date.now() - started} ms`);
 });
 
 function bare(t) {

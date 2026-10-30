@@ -41,7 +41,7 @@ import {
   stats,
   writeBatch,
 } from '../lib/store.js';
-import { BATCH_LIMITS, parseBatch } from '../lib/batch.js';
+import { BATCH_LIMITS, batchTooLarge, parseBatch } from '../lib/batch.js';
 import { buildDigest, neighborsOf, tail } from '../lib/digest.js';
 import { buildAgentContext, renderAgentContext } from '../lib/context.js';
 import { searchGraph } from '../lib/search.js';
@@ -711,6 +711,9 @@ function addSimple(type, args, flags) {
   if (flags.confidence && !CONFIDENCE_LEVELS.includes(flags.confidence)) {
     fail(`--confidence 只能是 ${CONFIDENCE_LEVELS.join('|')}`);
   }
+  if ((flags.rel || flags.kind) && !flags.to && !flags.parent && !flags['relate-here']) {
+    fail('--rel 描述新节点与 --to/--parent/--relate-here 之间的关系，需同时给出其中之一');
+  }
   needInit();
   const result = addNode(
     {
@@ -753,10 +756,18 @@ function relationsOf(node, edges) {
     : ` ${EDGE_LABEL[edge.kind] || edge.kind} ${edge.from}`) + (edge.label ? `（${edge.label}）` : '')).join('');
 }
 
-/** A non-blocking stdin pipe can return EAGAIN to a synchronous read once input exceeds the pipe buffer. */
-async function readStdin() {
+/**
+ * A non-blocking stdin pipe can return EAGAIN to a synchronous read once input exceeds the pipe buffer.
+ * Reading stops just past `maxBytes`, so the caller still sees an over-limit input without buffering all of it.
+ */
+async function readStdin(maxBytes = Infinity) {
   const chunks = [];
-  for await (const chunk of process.stdin) chunks.push(chunk);
+  let size = 0;
+  for await (const chunk of process.stdin) {
+    chunks.push(chunk);
+    size += chunk.length;
+    if (size > maxBytes) break;
+  }
   return Buffer.concat(chunks).toString('utf8');
 }
 
@@ -765,7 +776,9 @@ async function cmdBatch(args, flags) {
   if (!flags['request-id']) fail('batch 需要 --request-id：整批作为一次请求写入，失败或中断后可用同一 ID 重试');
   if (!flags.file && process.stdin.isTTY) fail('请用 --file 指定 JSONL 文件，或通过 stdin 传入');
   needInit();
-  const text = flags.file ? fs.readFileSync(path.resolve(String(flags.file)), 'utf8') : await readStdin();
+  const file = flags.file ? path.resolve(String(flags.file)) : null;
+  if (file && fs.statSync(file).size > BATCH_LIMITS.batchMaxBytes) fail(batchTooLarge().message);
+  const text = file ? fs.readFileSync(file, 'utf8') : await readStdin(BATCH_LIMITS.batchMaxBytes);
   let result;
   try {
     result = writeBatch(parseBatch(text), {
@@ -934,6 +947,7 @@ function cmdActivity(args, flags) {
 }
 
 function cmdPromote(args, flags) {
+  if (flags.rel && !flags.to && !flags['relate-here']) fail('--rel 描述新节点与 --to/--relate-here 之间的关系，需同时给出其中之一');
   needInit();
   const id = args[0];
   const g = replay(cwd());
@@ -1207,7 +1221,7 @@ async function hookEntry(event, args, flags) {
   const { runHook } = await import('../lib/hooks.js');
   let payload = {};
   try {
-    const raw = fs.readFileSync(0, 'utf8');
+    const raw = process.stdin.isTTY ? '' : await readStdin();
     if (raw.trim()) payload = JSON.parse(raw);
   } catch {
     payload = {};

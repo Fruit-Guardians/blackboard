@@ -87,7 +87,7 @@
 
 `batch --request-id <ID> [--file <JSONL>] [--agent <名称>] [--no-truncate]` 把一组记录作为**一次请求**写入；不给 `--file` 时读 stdin。`--request-id` 必填：同一 ID、同样内容重试返回原结果且不再写入，内容不同返回 `request_id_conflict`；写到一半中断时回执为 pending，用同一 ID 重试按原计划补齐。`features.batch` 声明此命令，`limits.batchMaxOps`、`limits.batchMaxBytes` 给出单批上限。
 
-输入每行一个 JSON 对象，空行忽略：
+输入每行一个 JSON 对象，空行忽略，开头的 UTF-8 BOM 忽略：
 
 | `op` | 必填 | 可选 |
 | --- | --- | --- |
@@ -96,7 +96,7 @@
 | `edit` | `id`，以及 `title`、`detail`、`status`、`severity`、`confidence`、`tags` 中至少一个 | `agent` |
 
 - `ref` 给本批新建的节点起本地名（`[A-Za-z0-9_-]`，最长 64），后续行用 `$名字` 引用；只能引用之前的行，名字在一批内唯一。
-- 未知 `op` 或未知字段、类型不对、取值不合法、引用不存在，都使整批失败：退出码 1，stdout 为空，stderr 写明行号，日志不变。
+- 未知 `op` 或未知字段、类型不对、取值不合法、引用不存在，都使整批失败：退出码 1，stdout 为空，stderr 写明行号，日志不变。文本字段不接受空字符串或纯空白，`tags` 必须是非空数组（与 CLI 拒绝缺值的选项一致，批量写入不能借此清空字段）；`node` 的 `rel`、`label` 描述指向 `to` 的关系，没有 `to` 时报错而不是忽略。
 - `agent` 只决定该行的作者（`author` / `updatedBy`），缺省用 `--agent`。批量写入不移动任何游标，不支持 `enter`、`relate-here`、`parent`，也不包含删除、重置、检查点和活动。
 - 写入的是普通 `node`、`edge`、`patch` 事件加一个回执标记，与单条写入的事件相同；`receipt` 的 `command` 为 `batch`。文本上限与截断规则同单条写入，`--no-truncate` 作用于整批。
 

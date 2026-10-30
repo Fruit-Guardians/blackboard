@@ -98,6 +98,10 @@ test('any invalid line rejects the whole batch, names the line, and leaves the l
     [JSON.stringify({ op: 'remove', id: 'hy1' }), /第 2 行.*remove/],
     [JSON.stringify({ op: 'node', type: 'note', title: 'Enter', enter: true }), /第 2 行.*enter/],
     [JSON.stringify({ op: 'edit', id: 'hy1' }), /第 2 行/],
+    [JSON.stringify({ op: 'toString' }), /第 2 行.*toString/],
+    [JSON.stringify({ op: 'edit', id: 'hy1', status: '' }), /第 2 行.*status/],
+    [JSON.stringify({ op: 'edit', id: 'hy1', tags: [] }), /第 2 行.*tags/],
+    [JSON.stringify({ op: 'node', type: 'note', title: 'No target', rel: 'supports' }), /第 2 行.*rel/],
   ];
   for (const [index, [line, message]] of cases.entries()) {
     const before = log(dir);
@@ -116,6 +120,22 @@ test('any invalid line rejects the whole batch, names the line, and leaves the l
   assert.equal(duplicate.status, 1);
   assert.match(duplicate.stderr, /第 2 行.*x/);
   assert.deepEqual(log(dir), before);
+});
+
+test('a later edit in the same batch never rewrites the node event or result written before it', (t) => {
+  const dir = seeded(t);
+  const out = ok(dir, ['batch', '--request-id', 'wave-1', '--json'], `\uFEFF${jsonl(
+    { op: 'node', ref: 'h', type: 'hypothesis', title: 'As first written', tags: ['x'] },
+    { op: 'edit', id: '$h', title: 'Revised', status: 'refuted', tags: ['y'] },
+  )}`);
+  const [created, edited] = out.results;
+  assert.deepEqual([created.node.title, created.node.status, created.node.tags], ['As first written', 'open', ['x']]);
+  assert.deepEqual([edited.node.title, edited.node.status, edited.node.tags], ['Revised', 'refuted', ['y']]);
+
+  const events = readEvents(dir).events;
+  const node = events.find((event) => event.op === 'node' && event.node.id === created.node.id).node;
+  assert.deepEqual([node.title, node.status, node.tags, 'updated' in node], ['As first written', 'open', ['x'], false]);
+  assert.deepEqual([replay(dir).nodes[created.node.id].title, replay(dir).nodes[created.node.id].status], ['Revised', 'refuted']);
 });
 
 test('a batch requires a request id, and the same id replays the original result without writing', (t) => {
